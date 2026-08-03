@@ -116,3 +116,77 @@ const:
 await:
 
 等待异步结果
+
+# Supabase 数据库学习笔记
+
+
+## 数据流程
+
+
+用户输入项目
+
+↓
+
+index.html收集数据
+
+↓
+
+app.js处理
+
+↓
+
+Supabase保存
+
+↓
+
+projects表存储
+
+
+
+## 数据库概念
+
+
+Table:
+
+数据表，例如 projects
+
+
+Column:
+
+字段，例如 name、status、bid_date
+
+
+Row:
+
+一条项目记录
+
+
+
+## 当前projects表
+
+
+主要字段：
+
+id
+
+项目唯一编号
+
+
+name
+
+项目名称
+
+
+status
+
+项目状态
+
+
+bid_date
+
+开标日期
+
+
+notes
+
+备注
