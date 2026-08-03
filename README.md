@@ -1,59 +1,265 @@
-# 项目管理工作台（Supabase 云端版）
+# 🤖 AI Bid Assistant
 
-这是一个无需后端服务器的静态网页。Supabase 提供邮箱密码登录、Postgres 数据库、行级安全（RLS）和实时同步；免费方案即可运行。
+> 一个面向工程建设行业标书人员的智能投标工作助手。
 
-## 数据表结构
+AI Bid Assistant 致力于帮助投标人员管理项目流程、整理投标信息，并逐步引入 AI 能力，实现招标文件分析、风险检查、资料管理和标书辅助生成。
 
-`public.projects` 是唯一的业务表：
+这个项目来源于真实工作场景：
 
-| 字段 | 类型 | 说明 |
-| --- | --- | --- |
-| `id` | `uuid` | 项目唯一 ID，自动生成 |
-| `user_id` | `uuid` | 关联 `auth.users.id`，用于隔离每位用户的数据 |
-| `name` | `text` | 项目名称 |
-| `project_type` | `text` | 项目类型 |
-| `contact` | `text` | 联系人 |
-| `bid_date` | `date` | 开标日期 |
-| `guarantee` | `text` | 保证金/保函 |
-| `status` | `text` | `报名中`、`制作中` 或 `已开标` |
-| `notes` | `text` | 可选备注 |
-| `created_at` / `updated_at` | `timestamptz` | 创建与最后修改时间 |
+每天面对大量招标文件、项目节点、资格要求和重复性工作，很多信息需要人工整理，容易遗漏关键内容。
 
-完整的建表、索引、自动更新时间触发器、RLS 策略与实时同步设置都在 [supabase.sql](./supabase.sql)。
+因此，我尝试利用 AI 和软件技术，打造一个属于标书人员自己的智能工作台。
 
-## 配置和运行
+---
 
-1. 在 [Supabase](https://supabase.com/dashboard) 创建一个免费的项目。
-2. 打开 **SQL Editor**，粘贴并执行 `supabase.sql` 的完整内容。
-3. 在 **Authentication → Providers → Email** 确保 Email 已启用。开发测试可关闭“Confirm email”；若保留邮箱验证，则注册后须先点击邮件中的确认链接。
-4. 打开 **Project Settings → API**，复制 Project URL 与 **anon key / publishable key**。
-5. 编辑 [supabase-config.js](./supabase-config.js)，填入这两个值：
+## 📌 项目愿景
 
-   ```js
-   window.SUPABASE_CONFIG = {
-     url: "https://你的项目ID.supabase.co",
-     anonKey: "你的 anon 或 publishable key"
-   };
-   ```
+未来希望 AI Bid Assistant 可以帮助标书人员：
 
-   `anon` / `publishable` key 可以公开在浏览器中；不要填入 `service_role` 或 `secret` key，它们会绕过 RLS。
-6. 使用任意静态服务器运行项目，例如：
+* 📄 自动解析招标文件
+* 🔍 提取关键投标信息
+* ⚠️ 检查废标风险
+* 📋 管理投标项目流程
+* 📚 建立企业投标知识库
+* ✍️ 辅助生成技术方案和商务文件
 
-   ```powershell
-   node -e "require('http').createServer((q,s)=>require('fs').createReadStream('index.html').pipe(s)).listen(5173)"
-   ```
+目标不是替代标书人员，而是让专业人员把更多精力放在真正需要判断和决策的工作上。
 
-7. 访问 `http://127.0.0.1:5173`，注册账号并登录。首次登录时，旧版浏览器中存在的 localStorage 项目会自动一次性迁移到你的云端账号。
+---
 
-## 部署到免费静态托管
+# ✨ 当前功能
 
-可选择 GitHub Pages、Cloudflare Pages 或 Netlify。三者均可托管本项目的纯静态文件。
+## ✅ 项目管理
 
-1. 将 `index.html`、`app.js`、`supabase-config.js` 一起上传到仓库或托管平台。
-2. 构建命令留空，发布目录设为仓库根目录（包含 `index.html` 的目录）。
-3. 发布后，在 Supabase **Authentication → URL Configuration** 中填写网站 URL，并把该 URL 加到 Redirect URLs；这一步对邮箱确认跳转很重要。
-4. 用两个浏览器或两台设备登录同一个账号，新增、编辑或删除项目，另一个页面会自动刷新同步。
+支持管理投标项目：
 
-## 免费方案说明
+* 项目名称
+* 项目类型
+* 联系信息
+* 开标时间
+* 保证金信息
+* 项目状态
+* 项目备注
 
-本应用只使用 Supabase Free Plan 内的 Auth、Postgres、Data API 和 Realtime 基础能力；不使用 Edge Functions、付费插件或服务端密钥。免费计划的容量、休眠策略与配额可能随 Supabase 调整，请以其控制台的当前显示为准。
+## ✅ 用户系统
+
+基于 Supabase Auth：
+
+* 用户注册
+* 用户登录
+* 用户数据隔离
+
+## ✅ 云端数据存储
+
+使用 Supabase：
+
+* 项目数据保存
+* 数据实时同步
+* 安全访问控制
+
+## 🚧 正在开发
+
+* [ ] 招标文件 PDF 上传
+* [ ] 招标文件 AI 分析
+* [ ] 自动提取项目关键信息
+* [ ] 废标风险检查
+* [ ] 企业资料库
+* [ ] AI 标书辅助生成
+
+---
+
+# 🏗️ 技术架构
+
+当前版本：
+
+```
+Frontend
+│
+├── HTML
+├── CSS
+└── JavaScript
+
+        │
+
+        ▼
+
+Supabase
+
+├── Authentication
+├── Database
+└── Storage（规划中）
+
+
+        │
+
+        ▼
+
+AI Service（未来）
+
+├── 招标文件解析
+├── 风险分析
+└── 内容生成
+```
+
+---
+
+# 📂 项目结构
+
+```
+ai-bid-assistant
+
+├── index.html
+│   └── 页面结构
+
+├── app.js
+│   └── 核心业务逻辑
+
+├── supabase-config.js
+│   └── 数据库配置
+
+├── supabase.sql
+│   └── 数据库初始化脚本
+
+├── docs
+│   ├── project-learning.md
+│   ├── changelog.md
+│   └── todo.md
+
+└── README.md
+```
+
+---
+
+# 🚀 本地运行
+
+## 1. 克隆项目
+
+```bash
+git clone https://github.com/chenduowei/ai-bid-assistant.git
+```
+
+进入目录：
+
+```bash
+cd ai-bid-assistant
+```
+
+## 2. 配置 Supabase
+
+创建 Supabase 项目，并配置：
+
+* 数据库
+* Authentication
+* API Key
+
+修改：
+
+```
+supabase-config.js
+```
+
+填入对应配置。
+
+## 3. 启动项目
+
+这是一个纯前端项目，可以直接使用：
+
+* VS Code Live Server
+* 任意静态服务器
+
+运行。
+
+---
+
+# 📖 学习记录
+
+这个项目不仅是一个软件，也是我的 AI 开发学习实践。
+
+开发过程中记录：
+
+```
+docs/
+
+├── project-learning.md
+    项目学习笔记
+
+├── changelog.md
+    开发日志
+
+└── todo.md
+    后续规划
+
+```
+
+---
+
+# 🗺️ Roadmap
+
+## v0.1 - 项目管理基础
+
+✅ 用户系统
+
+✅ 项目管理
+
+✅ 云端数据存储
+
+## v0.2 - 投标流程优化
+
+计划：
+
+* 项目金额
+* 招标单位
+* 项目阶段管理
+* 时间提醒
+
+## v0.3 - AI 文件分析
+
+计划：
+
+* PDF上传
+* 文档解析
+* AI总结
+
+## v1.0 - AI 投标助手
+
+目标：
+
+成为标书人员的智能工作平台。
+
+---
+
+# 💡 为什么做这个项目？
+
+我是一个工程建设行业的投标工作人员，同时也是计算机专业毕业生。
+
+过去：
+
+行业人员懂业务，但缺少技术能力；
+
+程序员懂技术，但不了解投标流程。
+
+AI 时代提供了一个机会：
+
+让行业经验与软件技术结合。
+
+AI Bid Assistant 是一次尝试：
+
+> 用 AI 改造真实工作，而不是为了 AI 而做 AI。
+
+---
+
+# 🤝 参与和交流
+
+如果你：
+
+* 从事工程投标行业；
+* 对 AI+行业应用感兴趣；
+* 希望交流项目想法；
+
+欢迎交流。
+
+---
+
+# 📄 License
+
+MIT License
