@@ -143,6 +143,57 @@ Key 仅存在本机 localStorage。
 
 ---
 
+# ☁️ 部署到 Vercel（推荐）
+
+密钥**不要**提交到 Git。构建时由环境变量生成 `supabase-config.js`。
+
+## 1. 推送代码到 GitHub
+
+确保仓库中有：
+
+* `package.json`（`npm run build` → 生成配置）
+* `scripts/generate-config.mjs`
+* `vercel.json`
+* **没有**真实的 `supabase-config.js`
+
+## 2. 在 Vercel 导入项目
+
+1. 打开 [vercel.com](https://vercel.com) → Add New Project → 选择该 GitHub 仓库  
+2. Framework Preset 选 **Other**  
+3. Build Command：`npm run build`（`vercel.json` 已写好）  
+4. Output Directory：`.` 或留空按 `vercel.json`
+
+## 3. 配置环境变量（必填）
+
+Vercel 项目 → **Settings → Environment Variables**，添加：
+
+| Name | Value | Environment |
+|------|--------|-------------|
+| `SUPABASE_URL` | `https://xxxx.supabase.co` | Production / Preview |
+| `SUPABASE_ANON_KEY` | 你的 anon / publishable key | Production / Preview |
+
+保存后 **Redeploy** 一次，构建日志里应出现：`已注入 Supabase URL 与 anon key`。
+
+## 4. 配置 Supabase 登录回调
+
+Supabase Dashboard → **Authentication → URL Configuration**：
+
+* Site URL：你的 Vercel 域名，例如 `https://ai-bid-assistant.vercel.app`  
+* Redirect URLs：加上 `https://ai-bid-assistant.vercel.app/**`（以及本地 `http://localhost:5500/**` 等）
+
+否则注册邮件确认 / 登录跳转可能失败。
+
+## 5. 本地模拟构建（可选）
+
+```bash
+# Windows PowerShell
+$env:SUPABASE_URL="https://xxxx.supabase.co"
+$env:SUPABASE_ANON_KEY="你的key"
+npm run build
+```
+
+---
+
 # 📖 文档
 
 * [changelog.md](docs/changelog.md) — 版本记录

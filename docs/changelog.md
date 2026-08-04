@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.3] - 2026-08-04
+
+### Added
+- **Vercel 部署支持**：`scripts/generate-config.mjs` 在构建时从环境变量写入 `supabase-config.js`；新增 `package.json`、`vercel.json`。
+- 环境变量：`SUPABASE_URL`、`SUPABASE_ANON_KEY`（无需把真实 key 提交到 Git）。
+
 ## [0.2.2] - 2026-08-04
 
 ### Added
