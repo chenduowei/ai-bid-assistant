@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AI Bid Assistant">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#g)"/>
+  <path fill="#fff" d="M18 14h22c1.1 0 2 .9 2 2v4H16v-4c0-1.1.9-2 2-2zm-2 10h26v26c0 1.1-.9 2-2 2H18c-1.1 0-2-.9-2-2V24zm6 6v2h14v-2H22zm0 6v2h14v-2H22zm0 6v2h10v-2H22z"/>
+  <circle cx="46" cy="46" r="11" fill="#0f172a" opacity=".25"/>
+  <circle cx="46" cy="46" r="9" fill="#fff"/>
+  <path fill="#2563eb" d="M46 40a6 6 0 1 0 .01 0zm-2.2 8.8h4.4v1.6h-4.4z"/>
+</svg>
