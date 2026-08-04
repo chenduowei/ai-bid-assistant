@@ -31,74 +31,53 @@ AI Bid Assistant 致力于帮助投标人员管理项目流程、整理投标信
 
 ## ✅ 项目管理
 
-支持管理投标项目：
-
-* 项目名称
-* 项目类型
-* 联系信息
-* 开标时间
-* 保证金信息
-* 项目状态
-* 项目备注
+* 字段：开标时间、投标公司、项目类型、联系人、保证金/保函、项目状态（报名中 / 制作中 / 已开标）、项目名称、备注
+* 多字段搜索（开标时间、投标公司、类型、联系人、保证金、名称、备注）+ 状态筛选 + 排序
+* 搜索/筛选结果数量显示
+* 即将开标提醒：点击条目可定位到项目列表并高亮
+* 浏览器开标通知、CSV 导出
 
 ## ✅ 用户系统
 
-基于 Supabase Auth：
-
-* 用户注册
-* 用户登录
-* 用户数据隔离
+基于 Supabase Auth：注册、登录、用户数据隔离（RLS）
 
 ## ✅ 云端数据存储
 
-使用 Supabase：
+Supabase：项目数据保存、Realtime 同步
 
-* 项目数据保存
-* 数据实时同步
-* 安全访问控制
+## ✅ 招标文件解析 + AI 分析
 
-## 🚧 正在开发
+* 浏览器端 PDF 文本提取（不上传）
+* 调用 OpenAI 兼容接口：抽取开标时间、保证金、资格要求、废标条款
+* 生成风险摘要与风险点，回填表单并在项目卡片展示风险报告
 
-* [ ] 招标文件 PDF 上传
-* [ ] 招标文件 AI 分析
-* [ ] 自动提取项目关键信息
-* [ ] 废标风险检查
-* [ ] 企业资料库
-* [ ] AI 标书辅助生成
+## 🚧 规划中
+
+* 招标文件云端归档
+* 企业资料库
+* AI 标书章节辅助生成
 
 ---
 
 # 🏗️ 技术架构
 
-当前版本：
-
 ```
-Frontend
+Frontend (ES modules)
 │
-├── HTML
-├── CSS
-└── JavaScript
-
-        │
-
-        ▼
-
+├── HTML / CSS / JavaScript
+│   └── js/utils · auth · projects · pdf-parser · ai-extract · ui
+│
+▼
 Supabase
-
 ├── Authentication
-├── Database
+├── Database (+ RLS)
 └── Storage（规划中）
 
-
-        │
-
-        ▼
-
-AI Service（未来）
-
+▼
+AI Service（用户自备 OpenAI 兼容 API）
 ├── 招标文件解析
 ├── 风险分析
-└── 内容生成
+└── 内容生成（规划中）
 ```
 
 ---
@@ -107,24 +86,24 @@ AI Service（未来）
 
 ```
 ai-bid-assistant
-
 ├── index.html
-│   └── 页面结构
-
-├── app.js
-│   └── 核心业务逻辑
-
-├── supabase-config.js
-│   └── 数据库配置
-
+├── app.js                 # 入口（type=module）
+├── styles.css
+├── supabase-config.example.js   # 配置模板（可提交）
+├── supabase-config.js           # 本地真实配置（gitignore，勿提交）
 ├── supabase.sql
-│   └── 数据库初始化脚本
-
-├── docs
+├── js/
+│   ├── utils.js
+│   ├── auth.js
+│   ├── projects.js
+│   ├── pdf-parser.js
+│   ├── ai-extract.js
+│   └── ui.js
+├── docs/
 │   ├── project-learning.md
 │   ├── changelog.md
 │   └── todo.md
-
+├── .gitignore
 └── README.md
 ```
 
@@ -136,95 +115,58 @@ ai-bid-assistant
 
 ```bash
 git clone https://github.com/chenduowei/ai-bid-assistant.git
-```
-
-进入目录：
-
-```bash
 cd ai-bid-assistant
 ```
 
 ## 2. 配置 Supabase
 
-创建 Supabase 项目，并配置：
+1. 创建 Supabase 项目，配置 Database 与 Authentication。
+2. 在 SQL Editor 中执行 `supabase.sql`（含增量迁移）。
+3. 复制配置模板并填入真实值：
 
-* 数据库
-* Authentication
-* API Key
-
-修改：
-
-```
-supabase-config.js
+```bash
+cp supabase-config.example.js supabase-config.js
 ```
 
-填入对应配置。
+编辑 `supabase-config.js`，填入 Project URL 与 anon/publishable key。  
+**不要把填好真实 key 的文件提交到公开仓库。**
 
-## 3. 启动项目
+## 3. 启动
 
-这是一个纯前端项目，可以直接使用：
+纯前端项目，使用 VS Code Live Server 或任意静态服务器即可。  
+注意：ES modules 需要通过 HTTP 访问（不能直接 `file://` 打开）。
 
-* VS Code Live Server
-* 任意静态服务器
+## 4. AI 功能（可选）
 
-运行。
+登录后点击「AI 设置」，填写兼容 OpenAI 的 API Key、Base URL、模型名。  
+Key 仅存在本机 localStorage。
 
 ---
 
-# 📖 学习记录
+# 📖 文档
 
-这个项目不仅是一个软件，也是我的 AI 开发学习实践。
-
-开发过程中记录：
-
-```
-docs/
-
-├── project-learning.md
-    项目学习笔记
-
-├── changelog.md
-    开发日志
-
-└── todo.md
-    后续规划
-
-```
+* [changelog.md](docs/changelog.md) — 版本记录
+* [todo.md](docs/todo.md) — 可执行任务列表
+* [project-learning.md](docs/project-learning.md) — 学习笔记
 
 ---
 
 # 🗺️ Roadmap
 
-## v0.1 - 项目管理基础
+## v0.1 - 项目管理基础 ✅
 
-✅ 用户系统
+## v0.2 - 体验优化 + AI 分析首版 ✅（主体完成）
 
-✅ 项目管理
+* 模块化、密钥隔离、移动端菜单
+* 投标公司、三态状态、表单顺序与列表交互
+* PDF + LLM 抽取与风险报告
+* 即将开标定位、多字段搜索与结果计数
 
-✅ 云端数据存储
+## v0.3 - 资料库与云端文件
 
-## v0.2 - 投标流程优化
+## v1.0 - 智能投标工作平台
 
-计划：
-
-* 项目金额
-* 招标单位
-* 项目阶段管理
-* 时间提醒
-
-## v0.3 - AI 文件分析
-
-计划：
-
-* PDF上传
-* 文档解析
-* AI总结
-
-## v1.0 - AI 投标助手
-
-目标：
-
-成为标书人员的智能工作平台。
+详见 [docs/todo.md](docs/todo.md)。
 
 ---
 
@@ -232,31 +174,10 @@ docs/
 
 我是一个工程建设行业的投标工作人员，同时也是计算机专业毕业生。
 
-过去：
-
-行业人员懂业务，但缺少技术能力；
-
-程序员懂技术，但不了解投标流程。
-
-AI 时代提供了一个机会：
-
-让行业经验与软件技术结合。
-
-AI Bid Assistant 是一次尝试：
+行业人员懂业务，但缺少技术能力；程序员懂技术，但不了解投标流程。  
+AI 时代提供了一个机会：让行业经验与软件技术结合。
 
 > 用 AI 改造真实工作，而不是为了 AI 而做 AI。
-
----
-
-# 🤝 参与和交流
-
-如果你：
-
-* 从事工程投标行业；
-* 对 AI+行业应用感兴趣；
-* 希望交流项目想法；
-
-欢迎交流。
 
 ---
 

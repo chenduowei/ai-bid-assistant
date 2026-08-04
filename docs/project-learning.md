@@ -1,192 +1,91 @@
 # AI Bid Assistant 学习笔记
 
-
 ## 项目目标
 
-帮助标书员管理项目，并利用AI分析招标文件。
+帮助标书员管理投标项目，并利用 AI 分析招标文件、提示废标风险。
 
+---
 
-## 当前技术
+## 当前技术栈
 
-前端：
-HTML + JavaScript
+| 层级 | 技术 |
+|------|------|
+| 前端 | HTML + CSS + JavaScript（ES modules） |
+| 后端即服务 | Supabase（Auth / Postgres / Realtime / RLS） |
+| AI | 用户自备 OpenAI 兼容 API（Key 存 localStorage） |
+| PDF | pdf.js（浏览器端提取文本，不上传） |
 
-数据库：
-Supabase
+---
 
+## 目录与模块职责
 
-## 当前文件
+```
+index.html          页面结构
+app.js              入口：状态、事件绑定、模块组装
+styles.css          样式
+supabase.sql        表结构与 RLS、增量迁移
+supabase-config.js  本地密钥（gitignore）
 
-index.html
+js/utils.js         日期/倒计时/状态样式等工具
+js/auth.js          登录注册与会话
+js/projects.js      CRUD、迁移、导出、Realtime
+js/pdf-parser.js    PDF 文本提取
+js/ai-extract.js    LLM 抽取与风险结构化
+js/ui.js            列表/统计/搜索/高亮等渲染
+```
 
-页面结构
+---
 
+## 核心业务流程
 
-app.js
+### 项目管理
 
-业务逻辑
+1. 表单收集：开标时间、投标公司、类型、联系人、保证金、状态、名称、备注  
+2. `app.js` → `projects.js` 写入 Supabase `projects` 表  
+3. Realtime 或重新 `loadProjects` 刷新列表  
 
+### 即将开标定位
 
-supabase.sql
+1. `getReminder` 筛出 7 天内待开标项目  
+2. 用户点击 upcoming 条目（`data-id`）  
+3. `focusProjectInList`：清空筛选 → `render` → `scrollIntoView` + 高亮  
 
-数据库
+### 搜索与筛选
 
-# index.html 页面结构
+- 关键词匹配：开标时间（原始与中文显示）、投标公司、类型、联系人、保证金、名称、备注、状态  
+- 状态下拉独立筛选  
+- 展示「共 N 个」或「筛选结果：M 个（共 N 个）」  
 
+### AI 分析
 
-## 页面主要区域
+1. PDF → 纯文本（pdf.js）  
+2. 调用兼容接口 `/chat/completions`，要求输出固定 JSON  
+3. 回填表单；保存时写入 `risk_summary` / `risk_points` / `extracted_meta`  
 
-### 1. 登录页面
+---
 
-作用：
+## 数据库要点
 
-用户登录系统。
+- `projects`：按 `user_id` RLS 隔离  
+- `status`：仅 `报名中 | 制作中 | 已开标`  
+- `bidding_company`：投标公司  
+- AI 可选字段：`risk_summary`、`risk_points`（jsonb）、`extracted_meta`（jsonb）  
 
+旧库需执行 `supabase.sql` 文末增量迁移。
 
-### 2. Dashboard
+---
 
-作用：
+## 安全注意
 
-显示项目概览。
+- 只把 **anon key** 放在前端；**绝不**提交 `service_role`  
+- `supabase-config.js` 必须在 `.gitignore` 中  
+- AI API Key 只存本机，不经过本项目服务器  
 
+---
 
-### 3. 项目管理
+## 迭代备忘（2026-08）
 
-作用：
+- v0.2：模块化、密钥隔离、AI 首版、投标公司、三态状态  
+- v0.2.2：表单顺序、即将开标点击定位、多字段搜索与结果计数  
 
-新增、查看、编辑投标项目。
-
-# app.js 学习笔记
-
-
-## 程序运行流程
-
-用户操作
-
-↓
-
-事件触发
-
-↓
-
-调用函数
-
-↓
-
-处理数据
-
-↓
-
-保存数据库
-
-
-## 新增项目流程
-
-按钮：
-
-新增项目
-
-
-调用：
-
-addProject()
-
-
-执行：
-
-1. 获取输入内容
-
-2. 写入Supabase
-
-3. 刷新项目列表
-
-
-## JavaScript关键词
-
-function:
-
-函数
-
-
-const:
-
-定义变量
-
-
-await:
-
-等待异步结果
-
-# Supabase 数据库学习笔记
-
-
-## 数据流程
-
-
-用户输入项目
-
-↓
-
-index.html收集数据
-
-↓
-
-app.js处理
-
-↓
-
-Supabase保存
-
-↓
-
-projects表存储
-
-
-
-## 数据库概念
-
-
-Table:
-
-数据表，例如 projects
-
-
-Column:
-
-字段，例如 name、status、bid_date
-
-
-Row:
-
-一条项目记录
-
-
-
-## 当前projects表
-
-
-主要字段：
-
-id
-
-项目唯一编号
-
-
-name
-
-项目名称
-
-
-status
-
-项目状态
-
-
-bid_date
-
-开标日期
-
-
-notes
-
-备注
+下一步可优先：招标单位/金额字段、大文件分块摘要、资料库雏形。
