@@ -1,0 +1,18 @@
+# 系统 / 编辑器
+.DS_Store
+Thumbs.db
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 环境与本地配置（若以后用 .env）
+.env
+.env.*
+!.env.example
+
+# 依赖与构建（预留）
+node_modules/
+dist/
+.cache/
