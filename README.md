@@ -1,83 +1,135 @@
 # 🤖 AI Bid Assistant
 
-> 一个面向工程建设行业标书人员的智能投标工作助手。
+> 面向工程建设行业标书人员的智能投标工作台
 
-AI Bid Assistant 致力于帮助投标人员管理项目流程、整理投标信息，并逐步引入 AI 能力，实现招标文件分析、风险检查、资料管理和标书辅助生成。
+AI Bid Assistant 是一个结合 **项目管理 + 招标文件解析 + AI 风险分析** 的投标辅助工具。
 
-这个项目来源于真实工作场景：
+它来自真实工程投标场景：
 
-每天面对大量招标文件、项目节点、资格要求和重复性工作，很多信息需要人工整理，容易遗漏关键内容。
+- 招标文件复杂，关键信息分散
+- 开标节点容易遗漏
+- 资格要求、废标条款需要反复检查
+- 大量重复整理工作消耗时间
 
-因此，我尝试利用 AI 和软件技术，打造一个属于标书人员自己的智能工作台。
+本项目希望帮助标书人员：
 
----
+> 把机械重复的整理工作交给工具，把时间留给更重要的判断与决策。
 
-## 📌 项目愿景
+当前版本：**v0.2.5**
 
-未来希望 AI Bid Assistant 可以帮助标书人员：
-
-* 📄 自动解析招标文件
-* 🔍 提取关键投标信息
-* ⚠️ 检查废标风险
-* 📋 管理投标项目流程
-* 📚 建立企业投标知识库
-* ✍️ 辅助生成技术方案和商务文件
-
-目标不是替代标书人员，而是让专业人员把更多精力放在真正需要判断和决策的工作上。
+当前阶段以 **稳定使用、真实反馈、持续优化体验** 为主，暂不盲目扩展功能。
 
 ---
 
-# ✨ 当前功能
+# ✨ 功能概览
 
-## ✅ 项目管理
+## 📋 项目管理工作台
 
-* 字段：开标时间、投标公司、项目类型、联系人、保证金/保函、项目状态（报名中 / 制作中 / 已开标）、项目名称、备注
-* 多字段搜索（开标时间、投标公司、类型、联系人、保证金、名称、备注）+ 状态筛选 + 排序
-* 搜索/筛选结果数量显示
-* 即将开标提醒：点击条目可定位到项目列表并高亮
-* 浏览器开标通知、CSV 导出
+集中管理日常投标项目：
 
-## ✅ 用户系统
+- 开标时间
+- 招标单位
+- 投标公司
+- 项目类型
+- 联系人
+- 保证金 / 保函
+- 项目金额
+- 项目状态（报名中 / 制作中 / 已开标）
+- 项目备注
 
-基于 Supabase Auth：注册、登录、用户数据隔离（RLS）
+支持：
 
-## ✅ 云端数据存储
+- 🔍 多字段搜索
+- 🏷️ 状态筛选
+- ↕️ 排序管理
+- 📊 结果数量统计
+- ⏰ 开标提醒（支持自定义提前天数，默认 7 天）
+- 📌 自动定位即将开标项目并高亮
+- 🔔 浏览器通知提醒
+- 📤 CSV 数据导出
+- 🌙 深色模式
 
-Supabase：项目数据保存、Realtime 同步
+---
 
-## ✅ 招标文件解析 + AI 分析
+## 🔐 账号与云端数据
 
-* 浏览器端 PDF 文本提取（不上传）
-* 调用 OpenAI 兼容接口：抽取开标时间、保证金、资格要求、废标条款
-* 生成风险摘要与风险点，回填表单并在项目卡片展示风险报告
+基于 Supabase 构建：
 
-## 🚧 规划中
+- 用户注册 / 登录
+- 云端数据同步
+- Realtime 实时更新
+- Row Level Security（RLS）用户数据隔离
 
-* 招标文件云端归档
-* 企业资料库
-* AI 标书章节辅助生成
+每个用户只能访问自己的项目数据。
+
+---
+
+## 📄 招标文件解析 + AI 分析
+
+帮助快速理解招标文件重点内容。
+
+功能包括：
+
+- 浏览器端 PDF 文本提取
+  - 文件不会上传到本项目服务器
+- 支持 OpenAI 兼容 API
+- 自动提取：
+
+  - 开标时间
+  - 招标单位
+  - 项目金额
+  - 保证金要求
+  - 资格条件
+  - 废标条款
+
+AI 辅助能力：
+
+- 资格要求结构化展示
+- 废标风险条款整理
+- 长文档分块摘要
+- AI 分析失败自动重试
+- 风险摘要生成
+- 风险点回填项目表单
+- 项目卡片展示风险提示
+
+> AI 负责整理信息，最终判断仍由专业人员完成。
 
 ---
 
 # 🏗️ 技术架构
 
 ```
-Frontend (ES modules)
-│
-├── HTML / CSS / JavaScript
-│   └── js/utils · auth · projects · pdf-parser · ai-extract · ui
-│
-▼
-Supabase
-├── Authentication
-├── Database (+ RLS)
-└── Storage（规划中）
+浏览器
 
-▼
-AI Service（用户自备 OpenAI 兼容 API）
-├── 招标文件解析
-├── 风险分析
-└── 内容生成（规划中）
+HTML / CSS / JavaScript
+ES Modules
+
+│
+├── utils
+├── auth
+├── projects
+├── pdf-parser
+├── ai-extract
+└── ui
+
+        │
+
+        ▼
+
+Supabase
+
+├── Authentication
+├── PostgreSQL Database
+├── Realtime
+└── Row Level Security
+
+        │
+
+        ▼
+
+用户自备 OpenAI 兼容 API
+
+(API Key 仅保存在本机)
 ```
 
 ---
@@ -86,12 +138,11 @@ AI Service（用户自备 OpenAI 兼容 API）
 
 ```
 ai-bid-assistant
+
 ├── index.html
-├── app.js                 # 入口（type=module）
+├── app.js
 ├── styles.css
-├── supabase-config.example.js   # 配置模板（可提交）
-├── supabase-config.js           # 本地真实配置（gitignore，勿提交）
-├── supabase.sql
+
 ├── js/
 │   ├── utils.js
 │   ├── auth.js
@@ -99,13 +150,29 @@ ai-bid-assistant
 │   ├── pdf-parser.js
 │   ├── ai-extract.js
 │   └── ui.js
-├── docs/
-│   ├── project-learning.md
-│   ├── changelog.md
-│   └── todo.md
-├── .gitignore
-└── README.md
+
+├── supabase.sql
+
+├── supabase-config.example.js
+├── supabase-config.js
+
+├── scripts/
+│   └── generate-config.mjs
+
+└── docs/
+    ├── changelog.md
+    └── notes.md
 ```
+
+| 文件 | 说明 |
+|---|---|
+| `index.html` / `app.js` / `styles.css` | 页面入口与基础样式 |
+| `js/*.js` | 核心业务模块 |
+| `supabase.sql` | 数据库结构、RLS、安全策略 |
+| `supabase-config.example.js` | 配置模板 |
+| `supabase-config.js` | 本地配置文件（勿提交） |
+| `scripts/generate-config.mjs` | Vercel 部署配置生成 |
+| `docs/` | 项目维护文档 |
 
 ---
 
@@ -115,120 +182,201 @@ ai-bid-assistant
 
 ```bash
 git clone https://github.com/chenduowei/ai-bid-assistant.git
+
 cd ai-bid-assistant
 ```
 
 ## 2. 配置 Supabase
 
-1. 创建 Supabase 项目，配置 Database 与 Authentication。
-2. 在 SQL Editor 中执行 `supabase.sql`（含增量迁移）。
-3. 复制配置模板并填入真实值：
+复制配置模板：
 
 ```bash
 cp supabase-config.example.js supabase-config.js
 ```
 
-编辑 `supabase-config.js`，填入 Project URL 与 anon/publishable key。  
-**不要把填好真实 key 的文件提交到公开仓库。**
+编辑：
 
-## 3. 启动
+```
+supabase-config.js
+```
 
-纯前端项目，使用 VS Code Live Server 或任意静态服务器即可。  
-注意：ES modules 需要通过 HTTP 访问（不能直接 `file://` 打开）。
+填入：
 
-## 4. AI 功能（可选）
-
-登录后点击「AI 设置」，填写兼容 OpenAI 的 API Key、Base URL、模型名。  
-Key 仅存在本机 localStorage。
+- Supabase Project URL
+- anon key
 
 ---
 
-# ☁️ 部署到 Vercel（推荐）
+## 3. 初始化数据库
 
-密钥**不要**提交到 Git。构建时由环境变量生成 `supabase-config.js`。
+进入 Supabase：
 
-## 1. 推送代码到 GitHub
+```
+SQL Editor
+```
 
-确保仓库中有：
+执行：
 
-* `package.json`（`npm run build` → 生成配置）
-* `scripts/generate-config.mjs`
-* `vercel.json`
-* **没有**真实的 `supabase-config.js`
+```
+supabase.sql
+```
 
-## 2. 在 Vercel 导入项目
+其中包含：
 
-1. 打开 [vercel.com](https://vercel.com) → Add New Project → 选择该 GitHub 仓库  
-2. Framework Preset 选 **Other**  
-3. Build Command：`npm run build`（`vercel.json` 已写好）  
-4. Output Directory：`.` 或留空按 `vercel.json`
+- 数据表结构
+- 用户隔离策略
+- 增量迁移
 
-## 3. 配置环境变量（必填）
+---
 
-Vercel 项目 → **Settings → Environment Variables**，添加：
+## 4. 启动项目
 
-| Name | Value | Environment |
-|------|--------|-------------|
-| `SUPABASE_URL` | `https://xxxx.supabase.co` | Production / Preview |
-| `SUPABASE_ANON_KEY` | 你的 anon / publishable key | Production / Preview |
+使用：
 
-保存后 **Redeploy** 一次，构建日志里应出现：`已注入 Supabase URL 与 anon key`。
+- VS Code Live Server
+- 或任意静态 HTTP 服务器
 
-## 4. 配置 Supabase 登录回调
+注意：
 
-Supabase Dashboard → **Authentication → URL Configuration**：
+不要直接使用：
 
-* Site URL：你的 Vercel 域名，例如 `https://ai-bid-assistant.vercel.app`  
-* Redirect URLs：加上 `https://ai-bid-assistant.vercel.app/**`（以及本地 `http://localhost:5500/**` 等）
+```
+file://
+```
 
-否则注册邮件确认 / 登录跳转可能失败。
+打开页面。
 
-## 5. 本地模拟构建（可选）
+ES Modules 需要通过 HTTP 环境运行。
 
-```bash
-# Windows PowerShell
-$env:SUPABASE_URL="https://xxxx.supabase.co"
-$env:SUPABASE_ANON_KEY="你的key"
+---
+
+## AI 功能（可选）
+
+登录后：
+
+进入「设置」
+
+填写：
+
+- API Key
+- Base URL
+- 模型名称
+
+AI Key：
+
+- 仅保存于浏览器 localStorage
+- 不经过本项目服务器
+
+---
+
+# ☁️ 部署到 Vercel
+
+## 安全原则
+
+不要将任何真实密钥提交到 Git。
+
+部署时通过环境变量生成配置。
+
+---
+
+## 部署步骤
+
+### 1. 推送代码
+
+确保仓库包含：
+
+```
+package.json
+scripts/generate-config.mjs
+vercel.json
+```
+
+并确认：
+
+```
+supabase-config.js
+```
+
+没有提交。
+
+---
+
+### 2. Vercel 配置
+
+导入 GitHub 仓库：
+
+Framework：
+
+```
+Other
+```
+
+Build Command：
+
+```
 npm run build
 ```
 
 ---
 
-# 📖 文档
+### 3. 添加环境变量
 
-* [changelog.md](docs/changelog.md) — 版本记录
-* [todo.md](docs/todo.md) — 可执行任务列表
-* [project-learning.md](docs/project-learning.md) — 学习笔记
-
----
-
-# 🗺️ Roadmap
-
-## v0.1 - 项目管理基础 ✅
-
-## v0.2 - 体验优化 + AI 分析首版 ✅（主体完成）
-
-* 模块化、密钥隔离、移动端菜单
-* 投标公司、三态状态、表单顺序与列表交互
-* PDF + LLM 抽取与风险报告
-* 即将开标定位、多字段搜索与结果计数
-
-## v0.3 - 资料库与云端文件
-
-## v1.0 - 智能投标工作平台
-
-详见 [docs/todo.md](docs/todo.md)。
+| 名称 | 说明 |
+|-|-|
+| `SUPABASE_URL` | Supabase 项目地址 |
+| `SUPABASE_ANON_KEY` | anon / publishable key |
 
 ---
 
-# 💡 为什么做这个项目？
+### 4. 配置 Supabase 登录回调
 
-我是一个工程建设行业的投标工作人员，同时也是计算机专业毕业生。
+进入：
 
-行业人员懂业务，但缺少技术能力；程序员懂技术，但不了解投标流程。  
-AI 时代提供了一个机会：让行业经验与软件技术结合。
+```
+Authentication → URL Configuration
+```
+
+配置：
+
+- Site URL
+- Redirect URLs
+
+填写：
+
+- Vercel 部署地址
+- 本地开发地址
+
+---
+
+# 🔒 安全说明
+
+- 浏览器端仅使用 Supabase **anon key**
+- 禁止暴露 `service_role key`
+- `supabase-config.js` 已加入 `.gitignore`
+- AI Key 仅存储于用户本机
+- 项目没有后端服务器，不收集用户 AI 密钥
+
+---
+
+# 📚 文档
+
+- [changelog.md](docs/changelog.md)  
+  项目版本变化记录
+
+- [notes.md](docs/notes.md)  
+  模块说明与维护记录
+
+---
+
+# 💡 项目理念
+
+AI 不应该只是聊天工具。
+
+真正有价值的方向，是让 AI 融入具体行业流程：
 
 > 用 AI 改造真实工作，而不是为了 AI 而做 AI。
+
+AI Bid Assistant 希望成为工程建设行业人员自己的智能工作助手。
 
 ---
 

@@ -534,27 +534,194 @@ body.dark {
 
 @media (max-width: 680px) {
   .page {
-    padding: 16px;
+    padding: 12px;
   }
 
-  .form-grid,
-  .stats {
-    grid-template-columns: 1fr;
+  .card {
+    border-radius: 16px;
   }
 
   .header {
     flex-direction: column;
     align-items: stretch;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    gap: 10px;
+  }
+
+  .header-title h1 {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  .header-title p {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .panel {
+    padding: 14px 16px;
+  }
+
+  .panel-title h2 {
+    font-size: 16px;
+  }
+
+  .panel-title p {
+    font-size: 12px;
+  }
+
+  /* 表单更紧凑 */
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .field {
+    gap: 4px;
+  }
+
+  .field label {
+    font-size: 12px;
+  }
+
+  .field input,
+  .field select,
+  .field textarea {
+    padding: 10px 12px;
+    font-size: 15px; /* 避免 iOS 缩放 */
+    border-radius: 10px;
+  }
+
+  .field textarea {
+    min-height: 72px;
+  }
+
+  .action-row {
+    margin-top: 12px;
+    gap: 8px;
+  }
+
+  .action-row .btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: 11px 12px;
+  }
+
+  /* 统计卡片 */
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-card .label {
+    font-size: 12px;
+  }
+
+  .stat-card .value {
+    font-size: 22px;
+  }
+
+  /* 即将开标 */
+  .upcoming-panel {
+    padding: 14px 16px;
+  }
+
+  .upcoming-item {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 10px 12px;
+  }
+
+  .upcoming-date,
+  .reminder-label {
+    justify-self: start;
+    font-size: 12px;
+  }
+
+  /* 项目列表更紧凑 */
+  .project-list {
+    gap: 10px;
+  }
+
+  .project-item {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .project-item:hover {
+    transform: none; /* 移动端减少悬停位移 */
   }
 
   .project-row {
     flex-direction: column;
+    gap: 8px;
   }
 
-  .back-to-top { right: 16px; bottom: 16px; }
-  .toast-wrap { right: 16px; top: 16px; }
-  .upcoming-item { grid-template-columns: 1fr; gap: 7px; }
-  .upcoming-date, .reminder-label { justify-self: start; }
+  .project-name {
+    font-size: 16px;
+  }
+
+  .project-meta {
+    gap: 4px 10px;
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  .project-actions {
+    margin-top: 10px;
+    gap: 8px;
+  }
+
+  .project-actions .btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: 10px 12px;
+  }
+
+  .risk-report {
+    margin-top: 8px;
+    padding: 10px 12px;
+  }
+
+  .risk-summary,
+  .risk-points li,
+  .struct-list {
+    font-size: 12px;
+  }
+
+  .search-box {
+    margin-bottom: 10px;
+  }
+
+  .search-box input,
+  .list-tools select {
+    padding: 10px 12px;
+    border-radius: 10px;
+  }
+
+  .list-tools {
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .list-tools select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .back-to-top { right: 14px; bottom: 14px; }
+  .toast-wrap { right: 12px; top: 12px; }
+
+  .field-hint {
+    font-size: 12px;
+  }
 }
 
 /* —— 编辑表单高亮 —— */
@@ -671,4 +838,38 @@ body.dark {
   .user-menu {
     flex-wrap: wrap;
   }
+}
+
+
+/* P0：结构化资格 / 废标条款 */
+.struct-block {
+  margin-top: 10px;
+}
+.struct-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-secondary, #666);
+}
+.struct-list {
+  margin: 0;
+  padding-left: 1.2em;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.struct-list li {
+  margin: 2px 0;
+}
+.ai-section {
+  margin-top: 12px;
+}
+.ai-section strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+}
+.ai-meta {
+  font-size: 13px;
+  color: var(--text-secondary, #666);
+  margin: 0 0 8px;
 }

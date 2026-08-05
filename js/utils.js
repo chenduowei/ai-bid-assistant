@@ -36,10 +36,47 @@ export const getDaysUntilBid = (value) => {
 export const getStatusClass = (status) =>
   status === "已开标" ? "success" : status === "制作中" ? "warning" : "";
 
-export const getReminder = (project) => {
+export const THEME_KEY = "bid-assistant-theme";
+export const LEGACY_STORAGE_KEY = "bid-assistant-projects";
+export const AI_KEY_STORAGE = "bid-assistant-ai-key";
+export const AI_BASE_STORAGE = "bid-assistant-ai-base";
+export const AI_MODEL_STORAGE = "bid-assistant-ai-model";
+export const REMINDER_DAYS_KEY = "bid-assistant-reminder-days";
+export const DEFAULT_REMINDER_DAYS = 7;
+export const MIN_REMINDER_DAYS = 1;
+export const MAX_REMINDER_DAYS = 30;
+
+/** 读取可配置提醒窗口（天），非法值回退默认 7 */
+export function getReminderDays() {
+  const raw = localStorage.getItem(REMINDER_DAYS_KEY);
+  const n = Number.parseInt(raw, 10);
+  if (!Number.isFinite(n) || n < MIN_REMINDER_DAYS || n > MAX_REMINDER_DAYS) {
+    return DEFAULT_REMINDER_DAYS;
+  }
+  return n;
+}
+
+/** 保存提醒天数，返回规范化后的值 */
+export function setReminderDays(value) {
+  const n = Number.parseInt(value, 10);
+  const days =
+    !Number.isFinite(n) || n < MIN_REMINDER_DAYS || n > MAX_REMINDER_DAYS
+      ? DEFAULT_REMINDER_DAYS
+      : n;
+  localStorage.setItem(REMINDER_DAYS_KEY, String(days));
+  return days;
+}
+
+/**
+ * 即将开标提醒
+ * @param {object} project
+ * @param {number} [maxDays] 提醒窗口天数，默认读 localStorage
+ */
+export const getReminder = (project, maxDays = getReminderDays()) => {
   if (project.status === "已开标") return null;
   const days = getDaysUntilBid(project.date);
-  if (days === null || days < 0 || days > 7) return null;
+  const windowDays = Number.isFinite(maxDays) ? maxDays : DEFAULT_REMINDER_DAYS;
+  if (days === null || days < 0 || days > windowDays) return null;
   if (days === 0)
     return { days, level: "urgent", label: "紧急：今日开标（剩余 0 天）" };
   if (days === 1)
@@ -48,9 +85,3 @@ export const getReminder = (project) => {
     return { days, level: "orange", label: `提醒：${days} 天后开标` };
   return { days, level: "yellow", label: `提醒：${days} 天后开标` };
 };
-
-export const THEME_KEY = "bid-assistant-theme";
-export const LEGACY_STORAGE_KEY = "bid-assistant-projects";
-export const AI_KEY_STORAGE = "bid-assistant-ai-key";
-export const AI_BASE_STORAGE = "bid-assistant-ai-base";
-export const AI_MODEL_STORAGE = "bid-assistant-ai-model";

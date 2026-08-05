@@ -10,6 +10,8 @@ create table if not exists public.projects (
   name text not null check (char_length(trim(name)) > 0),
   project_type text not null check (char_length(trim(project_type)) > 0),
   bidding_company text not null default '' check (char_length(trim(bidding_company)) > 0),
+  tenderer text,
+  amount text,
   contact text not null check (char_length(trim(contact)) > 0),
   bid_date date not null,
   guarantee text not null check (char_length(trim(guarantee)) > 0),
@@ -18,6 +20,8 @@ create table if not exists public.projects (
   -- AI 分析结果（可选）
   risk_summary text,
   risk_points jsonb,
+  qualification jsonb,
+  invalid_bid_clauses jsonb,
   extracted_meta jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -90,7 +94,6 @@ do $$
 declare
   constraint_name text;
 begin
-  -- 去掉旧的 status 相关 check
   for constraint_name in
     select conname
     from pg_constraint
@@ -101,7 +104,6 @@ begin
     execute format('alter table public.projects drop constraint %I', constraint_name);
   end loop;
 
-  -- 将非法状态归一为「报名中」
   update public.projects
   set status = '报名中'
   where status is null or status not in ('报名中', '制作中', '已开标');
@@ -121,6 +123,12 @@ alter table public.projects add column if not exists risk_summary text;
 alter table public.projects add column if not exists risk_points jsonb;
 alter table public.projects add column if not exists extracted_meta jsonb;
 
--- 4) 投标公司非空约束（仅在确认无空值后可执行；默认先不强制旧数据）
+-- 4) v0.2.4 P0：招标单位、项目金额、结构化资格/废标条款
+alter table public.projects add column if not exists tenderer text;
+alter table public.projects add column if not exists amount text;
+alter table public.projects add column if not exists qualification jsonb;
+alter table public.projects add column if not exists invalid_bid_clauses jsonb;
+
+-- 5) 投标公司非空约束（仅在确认无空值后可执行；默认先不强制旧数据）
 -- update public.projects set bidding_company = '未填写' where bidding_company is null or trim(bidding_company) = '';
 -- alter table public.projects alter column bidding_company set not null;

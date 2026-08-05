@@ -2,7 +2,7 @@
  * AI Bid Assistant — 入口
  * 模块：js/utils.js · auth.js · projects.js · pdf-parser.js · ai-extract.js · ui.js
  */
-import { THEME_KEY, getReminder } from "./js/utils.js";
+import { THEME_KEY, getReminder, getReminderDays, setReminderDays } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -56,6 +56,7 @@ import {
     aiApiKey: document.getElementById("aiApiKey"),
     aiBaseUrl: document.getElementById("aiBaseUrl"),
     aiModel: document.getElementById("aiModel"),
+    reminderDays: document.getElementById("reminderDays"),
     aiSaveSettings: document.getElementById("aiSaveSettings"),
     submitBtn: document.getElementById("submitBtn"),
     cancelBtn: document.getElementById("cancelBtn"),
@@ -79,6 +80,8 @@ import {
       type: document.getElementById("projectType"),
       name: document.getElementById("name"),
       biddingCompany: document.getElementById("biddingCompany"),
+      tenderer: document.getElementById("tenderer"),
+      amount: document.getElementById("amount"),
       guarantee: document.getElementById("guarantee"),
       contact: document.getElementById("contact"),
       status: document.getElementById("status"),
@@ -126,6 +129,8 @@ import {
       project_type: elements.form.type.value.trim(),
       name: elements.form.name.value.trim(),
       bidding_company: elements.form.biddingCompany.value.trim(),
+      tenderer: elements.form.tenderer?.value.trim() || null,
+      amount: elements.form.amount?.value.trim() || null,
       guarantee: elements.form.guarantee.value.trim(),
       contact: elements.form.contact.value.trim(),
       status: elements.form.status.value || "报名中",
@@ -135,6 +140,12 @@ import {
       base.risk_summary = lastAiResult.riskSummary || null;
       base.risk_points = lastAiResult.riskPoints?.length
         ? lastAiResult.riskPoints
+        : null;
+      base.qualification = lastAiResult.qualification?.length
+        ? lastAiResult.qualification
+        : null;
+      base.invalid_bid_clauses = lastAiResult.invalidBidClauses?.length
+        ? lastAiResult.invalidBidClauses
         : null;
       base.extracted_meta = lastAiResult.extractedMeta || null;
     }
@@ -160,7 +171,7 @@ import {
     )
       return;
     state.projects.forEach((project) => {
-      const reminder = getReminder(project);
+      const reminder = getReminder(project, getReminderDays());
       if (!reminder || ![0, 1].includes(reminder.days)) return;
       const stage = reminder.days === 0 ? "today" : "tomorrow";
       const urlHint = String(config.url || "").slice(-12);
@@ -365,6 +376,9 @@ import {
     elements.aiSettingsBtn?.addEventListener("click", () => {
       elements.aiSettingsPanel?.classList.toggle("hidden");
       loadAiConfigToForm(elements);
+      if (elements.reminderDays) {
+        elements.reminderDays.value = String(getReminderDays());
+      }
     });
     elements.aiSaveSettings?.addEventListener("click", () => {
       saveAiConfig({
@@ -372,7 +386,10 @@ import {
         baseUrl: elements.aiBaseUrl?.value,
         model: elements.aiModel?.value,
       });
-      ui.showToast("AI 设置已保存到本机。");
+      const days = setReminderDays(elements.reminderDays?.value);
+      if (elements.reminderDays) elements.reminderDays.value = String(days);
+      ui.render();
+      ui.showToast(`设置已保存（提醒窗口：未来 ${days} 天）。`);
       elements.aiSettingsPanel?.classList.add("hidden");
     });
 
@@ -388,17 +405,22 @@ import {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
         state.editingId = id;
-        lastAiResult = p.riskSummary
-          ? {
-              riskSummary: p.riskSummary,
-              riskPoints: p.riskPoints,
-              extractedMeta: p.extractedMeta,
-            }
-          : null;
+        lastAiResult =
+          p.riskSummary || p.qualification || p.invalidBidClauses
+            ? {
+                riskSummary: p.riskSummary,
+                riskPoints: p.riskPoints,
+                qualification: p.qualification,
+                invalidBidClauses: p.invalidBidClauses,
+                extractedMeta: p.extractedMeta,
+              }
+            : null;
         elements.form.date.value = p.date || "";
         elements.form.type.value = p.type || "";
         elements.form.name.value = p.name || "";
         elements.form.biddingCompany.value = p.biddingCompany || "";
+        if (elements.form.tenderer) elements.form.tenderer.value = p.tenderer || "";
+        if (elements.form.amount) elements.form.amount.value = p.amount || "";
         elements.form.guarantee.value = p.guarantee || "";
         elements.form.contact.value = p.contact || "";
         elements.form.status.value = p.status || "报名中";
