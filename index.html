@@ -25,6 +25,18 @@
         <div class="field"><label for="authPassword">密码</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /></div>
         <button id="authSubmit" class="btn primary" type="submit">登录</button>
         <div id="authMessage" class="auth-message" role="alert"></div>
+        <div class="auth-links">
+          <button id="forgotPasswordBtn" class="btn secondary auth-link-btn" type="button">忘记密码？</button>
+          <button id="resendVerificationBtn" class="btn secondary auth-link-btn" type="button">重发验证邮件</button>
+        </div>
+      </form>
+      <form id="resetPasswordPanel" class="auth-form hidden">
+        <p class="auth-hint">请设置新密码（至少 6 位）。</p>
+        <div class="field"><label for="newPassword">新密码</label><input id="newPassword" type="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required /></div>
+        <div class="field"><label for="confirmPassword">确认新密码</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="再次输入新密码" required /></div>
+        <button id="updatePasswordBtn" class="btn primary" type="button">设置新密码</button>
+        <button id="backToLoginBtn" class="btn secondary" type="button">返回登录</button>
+        <div id="resetPasswordMessage" class="auth-message" role="alert"></div>
       </form>
     </section>
   </main>
@@ -42,6 +54,9 @@
         <button id="openParserBtn" class="btn secondary" type="button">📄 招标文件解析</button>
         <button id="aiSettingsBtn" class="btn secondary" type="button">⚙️ 设置</button>
         <button id="exportBtn" class="btn secondary" type="button">📤 导出</button>
+        <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
+        <button id="downloadTemplateBtn" class="btn secondary" type="button">下载导入模板</button>
+        <input id="importFileInput" type="file" accept=".csv,text/csv" class="hidden" />
         <button id="signOutBtn" class="btn secondary" type="button">退出</button>
       </div>
     </header>
@@ -142,8 +157,8 @@
           <input id="contact" placeholder="请输入联系人" />
         </div>
         <div class="field">
-          <label for="guarantee">保证金要求原文</label>
-          <input id="guarantee" type="text" placeholder="请输入金额或要求" />
+          <label for="guarantee">保证金要求原文（选填）</label>
+          <input id="guarantee" type="text" placeholder="如 保证金 5 万元，开标后 5 个工作日内退还（选填）" />
         </div>
         <div class="field">
           <label for="amountValue">项目金额（数值）</label>
@@ -225,6 +240,7 @@
       </div>
 
       <div id="deadlineTip" class="deadline-tip" hidden></div>
+      <div id="refundTip" class="refund-tip" hidden></div>
       <div class="search-box">
         <input id="search" placeholder="搜索开标时间 / 投标公司 / 招标单位 / 项目类型 / 联系人 / 保证金 / 金额 / 项目名称 / 备注" />
         <div id="filterResultCount" class="filter-result-count">共 0 个项目</div>

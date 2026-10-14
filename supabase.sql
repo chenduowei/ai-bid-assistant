@@ -14,7 +14,7 @@ create table if not exists public.projects (
   amount text,
   contact text not null check (char_length(trim(contact)) > 0),
   bid_date date not null,
-  guarantee text not null check (char_length(trim(guarantee)) > 0),
+  guarantee text,
   status text not null default '报名中' check (status in ('报名中', '制作中', '已开标')),
   notes text,
   -- AI 分析结果（可选）
@@ -214,3 +214,26 @@ do $$ begin
   alter table public.projects add constraint projects_guarantee_status_check
     check (guarantee_status is null or guarantee_status in ('未缴纳', '已缴纳', '已退回', '已没收'));
 exception when duplicate_object then null; end $$;
+
+-- 8) v0.4.0：保证金改为选填（无新列，仅放宽约束）
+-- 旧库的 guarantee 列是 NOT NULL + 长度校验，空保证金会被数据库拒绝保存。
+-- 已有旧库需执行本段一次（幂等）；新建库已在 CREATE TABLE 中改为可为空，无需执行。
+do $$
+declare
+  constraint_name text;
+begin
+  alter table public.projects alter column guarantee drop not null;
+  for constraint_name in
+    select conname
+    from pg_constraint
+    where conrelid = 'public.projects'::regclass
+      and contype = 'c'
+      and pg_get_constraintdef(oid) ilike '%guarantee%'
+      and pg_get_constraintdef(oid) ilike '%char_length%'
+  loop
+    execute format('alter table public.projects drop constraint %I', constraint_name);
+  end loop;
+exception
+  when others then null;
+end;
+$$;

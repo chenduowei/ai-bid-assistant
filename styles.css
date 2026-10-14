@@ -997,3 +997,48 @@ body.dark {
   color: var(--text-secondary, #666);
   margin: 0 0 8px;
 }
+
+/* —— v0.4.0：登录辅助链接 / 重置密码 / 保证金退还提醒 —— */
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.auth-link-btn {
+  flex: 1;
+  font-size: 13px;
+  padding: 9px 10px;
+}
+.auth-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.refund-tip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: 14px;
+  color: #92400e;
+  background: rgba(251, 191, 36, 0.14);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  font-size: 13px;
+}
+.refund-item {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.refund-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+.refund-text,
+.refund-more {
+  font-weight: 600;
+}

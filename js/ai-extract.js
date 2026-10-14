@@ -342,6 +342,7 @@ export function createAiExtract({ ui }) {
     } else if (result.amount && elements.form.amount) {
       elements.form.amount.value = result.amount;
     }
+    // v0.4.0：保证金模型原文只写入“保证金要求原文”框（选填），不参与必填校验。
     if (result.guarantee && elements.form.guarantee)
       elements.form.guarantee.value = result.guarantee;
     if (result.contact && elements.form.contact)
