@@ -11,6 +11,7 @@ import {
   getNextDeadline,
   getUpcomingDeadlines,
   getChecklistProgress,
+  getGuaranteeRefundReminders,
 } from "./utils.js";
 
 export function createUi(elements, getState) {
@@ -70,6 +71,28 @@ export function createUi(elements, getState) {
         first.days === 0 ? "今天" : `还有 ${first.days} 天`;
       elements.deadlineTip.textContent = `⏰ 未来 ${reminderDays} 天有 ${upcoming.length} 个截止事项，最近的是「${first.project.name}」· ${first.label}（${formatDateDisplay(first.date)}，${left}）。`;
     }
+  };
+
+  /** v0.4.0：保证金退还提醒横幅（deadlineTip 下方），最多列 3 个项目 + 标记已退回 */
+  const renderRefundReminder = (projects) => {
+    const el = elements.refundTip;
+    if (!el) return;
+    const items = getGuaranteeRefundReminders(projects);
+    if (!items.length) {
+      el.hidden = true;
+      el.innerHTML = "";
+      return;
+    }
+    el.hidden = false;
+    const shown = items.slice(0, 3);
+    const more = items.length > 3 ? `等共 ${items.length} 个` : "";
+    const rows = shown
+      .map(
+        (p) =>
+          `<span class="refund-item">「${escapeHtml(p.name)}」（${escapeHtml(formatDateDisplay(p.date))}开标）<button class="btn secondary refund-btn" type="button" data-action="mark-refunded" data-id="${escapeHtml(p.id)}">标记已退回</button></span>`
+      )
+      .join("");
+    el.innerHTML = `<span class="refund-text">💰 以下项目已开标且保证金已缴纳，请跟进退还：</span>${rows}${more ? `<span class="refund-more">${escapeHtml(more)}</span>` : ""}`;
   };
 
   const upcomingLevel = (days) =>
@@ -235,7 +258,8 @@ export function createUi(elements, getState) {
           p.amountValue !== null && p.amountValue !== undefined
             ? formatMoney(p.amountValue, p.amountUnit)
             : p.amount || "-";
-        // 保证金：新字段优先（金额 + 状态），旧文本兜底
+        // 保证金：新字段优先（金额 + 状态），旧文本兜底；
+        // 旧文本存在且与结构化不同时，以“要求原文”小字显示
         const guaranteeDisplay =
           p.guaranteeAmount !== null && p.guaranteeAmount !== undefined
             ? `${formatMoney(p.guaranteeAmount, p.guaranteeUnit)}（${escapeHtml(p.guaranteeStatus || "未缴纳")}）`
@@ -244,16 +268,18 @@ export function createUi(elements, getState) {
           p.guaranteeAmount !== null &&
           p.guaranteeAmount !== undefined &&
           p.guarantee
-            ? `<span>保证金要求：${escapeHtml(p.guarantee)}</span>`
+            ? `<span>保证金要求原文：${escapeHtml(p.guarantee)}</span>`
             : "";
         const next = getNextDeadline(p);
         const deadlineHtml = next
           ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
           : "";
-        const pdfHtml = p.pdfText
-          ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}（${p.pdfText.length} 字${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""}） <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
-          : "";
-        return `<div class="project-item" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金：${guaranteeDisplay}</span><span>项目金额：${escapeHtml(amountDisplay)}</span>${guaranteeExtra}</div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn danger" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`;
+        // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
+        const pdfHtml =
+          p.pdfFilename || p.pdfParsedAt
+            ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+            : "";
+        return `<div class="project-item" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金：${guaranteeDisplay}</span><span>项目金额：${escapeHtml(amountDisplay)}</span>${guaranteeExtra}</div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn danger" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`;
       })
       .join("");
   };
@@ -324,6 +350,7 @@ export function createUi(elements, getState) {
     renderStats(state.projects);
     renderUpcomingList(state.projects);
     renderDeadlineTip(state.projects);
+    renderRefundReminder(state.projects);
     renderList(state.projects, filters);
   };
 

@@ -2,7 +2,7 @@
  * AI Bid Assistant — 入口
  * 模块：js/utils.js · auth.js · projects.js · pdf-parser.js · ai-extract.js · ui.js
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, escapeHtml } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -30,8 +30,19 @@ import {
     authSubmit: document.getElementById("authSubmit"),
     authMessage: document.getElementById("authMessage"),
     authTabs: document.querySelectorAll(".auth-tab"),
+    forgotPasswordBtn: document.getElementById("forgotPasswordBtn"),
+    resendVerificationBtn: document.getElementById("resendVerificationBtn"),
+    resetPasswordPanel: document.getElementById("resetPasswordPanel"),
+    newPassword: document.getElementById("newPassword"),
+    confirmPassword: document.getElementById("confirmPassword"),
+    updatePasswordBtn: document.getElementById("updatePasswordBtn"),
+    backToLoginBtn: document.getElementById("backToLoginBtn"),
+    resetPasswordMessage: document.getElementById("resetPasswordMessage"),
     themeBtn: document.getElementById("themeBtn"),
     exportBtn: document.getElementById("exportBtn"),
+    importBtn: document.getElementById("importBtn"),
+    downloadTemplateBtn: document.getElementById("downloadTemplateBtn"),
+    importFileInput: document.getElementById("importFileInput"),
     signOutBtn: document.getElementById("signOutBtn"),
     userEmail: document.getElementById("userEmail"),
     syncStatus: document.getElementById("syncStatus"),
@@ -71,6 +82,7 @@ import {
     toggleTrashBtn: document.getElementById("toggleTrashBtn"),
     upcomingList: document.getElementById("upcomingList"),
     deadlineTip: document.getElementById("deadlineTip"),
+    refundTip: document.getElementById("refundTip"),
     backToTop: document.getElementById("backToTop"),
     scrollProgress: document.getElementById("scrollProgress"),
     toastWrap: document.getElementById("toastWrap"),
@@ -108,6 +120,10 @@ import {
   /** 错过提醒每个会话只提示一次，避免 Realtime 刷新时反复刷屏 */
   let missedReminderShown = false;
   let trashVisible = false;
+  /** 密码重置流程中：为 true 时 showApp 不切回工作台，停留在重置面板 */
+  let passwordRecoveryActive = false;
+  /** v0.4.0：搜索防抖 200ms（筛选/排序仍立即渲染） */
+  const debouncedRender = debounce(() => ui.render(), 200);
 
   const state = {
     projects: [],
@@ -159,7 +175,7 @@ import {
       name: elements.form.name.value.trim(),
       bidding_company: elements.form.biddingCompany.value.trim(),
       tenderer: elements.form.tenderer?.value.trim() || null,
-      guarantee: elements.form.guarantee.value.trim(),
+      guarantee: elements.form.guarantee.value.trim() || null,
       amount_value: parseMoneyInput(elements.form.amountValue?.value),
       amount_unit: elements.form.amountUnit?.value || "万元",
       guarantee_amount: parseMoneyInput(elements.form.guaranteeAmount?.value),
@@ -270,7 +286,27 @@ import {
     return name || fallback || "招标文件.pdf";
   }
 
+  /** v0.4.0：显示密码重置面板（PASSWORD_RECOVERY 事件触发时调用） */
+  function showResetPasswordPanel() {
+    passwordRecoveryActive = true;
+    elements.authView.classList.remove("hidden");
+    elements.appView.classList.add("hidden");
+    elements.authForm?.classList.add("hidden");
+    elements.resetPasswordPanel?.classList.remove("hidden");
+    if (elements.newPassword) elements.newPassword.value = "";
+    if (elements.confirmPassword) elements.confirmPassword.value = "";
+    if (elements.resetPasswordMessage) elements.resetPasswordMessage.textContent = "";
+  }
+
+  function hideResetPasswordPanel() {
+    passwordRecoveryActive = false;
+    elements.resetPasswordPanel?.classList.add("hidden");
+    elements.authForm?.classList.remove("hidden");
+  }
+
   function showApp(user) {
+    // 密码重置流程中：停留在重置面板，不切回工作台
+    if (passwordRecoveryActive) return;
     if (
       state.user?.id === user.id &&
       !elements.appView.classList.contains("hidden")
@@ -301,6 +337,9 @@ import {
   function showAuth() {
     state.user = null;
     state.realtimeReady = false;
+    passwordRecoveryActive = false;
+    elements.resetPasswordPanel?.classList.add("hidden");
+    elements.authForm?.classList.remove("hidden");
     elements.appView.classList.add("hidden");
     elements.authView.classList.remove("hidden");
     if (state.channel && client) {
@@ -315,6 +354,7 @@ import {
     ui,
     onSignedIn: showApp,
     onSignedOut: showAuth,
+    onPasswordRecovery: showResetPasswordPanel,
   });
 
   const showParser = () => {
@@ -377,15 +417,112 @@ import {
       // 导出当前筛选结果，与列表看到的一致，而非全量。
       projectsApi.exportCsv(ui.getCurrentFilteredProjects?.() ?? state.projects)
     );
+
+    // v0.4.0：忘记密码 / 重发验证邮件
+    elements.forgotPasswordBtn?.addEventListener("click", async () => {
+      const email = elements.authEmail.value.trim();
+      if (!email) {
+        ui.showToast("请先填写邮箱。");
+        return;
+      }
+      const result = await auth.sendPasswordReset(email);
+      if (result.ok) ui.showToast("重置链接已发到邮箱，请查收（含垃圾箱）。");
+      else ui.showToast(`发送失败：${result.error || "请稍后重试"}`);
+    });
+    elements.resendVerificationBtn?.addEventListener("click", async () => {
+      const email = elements.authEmail.value.trim();
+      if (!email) {
+        ui.showToast("请先填写邮箱。");
+        return;
+      }
+      const result = await auth.resendVerification(email);
+      if (result.ok) ui.showToast("验证邮件已重发，请查收（含垃圾箱）。");
+      else ui.showToast(`发送失败：${result.error || "请稍后重试"}`);
+    });
+    elements.updatePasswordBtn?.addEventListener("click", async () => {
+      const next = elements.newPassword?.value || "";
+      const again = elements.confirmPassword?.value || "";
+      if (next.length < 6) {
+        ui.showToast("新密码至少 6 位。");
+        return;
+      }
+      if (next !== again) {
+        ui.showToast("两次输入的新密码不一致。");
+        return;
+      }
+      const result = await auth.updatePassword(next);
+      if (!result.ok) {
+        ui.showToast(`设置失败：${result.error || "请稍后重试"}`);
+        return;
+      }
+      hideResetPasswordPanel();
+      ui.showToast("密码已更新，请重新登录。");
+      await auth.signOut();
+    });
+    elements.backToLoginBtn?.addEventListener("click", () => {
+      hideResetPasswordPanel();
+    });
+
+    // v0.4.0：CSV 导入（只做 CSV）+ 下载导入模板
+    elements.importBtn?.addEventListener("click", () =>
+      elements.importFileInput?.click()
+    );
+    elements.downloadTemplateBtn?.addEventListener("click", () => {
+      const csv = buildImportCsvTemplate();
+      const url = URL.createObjectURL(
+        new Blob([csv], { type: "text/csv;charset=utf-8" })
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "项目导入模板.csv";
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      ui.showToast("导入模板已下载。");
+    });
+    elements.importFileInput?.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      let text = "";
+      try {
+        text = await file.text();
+      } catch {
+        ui.showToast("读取文件失败，请重试。");
+        return;
+      }
+      const { rows, errors } = parseCsvProjects(text);
+      if (!rows.length) {
+        const detail = errors
+          .slice(0, 3)
+          .map((e) => `第${e.line}行：${e.reason}`)
+          .join("；");
+        ui.showToast(`没有可导入的行。${detail || ""}`);
+        return;
+      }
+      const { imported, failed } = await projectsApi.importProjects(rows);
+      const skipped = errors.length + failed;
+      const detail = errors
+        .slice(0, 2)
+        .map((e) => `第${e.line}行：${e.reason}`)
+        .join("；");
+      ui.showToast(
+        `成功导入 ${imported} 条${skipped ? `，跳过 ${skipped} 条${detail ? `：${detail}` : ""}` : "。"}` +
+          (errors.length > 2 ? "（更多错误见控制台）" : "")
+      );
+      if (errors.length > 2) console.warn("CSV 导入跳过的行：", errors);
+    });
     elements.submitBtn?.addEventListener("click", async () => {
       const ok = await projectsApi.saveProject(formData(), state.editingId);
       if (ok) resetForm();
     });
     elements.cancelBtn?.addEventListener("click", resetForm);
-    [elements.search, elements.statusFilter, elements.sortBy].forEach((el) =>
-      el?.addEventListener(el === elements.search ? "input" : "change", () =>
-        ui.render()
-      )
+    // v0.4.0：搜索框 input 防抖 200ms；筛选 / 排序 change 立即渲染。
+    elements.search?.addEventListener("input", () => debouncedRender());
+    [elements.statusFilter, elements.sortBy].forEach((el) =>
+      el?.addEventListener("change", () => ui.render())
     );
 
     elements.upcomingList?.addEventListener("click", (event) => {
@@ -518,18 +655,27 @@ import {
       }
       if (button.dataset.action === "view-pdf") {
         const p = state.projects.find((project) => project.id === id);
-        if (!p?.pdfText) {
+        if (!p) return;
+        // v0.4.0：列表不再带全文，先看内存，没有则按需拉
+        let text = p.pdfText || "";
+        if (!text) {
+          text = (await projectsApi.loadProjectPdfText(id)) || "";
+        }
+        if (!text) {
           ui.showToast("该项目暂无已保存的招标文件文本。");
           return;
         }
-        elements.parsedText.value = p.pdfText;
+        elements.parsedText.value = text;
         elements.parsedText.classList.remove("hidden");
-        elements.pdfFileName.textContent = `已保存文件：${p.pdfFilename || "未命名"}`;
+        elements.pdfFileName.textContent = `已保存文件：${p.pdfFilename || "未命名"}（${text.length} 字）`;
         elements.toggleTextBtn.disabled = false;
         elements.toggleTextBtn.textContent = "隐藏原始文本";
         elements.copyTextBtn.disabled = false;
         elements.aiAnalyzeBtn.disabled = false;
         showParser();
+      }
+      if (button.dataset.action === "clone") {
+        await projectsApi.cloneProject(id);
       }
       if (button.dataset.action === "checklist-generate") {
         const p = state.projects.find((project) => project.id === id);
@@ -647,6 +793,18 @@ import {
         ),
       });
       if (!ok) ui.render();
+    });
+
+    // v0.4.0：保证金退还提醒横幅 — 标记已退回
+    elements.refundTip?.addEventListener("click", async (event) => {
+      const button = event.target.closest(
+        'button[data-action="mark-refunded"]'
+      );
+      if (!button) return;
+      const ok = await projectsApi.updateProjectFields(button.dataset.id, {
+        guaranteeStatus: "已退回",
+      });
+      if (ok) ui.showToast("已标记为已退回。");
     });
 
     elements.toggleTrashBtn?.addEventListener("click", async () => {

@@ -18,6 +18,43 @@ const toNumberOrNull = (v) => {
 };
 
 export function createProjectsApi({ getClient, getState, setState, ui }) {
+  // v0.4.0：列表查询显式列清单，排除 pdf_text（全文按需拉，见 loadProjectPdfText）。
+  // 列表仍保留 pdf_filename + pdf_parsed_at，用于显示“已保存招标文件”。
+  const LIST_COLUMNS = [
+    "id",
+    "user_id",
+    "bid_date",
+    "project_type",
+    "name",
+    "bidding_company",
+    "tenderer",
+    "amount",
+    "guarantee",
+    "contact",
+    "status",
+    "notes",
+    "risk_summary",
+    "risk_points",
+    "qualification",
+    "invalid_bid_clauses",
+    "extracted_meta",
+    "deleted_at",
+    "checklist",
+    "amount_value",
+    "amount_unit",
+    "guarantee_amount",
+    "guarantee_unit",
+    "guarantee_status",
+    "registration_deadline",
+    "inquiry_deadline",
+    "clarification_deadline",
+    "guarantee_deadline",
+    "pdf_filename",
+    "pdf_parsed_at",
+    "created_at",
+    "updated_at",
+  ].join(",");
+
   const toUiProject = (row) => ({
     id: row.id,
     date: row.bid_date,
@@ -69,7 +106,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const client = getClient();
     let query = client
       .from("projects")
-      .select("*")
+      .select(LIST_COLUMNS)
       .order(deletedOnly ? "deleted_at" : "bid_date", { ascending: !deletedOnly });
     if (useDeletedFilter) {
       query = deletedOnly
@@ -139,6 +176,37 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return allRows.map(toUiProject);
   }
 
+  /**
+   * v0.4.0：按需拉单个项目的 PDF 全文（列表查询已排除 pdf_text）。
+   * 成功后把结果合并进 state.projects 对应项，不全量重拉（重拉会把刚合并的全文清掉）。
+   * 返回 pdf_text 字符串，失败返回 null。
+   */
+  async function loadProjectPdfText(id) {
+    const client = getClient();
+    const state = getState();
+    const { data, error } = await client
+      .from("projects")
+      .select("id, pdf_text, pdf_filename, pdf_parsed_at")
+      .eq("id", id)
+      .eq("user_id", state.user.id)
+      .maybeSingle();
+    if (error) {
+      ui.showToast(`加载已保存文本失败：${error.message}`);
+      return null;
+    }
+    if (!data) {
+      ui.showToast("该项目暂无已保存的招标文件文本。");
+      return null;
+    }
+    const item = state.projects.find((p) => p.id === id);
+    if (item) {
+      item.pdfText = data.pdf_text || "";
+      item.pdfFilename = data.pdf_filename || "";
+      item.pdfParsedAt = data.pdf_parsed_at || null;
+    }
+    return data.pdf_text || "";
+  }
+
   /** 静默清理超过保留期的回收站项目（最佳努力，失败不打扰用户）。 */
   async function purgeExpiredTrash() {
     try {
@@ -184,7 +252,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         bidding_company: String(p.biddingCompany || p.company || "").trim() || null,
         tenderer: String(p.tenderer || "").trim() || null,
         amount: String(p.amount || "").trim() || null,
-        guarantee: String(p.guarantee ?? "").trim(),
+        guarantee: String(p.guarantee ?? "").trim() || null,
         contact: String(p.contact || "").trim(),
         status: validStatuses.has(p.status) ? p.status : "报名中",
         notes: String(p.notes || "").trim() || null,
@@ -193,7 +261,6 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         !project.bid_date ||
         !project.project_type ||
         !project.name ||
-        !project.guarantee ||
         !project.contact
       ) {
         invalid.push(index + 1);
@@ -252,14 +319,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     setState({ channel });
   }
 
+  // v0.4.0：保证金 / 金额均选填。必填：开标时间、项目类型、项目名称、投标公司、联系人。
   function validate(project) {
     return !project.bid_date ||
       !project.project_type ||
       !project.name ||
       !project.bidding_company ||
-      !project.guarantee ||
       !project.contact
-      ? "请完整填写：开标时间、项目类型、项目名称、投标公司、保证金/保函、联系人。"
+      ? "请完整填写：开标时间、项目类型、项目名称、投标公司、联系人。"
       : "";
   }
 
@@ -271,15 +338,23 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(errorText);
       return false;
     }
+    // 保证金原文为空时存 null（v0.4.0 起 guarantee 列可为空，见 supabase.sql 第 8 节）
+    const payload = {
+      ...project,
+      guarantee:
+        typeof project.guarantee === "string" && project.guarantee.trim()
+          ? project.guarantee
+          : null,
+    };
     ui.setSyncStatus("正在保存…");
     const wasEditing = Boolean(editingId);
     const query = wasEditing
       ? client
           .from("projects")
-          .update(project)
+          .update(payload)
           .eq("id", editingId)
           .eq("user_id", state.user.id)
-      : client.from("projects").insert({ ...project, user_id: state.user.id });
+      : client.from("projects").insert({ ...payload, user_id: state.user.id });
     const { error } = await query;
     if (error) {
       ui.setSyncStatus("保存失败", true);
@@ -408,6 +483,85 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return true;
   }
 
+  /**
+   * v0.4.0：批量导入（CSV 解析后的 DB 形态行）。每批 100 条 insert。
+   * 返回 { imported, failed }；失败 toast 报错。
+   */
+  async function importProjects(rows) {
+    const client = getClient();
+    const state = getState();
+    const list = Array.isArray(rows) ? rows : [];
+    if (!list.length) return { imported: 0, failed: 0 };
+    let imported = 0;
+    let failed = 0;
+    for (let i = 0; i < list.length; i += 100) {
+      const batch = list.slice(i, i + 100).map((r) => ({ ...r, user_id: state.user.id }));
+      const { error } = await client.from("projects").insert(batch);
+      if (error) {
+        failed += batch.length;
+        ui.showToast(`导入失败（第 ${i + 1}–${i + batch.length} 条）：${error.message}`);
+      } else {
+        imported += batch.length;
+      }
+    }
+    await loadProjects();
+    return { imported, failed };
+  }
+
+  /**
+   * v0.4.0：复制项目。副本：名称 +“（副本）”、状态回到“报名中”、
+   * 保证金状态回到“未缴纳”、清单全部未完成、PDF 持久化字段清空；
+   * 其余字段原样复制（含 4 个截止时间、金额/保证金数值），不复制 id / 时间戳 / deleted_at。
+   */
+  async function cloneProject(id) {
+    const client = getClient();
+    const state = getState();
+    const project = state.projects.find((p) => p.id === id);
+    if (!project) return false;
+    if (!confirm(`复制「${project.name}」为新项目吗？`)) return false;
+    const payload = {
+      user_id: state.user.id,
+      bid_date: project.date,
+      project_type: project.type,
+      name: `${project.name}（副本）`,
+      bidding_company: project.biddingCompany,
+      tenderer: project.tenderer || null,
+      amount: project.amount || null,
+      guarantee: project.guarantee || null,
+      contact: project.contact,
+      status: "报名中",
+      notes: project.notes || null,
+      risk_summary: project.riskSummary || null,
+      risk_points: project.riskPoints?.length ? project.riskPoints : null,
+      qualification: project.qualification?.length ? project.qualification : null,
+      invalid_bid_clauses: project.invalidBidClauses?.length
+        ? project.invalidBidClauses
+        : null,
+      extracted_meta: project.extractedMeta || null,
+      checklist: (project.checklist || []).map((item) => ({ ...item, done: false })),
+      amount_value: project.amountValue ?? null,
+      amount_unit: project.amountUnit || "万元",
+      guarantee_amount: project.guaranteeAmount ?? null,
+      guarantee_unit: project.guaranteeUnit || "万元",
+      guarantee_status: "未缴纳",
+      registration_deadline: project.registrationDeadline || null,
+      inquiry_deadline: project.inquiryDeadline || null,
+      clarification_deadline: project.clarificationDeadline || null,
+      guarantee_deadline: project.guaranteeDeadline || null,
+      pdf_text: null,
+      pdf_filename: null,
+      pdf_parsed_at: null,
+    };
+    const { error } = await client.from("projects").insert(payload);
+    if (error) {
+      ui.showToast(`复制失败：${error.message}`);
+      return false;
+    }
+    await loadProjects();
+    ui.showToast(`已复制为「${payload.name}」。`);
+    return true;
+  }
+
   const exportCsv = (projects) => {
     const headers = [
       "项目名称",
@@ -426,6 +580,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       "保证金金额",
       "保证金单位",
       "保证金状态",
+      // v0.4.0：导出补齐清单 + PDF 文件名（新增列放末尾，原有列顺序不变）
+      "检查清单（已完成/总数）",
+      "检查清单详情",
+      "PDF 文件名",
     ];
     const rows = projects.map((p) => [
       p.name,
@@ -444,6 +602,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       p.guaranteeAmount ?? "",
       p.guaranteeUnit || "",
       p.guaranteeStatus || "",
+      // v0.4.0：清单详情格式 [x] 文本1; [ ] 文本2，无清单则空
+      `${(p.checklist || []).filter((i) => i?.done).length}/${(p.checklist || []).length}`,
+      (p.checklist || [])
+        .map((i) => `[${i?.done ? "x" : " "}] ${i?.text || ""}`)
+        .join("; "),
+      p.pdfFilename || "",
     ]);
     const csv =
       "\ufeff" +
@@ -469,11 +633,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   return {
     loadProjects,
     loadDeletedProjects,
+    loadProjectPdfText,
     purgeExpiredTrash,
     migrateLocalProjects,
     subscribeToProjects,
     saveProject,
     updateProjectFields,
+    importProjects,
+    cloneProject,
     deleteProject,
     restoreProject,
     permanentlyDeleteProject,

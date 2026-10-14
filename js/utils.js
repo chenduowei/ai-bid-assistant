@@ -298,3 +298,315 @@ export function getUpcomingDeadlines(projects, maxDays = getReminderDays()) {
   out.sort((a, b) => a.days - b.days || a.date.localeCompare(b.date));
   return out;
 }
+
+/* ================= v0.4.0：防抖 / CSV 导入 / 保证金退还提醒 ================= */
+
+/**
+ * 防抖：连续调用只执行最后一次；返回的函数带 .cancel() 可取消待执行调用。
+ */
+export function debounce(fn, wait = 200) {
+  let timer = null;
+  const debounced = (...args) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      fn(...args);
+    }, wait);
+  };
+  debounced.cancel = () => {
+    if (timer) clearTimeout(timer);
+    timer = null;
+  };
+  return debounced;
+}
+
+/**
+ * 保证金退还提醒：已缴纳 + 已开标 + 开标日期 <= 今天 + 保证金金额 > 0 的项目，
+ * 按开标日期升序。UI 项目用 p.date，DB 行用 p.bid_date，两者都兼容；
+ * guaranteeAmount 可能是字符串，做 Number 转换。
+ */
+export function getGuaranteeRefundReminders(projects, now = new Date()) {
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const out = (Array.isArray(projects) ? projects : []).filter((p) => {
+    if (!p || p.guaranteeStatus !== "已缴纳" || p.status !== "已开标") return false;
+    const date = String(p.date || p.bid_date || "").slice(0, 10);
+    if (!date || date > todayStr) return false;
+    const amount = Number(p.guaranteeAmount);
+    return Number.isFinite(amount) && amount > 0;
+  });
+  out.sort((a, b) =>
+    String(a.date || a.bid_date || "").localeCompare(String(b.date || b.bid_date || ""))
+  );
+  return out;
+}
+
+/* ---------------- CSV 导入 ---------------- */
+
+export const IMPORT_CSV_HEADERS = [
+  "项目名称",
+  "项目类型",
+  "投标公司",
+  "招标单位",
+  "联系人",
+  "开标时间",
+  "保证金要求原文",
+  "项目金额原文",
+  "项目金额（数值）",
+  "项目金额单位",
+  "保证金金额",
+  "保证金单位",
+  "保证金状态",
+  "项目状态",
+  "备注",
+  "报名截止",
+  "质疑截止",
+  "澄清截止",
+  "保证金缴纳截止",
+];
+
+const IMPORT_HEADER_MAP = {
+  项目名称: "name",
+  项目类型: "project_type",
+  投标公司: "bidding_company",
+  招标单位: "tenderer",
+  联系人: "contact",
+  开标时间: "bid_date",
+  保证金要求原文: "guarantee",
+  项目金额原文: "amount",
+  "项目金额（数值）": "amount_value",
+  项目金额单位: "amount_unit",
+  保证金金额: "guarantee_amount",
+  保证金单位: "guarantee_unit",
+  保证金状态: "guarantee_status",
+  项目状态: "status",
+  备注: "notes",
+  报名截止: "registration_deadline",
+  质疑截止: "inquiry_deadline",
+  澄清截止: "clarification_deadline",
+  保证金缴纳截止: "guarantee_deadline",
+};
+
+const IMPORT_STATUSES = new Set(["报名中", "制作中", "已开标"]);
+const IMPORT_GUARANTEE_STATUSES = new Set(["未缴纳", "已缴纳", "已退回", "已没收"]);
+
+/** 解析 CSV 文本为行数组（处理 BOM、引号内逗号/换行、"" 转义），每行带起始行号 */
+function parseCsvRows(text) {
+  const src = String(text ?? "").replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+  let rowStartLine = 1;
+  let line = 1;
+  let fieldStarted = false;
+  const endField = () => {
+    row.push(field);
+    field = "";
+    fieldStarted = false;
+  };
+  const endRow = () => {
+    endField();
+    rows.push({ cells: row, line: rowStartLine });
+    row = [];
+    rowStartLine = line + 1;
+  };
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (src[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        if (ch === "\n") line++;
+        field += ch;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      // 只有字段开头（且为空）的引号才进入引用模式，其余当普通字符
+      if (!fieldStarted && field === "") {
+        inQuotes = true;
+        fieldStarted = true;
+      } else {
+        field += ch;
+      }
+      continue;
+    }
+    if (ch === ",") {
+      endField();
+      continue;
+    }
+    if (ch === "\r") {
+      if (src[i + 1] === "\n") i++;
+      endRow();
+      line++;
+      continue;
+    }
+    if (ch === "\n") {
+      endRow();
+      line++;
+      continue;
+    }
+    field += ch;
+    fieldStarted = true;
+  }
+  // 文件尾：有未闭合的字段/行则收尾（末尾换行已在 endRow 处理，不重复）
+  if (inQuotes || field !== "" || fieldStarted || row.length > 0) {
+    endRow();
+  }
+  return rows;
+}
+
+/** 校验并归一化日期单元格：接受 YYYY-MM-DD / YYYY/MM/DD / YYYY年M月D日，非法返回 "" */
+function normalizeCsvDate(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  const m = raw.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  if (!m) return "";
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(Date.UTC(year, month - 1, day));
+  if (
+    d.getUTCFullYear() !== year ||
+    d.getUTCMonth() !== month - 1 ||
+    d.getUTCDate() !== day
+  ) {
+    return "";
+  }
+  return `${m[1]}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function normalizeCsvNumber(value) {
+  const raw = String(value ?? "").trim().replace(/,/g, "");
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function csvCell(row, headerIndex, field) {
+  const idx = headerIndex.get(field);
+  if (idx === undefined) return "";
+  return String(row.cells[idx] ?? "").trim();
+}
+
+/**
+ * 解析导入 CSV：第一行为表头。
+ * 返回 { rows, errors }：rows 为 DB 列形态的项目对象；errors 为 { line, reason }。
+ * 必填缺失（项目名称 / 项目类型 / 投标公司 / 联系人 / 开标时间）的行进 errors，不导入。
+ */
+export function parseCsvProjects(text) {
+  if (!text || !String(text).trim()) {
+    return { rows: [], errors: [{ line: 1, reason: "文件为空或无有效内容" }] };
+  }
+  const parsed = parseCsvRows(text);
+  if (!parsed.length) {
+    return { rows: [], errors: [{ line: 1, reason: "文件为空或无有效内容" }] };
+  }
+  const headerIndex = new Map();
+  parsed[0].cells.forEach((cell, i) => {
+    const name = String(cell ?? "").trim();
+    const field = IMPORT_HEADER_MAP[name];
+    if (field && !headerIndex.has(field)) headerIndex.set(field, i);
+  });
+  if (!headerIndex.has("name")) {
+    return {
+      rows: [],
+      errors: [{ line: 1, reason: "未识别到表头，请使用“下载导入模板”得到的模板" }],
+    };
+  }
+  const rows = [];
+  const errors = [];
+  for (let r = 1; r < parsed.length; r++) {
+    const { cells, line } = parsed[r];
+    if (cells.every((c) => String(c ?? "").trim() === "")) continue;
+    const get = (field) => csvCell(parsed[r], headerIndex, field);
+    const name = get("name");
+    const projectType = get("project_type");
+    const biddingCompany = get("bidding_company");
+    const contact = get("contact");
+    const bidDate = normalizeCsvDate(get("bid_date"));
+    const missing = [];
+    if (!name) missing.push("项目名称");
+    if (!projectType) missing.push("项目类型");
+    if (!biddingCompany) missing.push("投标公司");
+    if (!contact) missing.push("联系人");
+    if (!bidDate) missing.push("开标时间（非法或为空）");
+    if (missing.length) {
+      errors.push({ line, reason: `缺少必填：${missing.join("、")}` });
+      continue;
+    }
+    const amountUnit = get("amount_unit");
+    const guaranteeUnit = get("guarantee_unit");
+    const status = get("status");
+    const guaranteeStatus = get("guarantee_status");
+    rows.push({
+      bid_date: bidDate,
+      project_type: projectType,
+      name,
+      bidding_company: biddingCompany,
+      tenderer: get("tenderer") || null,
+      contact,
+      guarantee: get("guarantee") || null,
+      amount: get("amount") || null,
+      amount_value: normalizeCsvNumber(get("amount_value")),
+      amount_unit: amountUnit === "元" || amountUnit === "万元" ? amountUnit : "万元",
+      guarantee_amount: normalizeCsvNumber(get("guarantee_amount")),
+      guarantee_unit:
+        guaranteeUnit === "元" || guaranteeUnit === "万元" ? guaranteeUnit : "万元",
+      guarantee_status: IMPORT_GUARANTEE_STATUSES.has(guaranteeStatus)
+        ? guaranteeStatus
+        : "未缴纳",
+      status: IMPORT_STATUSES.has(status) ? status : "报名中",
+      notes: get("notes") || null,
+      registration_deadline: normalizeCsvDate(get("registration_deadline")) || null,
+      inquiry_deadline: normalizeCsvDate(get("inquiry_deadline")) || null,
+      clarification_deadline: normalizeCsvDate(get("clarification_deadline")) || null,
+      guarantee_deadline: normalizeCsvDate(get("guarantee_deadline")) || null,
+    });
+  }
+  return { rows, errors };
+}
+
+const escapeCsvCell = (v) => {
+  const s = String(v ?? "");
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+/** 导入模板 CSV（含 BOM 表头 + 1 行示例） */
+export function buildImportCsvTemplate() {
+  const example = [
+    "示例项目",
+    "房建工程",
+    "示例投标公司",
+    "示例招标单位",
+    "张三",
+    "2026-12-01",
+    "保证金 10 万元，开标后退还",
+    "",
+    "500",
+    "万元",
+    "10",
+    "万元",
+    "未缴纳",
+    "报名中",
+    "示例备注",
+    "2026-11-01",
+    "2026-11-10",
+    "2026-11-15",
+    "2026-11-20",
+  ];
+  return (
+    "\uFEFF" +
+    IMPORT_CSV_HEADERS.map(escapeCsvCell).join(",") +
+    "\n" +
+    example.map(escapeCsvCell).join(",") +
+    "\n"
+  );
+}
