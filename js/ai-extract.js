@@ -326,8 +326,22 @@ export function createAiExtract({ ui }) {
       elements.form.name.value = result.name;
     if (result.tenderer && elements.form.tenderer)
       elements.form.tenderer.value = result.tenderer;
-    if (result.amount && elements.form.amount)
+    // v0.3.0：项目金额已拆为数值 + 单位。AI 返回的是原文摘要，
+    // 从中抽第一个数字填数值，并按“万元/元”关键字推断单位。
+    if (result.amount && elements.form.amountValue) {
+      const numMatch = String(result.amount).match(/-?\d[\d,]*(\.\d+)?/);
+      if (numMatch) {
+        elements.form.amountValue.value = numMatch[0].replace(/,/g, "");
+      }
+      if (elements.form.amountUnit) {
+        if (String(result.amount).includes("万元"))
+          elements.form.amountUnit.value = "万元";
+        else if (String(result.amount).includes("元"))
+          elements.form.amountUnit.value = "元";
+      }
+    } else if (result.amount && elements.form.amount) {
       elements.form.amount.value = result.amount;
+    }
     if (result.guarantee && elements.form.guarantee)
       elements.form.guarantee.value = result.guarantee;
     if (result.contact && elements.form.contact)

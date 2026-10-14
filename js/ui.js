@@ -5,8 +5,12 @@ import {
   formatDateDisplay,
   formatCountdown,
   getStatusClass,
-  getReminder,
   getReminderDays,
+  formatMoney,
+  getGuaranteeTotals,
+  getNextDeadline,
+  getUpcomingDeadlines,
+  getChecklistProgress,
 } from "./utils.js";
 
 export function createUi(elements, getState) {
@@ -47,53 +51,52 @@ export function createUi(elements, getState) {
     elements.openedCount.textContent = projects.filter(
       (p) => p.status === "已开标"
     ).length;
+    if (elements.inTransitGuarantee) {
+      const { inTransit } = getGuaranteeTotals(projects);
+      elements.inTransitGuarantee.textContent = inTransit.toLocaleString(
+        "en-US",
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      );
+    }
   };
 
   const renderDeadlineTip = (projects) => {
     const reminderDays = getReminderDays();
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const limit = new Date(today);
-    limit.setDate(limit.getDate() + reminderDays);
-    const upcoming = projects
-      .filter((p) => p.status !== "已开标" && p.date)
-      .filter((p) => {
-        const date = new Date(`${p.date}T00:00:00`);
-        return date >= today && date <= limit;
-      })
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const upcoming = getUpcomingDeadlines(projects, reminderDays);
     elements.deadlineTip.hidden = !upcoming.length;
     if (upcoming.length) {
-      elements.deadlineTip.textContent = `⏰ 未来 ${reminderDays} 天有 ${upcoming.length} 个项目待开标，最近的是「${upcoming[0].name}」（${formatDateDisplay(upcoming[0].date)}）。`;
+      const first = upcoming[0];
+      const left =
+        first.days === 0 ? "今天" : `还有 ${first.days} 天`;
+      elements.deadlineTip.textContent = `⏰ 未来 ${reminderDays} 天有 ${upcoming.length} 个截止事项，最近的是「${first.project.name}」· ${first.label}（${formatDateDisplay(first.date)}，${left}）。`;
     }
   };
 
+  const upcomingLevel = (days) =>
+    days === 0 ? "urgent" : days === 1 ? "red" : days <= 3 ? "orange" : "yellow";
+
   const renderUpcomingList = (projects) => {
     const reminderDays = getReminderDays();
-    const upcoming = projects
-      .map((project) => ({
-        project,
-        reminder: getReminder(project, reminderDays),
-      }))
-      .filter((item) => item.reminder)
-      .sort(
-        (a, b) =>
-          a.reminder.days - b.reminder.days ||
-          a.project.date.localeCompare(b.project.date)
-      );
+    const upcoming = getUpcomingDeadlines(projects, reminderDays);
     const desc = document.getElementById("upcomingDesc");
     if (desc) {
-      desc.textContent = `按开标时间升序显示未来 ${reminderDays} 天内的项目（浏览器通知仅在页面打开时触发，关页后需下次打开补看）。`;
+      desc.textContent = `按截止时间升序显示未来 ${reminderDays} 天内的截止事项（报名 / 质疑 / 澄清 / 保证金 / 开标；浏览器通知仅在页面打开时触发，关页后需下次打开补看）。`;
     }
     if (!upcoming.length) {
-      elements.upcomingList.innerHTML = `<div class="upcoming-empty">未来 ${reminderDays} 天暂无待开标项目。</div>`;
+      elements.upcomingList.innerHTML = `<div class="upcoming-empty">未来 ${reminderDays} 天暂无截止事项。</div>`;
       return;
     }
     elements.upcomingList.innerHTML = upcoming
-      .map(
-        ({ project, reminder }) =>
-          `<div class="upcoming-item ${reminder.level}" data-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="upcoming-name">${escapeHtml(project.name)}</div><div class="upcoming-date">开标日期：${escapeHtml(formatDateDisplay(project.date))}</div><div class="reminder-label">${escapeHtml(reminder.label)}</div></div>`
-      )
+      .map(({ project, label, date, days }) => {
+        const level = upcomingLevel(days);
+        const labelText =
+          days === 0
+            ? `${label}：今日`
+            : days === 1
+              ? `${label}：明日`
+              : `${label}：${days} 天后`;
+        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="upcoming-name">${escapeHtml(project.name)}</div><div class="upcoming-date">${escapeHtml(label)}：${escapeHtml(formatDateDisplay(date))}</div><div class="reminder-label">${escapeHtml(labelText)}</div></div>`;
+      })
       .join("");
   };
 
@@ -140,6 +143,9 @@ export function createUi(elements, getState) {
     const invalidText = Array.isArray(p.invalidBidClauses)
       ? p.invalidBidClauses.join(" ")
       : "";
+    const checklistText = Array.isArray(p.checklist)
+      ? p.checklist.map((item) => item?.text || "").join(" ")
+      : "";
     const haystack = [
       p.date,
       formatDateDisplay(p.date),
@@ -154,6 +160,8 @@ export function createUi(elements, getState) {
       p.status,
       qualText,
       invalidText,
+      checklistText,
+      p.pdfFilename || "",
     ]
       .filter(Boolean)
       .join(" ")
@@ -186,6 +194,28 @@ export function createUi(elements, getState) {
     el.textContent = `筛选结果：${filteredCount} 个（共 ${totalCount} 个）`;
   };
 
+  const checklistSourceLabel = (source) =>
+    source === "ai-invalid"
+      ? "废标条款"
+      : source === "ai-risk"
+        ? "AI风险"
+        : "手动";
+
+  /** 废标检查清单：进度 + 勾选 + 生成 + 手动新增 + 删除，文本全部 escapeHtml */
+  const renderChecklist = (p) => {
+    const list = Array.isArray(p.checklist) ? p.checklist : [];
+    const { done, total } = getChecklistProgress(list);
+    const itemsHtml = list.length
+      ? list
+          .map(
+            (item) =>
+              `<div class="checklist-item"><input type="checkbox" data-action="checklist-toggle" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""} /><span class="checklist-text ${item.done ? "done" : ""}">${escapeHtml(item.text)}</span><span class="checklist-source">${escapeHtml(checklistSourceLabel(item.source))}</span><button class="btn secondary checklist-del" type="button" data-action="checklist-delete" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" title="删除该项">×</button></div>`
+          )
+          .join("")
+      : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
+    return `<div class="checklist"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div>`;
+  };
+
   const renderList = (projects, filters) => {
     const keyword = (filters.keyword || "").trim();
     const status = filters.status || "all";
@@ -199,10 +229,32 @@ export function createUi(elements, getState) {
       return;
     }
     elements.list.innerHTML = filtered
-      .map(
-        (p, i) =>
-          `<div class="project-item" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金/保函：${escapeHtml(p.guarantee || "-")}</span><span>项目金额：${escapeHtml(p.amount || "-")}</span></div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${renderRiskCard(p)}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn danger" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`
-      )
+      .map((p, i) => {
+        // 金额：新字段优先，旧文本兜底
+        const amountDisplay =
+          p.amountValue !== null && p.amountValue !== undefined
+            ? formatMoney(p.amountValue, p.amountUnit)
+            : p.amount || "-";
+        // 保证金：新字段优先（金额 + 状态），旧文本兜底
+        const guaranteeDisplay =
+          p.guaranteeAmount !== null && p.guaranteeAmount !== undefined
+            ? `${formatMoney(p.guaranteeAmount, p.guaranteeUnit)}（${escapeHtml(p.guaranteeStatus || "未缴纳")}）`
+            : escapeHtml(p.guarantee || "-");
+        const guaranteeExtra =
+          p.guaranteeAmount !== null &&
+          p.guaranteeAmount !== undefined &&
+          p.guarantee
+            ? `<span>保证金要求：${escapeHtml(p.guarantee)}</span>`
+            : "";
+        const next = getNextDeadline(p);
+        const deadlineHtml = next
+          ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
+          : "";
+        const pdfHtml = p.pdfText
+          ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}（${p.pdfText.length} 字${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""}） <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+          : "";
+        return `<div class="project-item" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金：${guaranteeDisplay}</span><span>项目金额：${escapeHtml(amountDisplay)}</span>${guaranteeExtra}</div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn danger" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`;
+      })
       .join("");
   };
 

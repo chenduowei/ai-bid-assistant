@@ -4,7 +4,18 @@ import {
   LEGACY_STORAGE_KEY,
   TRASH_RETENTION_DAYS,
   getTrashExpiryCutoff,
+  normalizeChecklist,
 } from "./utils.js";
+
+/** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
+const MISSING_COLUMN_PATTERN =
+  /checklist|amount_value|amount_unit|guarantee_amount|guarantee_unit|guarantee_status|registration_deadline|inquiry_deadline|clarification_deadline|guarantee_deadline|pdf_text|pdf_filename|pdf_parsed_at/;
+
+const toNumberOrNull = (v) => {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
 
 export function createProjectsApi({ getClient, getState, setState, ui }) {
   const toUiProject = (row) => ({
@@ -25,6 +36,31 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     invalidBidClauses: row.invalid_bid_clauses || null,
     extractedMeta: row.extracted_meta || null,
     deletedAt: row.deleted_at || null,
+    // v0.3.0：废标检查清单
+    checklist: normalizeChecklist(row.checklist),
+    // v0.3.0：结构化金额 / 保证金（旧 amount / guarantee 文本列保留作兼容）
+    amountValue: toNumberOrNull(row.amount_value),
+    amountUnit: ["元", "万元"].includes(row.amount_unit)
+      ? row.amount_unit
+      : "万元",
+    guaranteeAmount: toNumberOrNull(row.guarantee_amount),
+    guaranteeUnit: ["元", "万元"].includes(row.guarantee_unit)
+      ? row.guarantee_unit
+      : "万元",
+    guaranteeStatus: ["未缴纳", "已缴纳", "已退回", "已没收"].includes(
+      row.guarantee_status
+    )
+      ? row.guarantee_status
+      : "未缴纳",
+    // v0.3.0：多截止时间
+    registrationDeadline: row.registration_deadline || null,
+    inquiryDeadline: row.inquiry_deadline || null,
+    clarificationDeadline: row.clarification_deadline || null,
+    guaranteeDeadline: row.guarantee_deadline || null,
+    // v0.3.0：PDF 文本持久化
+    pdfText: row.pdf_text || "",
+    pdfFilename: row.pdf_filename || "",
+    pdfParsedAt: row.pdf_parsed_at || null,
   });
 
   // 分页拉取一页。useDeletedFilter=false 时不加 deleted_at 条件，
@@ -247,7 +283,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const { error } = await query;
     if (error) {
       ui.setSyncStatus("保存失败", true);
-      ui.showToast(`保存失败：${error.message}`);
+      if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
+        ui.showToast("保存失败：请先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
+      } else {
+        ui.showToast(`保存失败：${error.message}`);
+      }
       return false;
     }
     await loadProjects();
@@ -255,6 +295,57 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       getState().realtimeReady ? "实时同步已连接" : "云端已同步"
     );
     ui.showToast(wasEditing ? "项目已更新。" : "项目已添加到云端。");
+    return true;
+  }
+
+  /**
+   * 局部更新项目字段（清单 / 金额 / 截止时间 / PDF 文本等）。
+   * 只允许白名单字段映射到 DB 列；pdf_text 保存时截断到 200000 字符。
+   * 旧库未执行 v0.3.0 迁移时提示迁移，不静默失败。
+   */
+  async function updateProjectFields(id, patch) {
+    const client = getClient();
+    const state = getState();
+    const dbPatch = {};
+    const fieldMap = {
+      checklist: "checklist",
+      amountValue: "amount_value",
+      amountUnit: "amount_unit",
+      guaranteeAmount: "guarantee_amount",
+      guaranteeUnit: "guarantee_unit",
+      guaranteeStatus: "guarantee_status",
+      registrationDeadline: "registration_deadline",
+      inquiryDeadline: "inquiry_deadline",
+      clarificationDeadline: "clarification_deadline",
+      guaranteeDeadline: "guarantee_deadline",
+      pdfText: "pdf_text",
+      pdfFilename: "pdf_filename",
+      pdfParsedAt: "pdf_parsed_at",
+    };
+    for (const [uiKey, dbKey] of Object.entries(fieldMap)) {
+      if (!(uiKey in (patch || {}))) continue;
+      let value = patch[uiKey];
+      if (uiKey === "checklist") value = normalizeChecklist(value);
+      if (uiKey === "pdfText" && typeof value === "string" && value.length > 200000) {
+        value = `${value.slice(0, 200000)}\n\n[文本过长，已截断]`;
+      }
+      dbPatch[dbKey] = value;
+    }
+    if (!Object.keys(dbPatch).length) return false;
+    const { error } = await client
+      .from("projects")
+      .update(dbPatch)
+      .eq("id", id)
+      .eq("user_id", state.user.id);
+    if (error) {
+      if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
+        ui.showToast("保存失败：请先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
+      } else {
+        ui.showToast(`保存失败：${error.message}`);
+      }
+      return false;
+    }
+    await loadProjects();
     return true;
   }
 
@@ -330,6 +421,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       "项目状态",
       "备注",
       "风险摘要",
+      "项目金额（数值）",
+      "项目金额单位",
+      "保证金金额",
+      "保证金单位",
+      "保证金状态",
     ];
     const rows = projects.map((p) => [
       p.name,
@@ -343,6 +439,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       p.status,
       p.notes || "",
       p.riskSummary || "",
+      p.amountValue ?? "",
+      p.amountUnit || "",
+      p.guaranteeAmount ?? "",
+      p.guaranteeUnit || "",
+      p.guaranteeStatus || "",
     ]);
     const csv =
       "\ufeff" +
@@ -372,6 +473,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     migrateLocalProjects,
     subscribeToProjects,
     saveProject,
+    updateProjectFields,
     deleteProject,
     restoreProject,
     permanentlyDeleteProject,
