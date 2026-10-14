@@ -96,6 +96,10 @@
         <div class="label">已开标</div>
         <div class="value" id="openedCount">0</div>
       </div>
+      <div class="stat-card">
+        <div class="label">在途保证金（万元）</div>
+        <div class="value" id="inTransitGuarantee">0.00</div>
+      </div>
     </section>
 
     <section class="card upcoming-panel">
@@ -138,12 +142,55 @@
           <input id="contact" placeholder="请输入联系人" />
         </div>
         <div class="field">
-          <label for="guarantee">保证金 / 保函</label>
+          <label for="guarantee">保证金要求原文</label>
           <input id="guarantee" type="text" placeholder="请输入金额或要求" />
         </div>
         <div class="field">
-          <label for="amount">项目金额</label>
-          <input id="amount" type="text" placeholder="如 约 500 万元（选填）" />
+          <label for="amountValue">项目金额（数值）</label>
+          <input id="amountValue" type="number" min="0" step="0.01" placeholder="如 500（选填）" />
+        </div>
+        <div class="field">
+          <label for="amountUnit">项目金额单位</label>
+          <select id="amountUnit">
+            <option value="万元">万元</option>
+            <option value="元">元</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="guaranteeAmount">保证金金额（数值）</label>
+          <input id="guaranteeAmount" type="number" min="0" step="0.01" placeholder="如 10（选填）" />
+        </div>
+        <div class="field">
+          <label for="guaranteeUnit">保证金单位</label>
+          <select id="guaranteeUnit">
+            <option value="万元">万元</option>
+            <option value="元">元</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="guaranteeStatus">保证金状态</label>
+          <select id="guaranteeStatus">
+            <option value="未缴纳">未缴纳</option>
+            <option value="已缴纳">已缴纳</option>
+            <option value="已退回">已退回</option>
+            <option value="已没收">已没收</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="registrationDeadline">报名截止（选填）</label>
+          <input id="registrationDeadline" type="date" />
+        </div>
+        <div class="field">
+          <label for="inquiryDeadline">质疑截止（选填）</label>
+          <input id="inquiryDeadline" type="date" />
+        </div>
+        <div class="field">
+          <label for="clarificationDeadline">澄清截止（选填）</label>
+          <input id="clarificationDeadline" type="date" />
+        </div>
+        <div class="field">
+          <label for="guaranteeDeadline">保证金缴纳截止（选填）</label>
+          <input id="guaranteeDeadline" type="date" />
         </div>
         <div class="field">
           <label for="status">项目状态</label>
@@ -237,6 +284,13 @@
           <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
           <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
           <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析并回填</button>
+        </div>
+        <div class="pdf-save-row">
+          <div class="field pdf-save-field">
+            <label for="pdfProjectSelect">保存到项目</label>
+            <select id="pdfProjectSelect"><option value="">请选择项目</option></select>
+          </div>
+          <button id="savePdfTextBtn" class="btn secondary" type="button">保存文本到该项目</button>
         </div>
         <textarea id="parsedText" class="parser-text hidden" readonly placeholder="完成解析后，全文将在这里显示。"></textarea>
         <div id="aiResultPanel" class="ai-result-wrap"></div>

@@ -26,7 +26,24 @@ create table if not exists public.projects (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   -- v0.2.7 软删除：删除 = 移入回收站，deleted_at 为空表示正常
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  -- v0.3.0：废标检查清单（[{id, text, done, source}]）
+  checklist jsonb,
+  -- v0.3.0：结构化金额 / 保证金（旧 amount / guarantee 文本列保留作兼容）
+  amount_value numeric,
+  amount_unit text,
+  guarantee_amount numeric,
+  guarantee_unit text,
+  guarantee_status text,
+  -- v0.3.0：多截止时间
+  registration_deadline date,
+  inquiry_deadline date,
+  clarification_deadline date,
+  guarantee_deadline date,
+  -- v0.3.0：PDF 文本持久化
+  pdf_text text,
+  pdf_filename text,
+  pdf_parsed_at timestamptz
 );
 
 create index if not exists projects_user_id_bid_date_idx on public.projects (user_id, bid_date);
@@ -47,6 +64,7 @@ create policy "Users can read their own notification log"
 on public.notification_log for select to authenticated
 using ((select auth.uid()) = user_id);
 grant select on public.notification_log to authenticated;
+
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -169,3 +187,30 @@ create policy "Users can read their own notification log"
 on public.notification_log for select to authenticated
 using ((select auth.uid()) = user_id);
 grant select on public.notification_log to authenticated;
+
+-- 7) v0.3.0：检查清单 + 结构化金额/保证金 + 多截止时间 + PDF 持久化
+alter table public.projects add column if not exists checklist jsonb;
+alter table public.projects add column if not exists amount_value numeric;
+alter table public.projects add column if not exists amount_unit text;
+alter table public.projects add column if not exists guarantee_amount numeric;
+alter table public.projects add column if not exists guarantee_unit text;
+alter table public.projects add column if not exists guarantee_status text;
+alter table public.projects add column if not exists registration_deadline date;
+alter table public.projects add column if not exists inquiry_deadline date;
+alter table public.projects add column if not exists clarification_deadline date;
+alter table public.projects add column if not exists guarantee_deadline date;
+alter table public.projects add column if not exists pdf_text text;
+alter table public.projects add column if not exists pdf_filename text;
+alter table public.projects add column if not exists pdf_parsed_at timestamptz;
+do $$ begin
+  alter table public.projects add constraint projects_amount_unit_check
+    check (amount_unit is null or amount_unit in ('元', '万元'));
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.projects add constraint projects_guarantee_unit_check
+    check (guarantee_unit is null or guarantee_unit in ('元', '万元'));
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.projects add constraint projects_guarantee_status_check
+    check (guarantee_status is null or guarantee_status in ('未缴纳', '已缴纳', '已退回', '已没收'));
+exception when duplicate_object then null; end $$;

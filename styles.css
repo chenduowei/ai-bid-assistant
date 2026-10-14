@@ -137,7 +137,7 @@ body.dark {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
 }
@@ -722,6 +722,129 @@ body.dark {
 
   .field-hint {
     font-size: 12px;
+  }
+}
+
+/* —— v0.3.0：废标检查清单 / 多截止时间 / PDF 持久化 —— */
+.checklist {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+}
+.checklist-progress {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.checklist-items {
+  display: grid;
+  gap: 6px;
+}
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.checklist-item input[type="checkbox"] {
+  flex-shrink: 0;
+  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.checklist-text {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.checklist-text.done {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.checklist-source {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  background: var(--surface);
+}
+.checklist-del {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.checklist-empty {
+  font-size: 13px;
+  color: var(--muted);
+}
+.checklist-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.checklist-add .checklist-new-input {
+  flex: 1;
+  min-width: 160px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  padding: 8px 10px;
+}
+.checklist-add .btn {
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.deadline-line {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.pdf-saved {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(15, 118, 110, 0.08);
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  font-size: 13px;
+  color: var(--text);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.pdf-view-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.pdf-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+.pdf-save-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+@media (max-width: 680px) {
+  .checklist-add .checklist-new-input {
+    flex-basis: 100%;
   }
 }
 

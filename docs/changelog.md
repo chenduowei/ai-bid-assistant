@@ -1,6 +1,21 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v0.2.7**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v0.3.0**，以长期使用为主。
+
+## [0.3.0] - 2026-10-14
+
+### Added
+- **可执行废标检查清单**：项目卡片新增清单区（进度 `已完成 x/y` + 勾选 + 手动新增 + 删除 + “从 AI 结果生成清单”）。废标条款全转清单，high/medium 风险点转清单，低风险不转；生成时按文本去重，不覆盖已手动勾选的 done 状态。清单写入 `projects.checklist`（jsonb，每项 `{id, text, done, source}`）。
+- **保证金台账（结构化）**：项目金额 / 保证金拆为数值 + 单位（元 / 万元）+ 保证金状态（未缴纳 / 已缴纳 / 已退回 / 已没收）。旧 `amount` / `guarantee` 文本列保留不删，新字段为空时显示旧文本。统计区新增第 5 张卡“在途保证金（万元）”（已缴纳合计，元按 ÷10000 折算）。CSV 导出新增 5 列：项目金额（数值）、项目金额单位、保证金金额、保证金单位、保证金状态。
+- **多截止时间**：新增报名 / 质疑 / 澄清 / 保证金缴纳截止（均选填）。项目卡片显示“最近截止”；即将开标列表改为按全部截止项（报名 / 质疑 / 澄清 / 保证金 / 开标）排序展示；顶部提示与浏览器通知改为按全部截止项计算，通知文案带截止类型。错过提醒仍只看开标时间，不变。
+- **PDF 文本持久化**：解析页新增项目下拉 + “保存文本到该项目”按钮，写入 `pdf_text` / `pdf_filename` / `pdf_parsed_at`（超长截断到 200000 字符并标注）。项目卡片显示已保存文件（文件名、字数、保存日期）+ “查看已保存文本”按钮，点击载入解析页，无需重新传 PDF。
+
+### Database
+- 增量迁移：`supabase.sql` 第 7 节（v0.3.0），全部 `add column if not exists`，`guarantee_status` / `amount_unit` / `guarantee_unit` 的 check 约束用 `DO ... EXCEPTION WHEN duplicate_object` 包裹，可重复执行。**升级前请先在 Supabase SQL Editor 执行该段迁移**，否则清单 / 金额 / 截止时间 / PDF 保存会提示迁移错误；旧库未迁移时列表仍可正常显示（新字段取默认值）。
+- 清单 / 金额 / 截止 / PDF 的局部更新走 `updateProjectFields`（白名单字段 + `.eq("user_id", ...)`），报错含新列名时提示执行 v0.3.0 迁移。
+
+### Tests
+- `tests/utils.test.js` 新增 v0.3.0 用例：`normalizeChecklist`、`buildChecklistFromAi`、`getChecklistProgress`、`formatMoney`、`getGuaranteeTotals`、`getDeadlineItems` / `getNextDeadline` / `getUpcomingDeadlines`（正常 + 边界）。`npm test` 17/17 通过。
 
 ## [0.2.7] - 2026-10-14
 
