@@ -21,6 +21,9 @@ const DEFAULT_MODEL = "gpt-4o-mini";
 /** 单次请求建议上限（字符），超出则走分块 */
 const CHUNK_CHARS = 24000;
 const MAX_RETRIES = 1;
+/** 单次模型请求超时（120 秒），防网络卡死一直转圈 */
+const AI_REQUEST_TIMEOUT_MS = 120000;
+const AI_MAX_TOKENS = 4000;
 
 const SYSTEM_PROMPT = `你是工程建设行业招标文件分析助手。请根据用户提供的招标文件文本，提取关键投标信息，并识别废标风险与注意事项。
 必须只输出一个合法 JSON 对象，不要 Markdown 代码块，不要其它说明。JSON 结构如下：
@@ -102,6 +105,31 @@ function parseJsonLoose(content) {
   return JSON.parse(raw);
 }
 
+/**
+ * 严格校验并归一化开标日期。
+ * 接受 YYYY-MM-DD / YYYY/MM/DD / YYYY年M月D日，非法日期（如 2026-02-30、
+ * “待定”“详见文件”）返回 ""，避免塞进 <input type="date"> 被浏览器静默丢掉。
+ */
+function normalizeBidDate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const m = raw.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  if (!m) return "";
+  const [, y, mo, d] = m;
+  const year = Number(y);
+  const month = Number(mo);
+  const day = Number(d);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return "";
+  }
+  return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 function asStringArray(value) {
   if (!value) return [];
   if (Array.isArray(value)) {
@@ -141,16 +169,30 @@ export function createAiExtract({ ui }) {
     const body = {
       model: cfg.model,
       temperature: 0.2,
+      max_tokens: AI_MAX_TOKENS,
       messages,
     };
-    const res = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${cfg.apiKey}`,
-      },
-      body: JSON.stringify(body),
-    });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+    let res;
+    try {
+      res = await fetch(`${cfg.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${cfg.apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if (err?.name === "AbortError") {
+        throw new Error("模型请求超时（120 秒），请检查网络或稍后重试。");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
       throw new Error(
@@ -260,7 +302,7 @@ export function createAiExtract({ ui }) {
       type: String(raw.project_type || "").trim(),
       tenderer: String(raw.tenderer || "").trim(),
       amount: String(raw.amount || "").trim(),
-      date: String(raw.bid_date || "").trim(),
+      date: normalizeBidDate(raw.bid_date),
       guarantee: String(raw.guarantee || "").trim(),
       contact: String(raw.contact || "").trim(),
       notes,
@@ -276,7 +318,8 @@ export function createAiExtract({ ui }) {
   }
 
   function applyToForm(elements, result) {
-    if (result.date && elements.form.date) elements.form.date.value = result.date;
+    const validDate = normalizeBidDate(result.date);
+    if (validDate && elements.form.date) elements.form.date.value = validDate;
     if (result.type && elements.form.type)
       elements.form.type.value = result.type;
     if (result.name && elements.form.name)
@@ -295,10 +338,12 @@ export function createAiExtract({ ui }) {
 
   function renderAiResultPanel(container, result) {
     if (!container) return;
+    const sanitizeLevel = (level) =>
+      ["high", "medium", "low"].includes(level) ? level : "medium";
     const points = (result.riskPoints || [])
       .map(
         (p) =>
-          `<li><span class="risk-level ${p.level}">${p.level}</span>${escape(p.text)}</li>`
+          `<li><span class="risk-level ${sanitizeLevel(p.level)}">${escape(p.level || "medium")}</span>${escape(p.text)}</li>`
       )
       .join("");
     const qual = (result.qualification || [])
@@ -339,7 +384,8 @@ export function createAiExtract({ ui }) {
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
   }
 
   return {
@@ -355,6 +401,7 @@ export function createAiExtract({ ui }) {
       parseJsonLoose,
       validateExtracted,
       normalizeResult,
+      normalizeBidDate,
       asStringArray,
     },
   };

@@ -282,7 +282,8 @@ import {
       ui.applyTheme(state.darkMode);
     });
     elements.exportBtn?.addEventListener("click", () =>
-      projectsApi.exportCsv(state.projects)
+      // 导出当前筛选结果，与列表看到的一致，而非全量。
+      projectsApi.exportCsv(ui.getCurrentFilteredProjects?.() ?? state.projects)
     );
     elements.submitBtn?.addEventListener("click", async () => {
       const ok = await projectsApi.saveProject(formData(), state.editingId);

@@ -73,10 +73,25 @@ export function createPdfParser({ elements, ui }) {
       const fullText = pages.join("\n\n");
       elements.parsedText.value = fullText;
       elements.toggleTextBtn.disabled = false;
-      elements.copyTextBtn.disabled = !fullText;
-      if (elements.aiAnalyzeBtn) elements.aiAnalyzeBtn.disabled = !fullText;
+      // 扫描版 / 图片 PDF 几乎没有文本层：平均每页少于 20 字即判定为可疑，
+      // 避免用户拿着空文本去做 AI 分析、模型瞎编。此时禁用 AI 按钮并明示原因。
+      const bodyText = pages
+        .map((p) => p.replace(/^【第 \d+ 页】\n/, ""))
+        .join("");
+      const avgCharsPerPage =
+        pdf.numPages > 0 ? bodyText.length / pdf.numPages : 0;
+      const isScannedLike = pdf.numPages > 0 && avgCharsPerPage < 20;
+      elements.copyTextBtn.disabled = !bodyText.trim();
+      if (elements.aiAnalyzeBtn)
+        elements.aiAnalyzeBtn.disabled = !bodyText.trim() || isScannedLike;
       setParseProgress(100, `解析完成，共 ${pdf.numPages} 页。`);
-      ui.showToast("PDF 文本解析完成。");
+      if (isScannedLike) {
+        ui.showToast(
+          "该 PDF 几乎没有可提取文本，可能是扫描版 / 图片 PDF，请先用 OCR 转文字后再分析。"
+        );
+      } else {
+        ui.showToast("PDF 文本解析完成。");
+      }
       pdf.destroy();
       return fullText;
     } catch (error) {

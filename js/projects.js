@@ -26,16 +26,28 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const client = getClient();
     const state = getState();
     ui.setSyncStatus("正在同步…");
-    const { data, error } = await client
-      .from("projects")
-      .select("*")
-      .order("bid_date", { ascending: true });
-    if (error) {
-      ui.setSyncStatus("同步失败", true);
-      ui.showToast(`同步失败：${error.message}`);
-      return false;
+    // 分页拉取：Supabase 默认单次上限 1000 条，全量 select 会静默丢数据。
+    // 每页 500 条循环拉完，设 10000 条安全上限防死循环。
+    const PAGE_SIZE = 500;
+    const MAX_ROWS = 10000;
+    const allRows = [];
+    let from = 0;
+    while (from < MAX_ROWS) {
+      const { data, error } = await client
+        .from("projects")
+        .select("*")
+        .order("bid_date", { ascending: true })
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) {
+        ui.setSyncStatus("同步失败", true);
+        ui.showToast(`同步失败：${error.message}`);
+        return false;
+      }
+      allRows.push(...(data || []));
+      if (!data || data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
     }
-    setState({ projects: data.map(toUiProject) });
+    setState({ projects: allRows.map(toUiProject) });
     ui.render();
     return true;
   }
@@ -234,7 +246,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    ui.showToast("项目列表已导出为 CSV 文件。");
+    ui.showToast(`已导出 ${rows.length} 个项目为 CSV 文件。`);
   };
 
   return {

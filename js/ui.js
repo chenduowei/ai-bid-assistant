@@ -105,6 +105,10 @@ export function createUi(elements, getState) {
     return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}</div><ul class="struct-list">${lis}</ul></div>`;
   };
 
+  // 风险等级只允许白名单值，防模型/脏数据注入 class / HTML。
+  const sanitizeLevel = (level) =>
+    ["high", "medium", "low"].includes(level) ? level : "medium";
+
   const renderRiskCard = (p) => {
     const hasRisk =
       p.riskSummary || (p.riskPoints && p.riskPoints.length);
@@ -117,7 +121,7 @@ export function createUi(elements, getState) {
       ? `<ul class="risk-points">${points
           .map(
             (pt) =>
-              `<li><span class="risk-level ${escapeHtml(pt.level || "medium")}">${escapeHtml(pt.level || "注意")}</span>${escapeHtml(pt.text || pt)}</li>`
+              `<li><span class="risk-level ${sanitizeLevel(pt.level)}">${escapeHtml(pt.level || "注意")}</span>${escapeHtml(pt.text || pt)}</li>`
           )
           .join("")}</ul>`
       : "";
@@ -197,7 +201,7 @@ export function createUi(elements, getState) {
     elements.list.innerHTML = filtered
       .map(
         (p, i) =>
-          `<div class="project-item" data-id="${p.id}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金/保函：${escapeHtml(p.guarantee || "-")}</span><span>项目金额：${escapeHtml(p.amount || "-")}</span></div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${renderRiskCard(p)}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${p.id}">编辑</button><button class="btn danger" data-action="delete" data-id="${p.id}">删除</button></div></div></div>`
+          `<div class="project-item" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金/保函：${escapeHtml(p.guarantee || "-")}</span><span>项目金额：${escapeHtml(p.amount || "-")}</span></div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${renderRiskCard(p)}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn danger" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`
       )
       .join("");
   };
@@ -234,13 +238,19 @@ export function createUi(elements, getState) {
       });
   };
 
+  const getCurrentFilters = () => ({
+    keyword: elements.search?.value || "",
+    status: elements.statusFilter?.value || "all",
+    sort: elements.sortBy?.value || "date-asc",
+  });
+
+  // 导出用：返回当前搜索/筛选/排序后的项目，而非全量。
+  const getCurrentFilteredProjects = () =>
+    getFilteredProjects(getState().projects, getCurrentFilters());
+
   const render = () => {
     const state = getState();
-    const filters = {
-      keyword: elements.search?.value || "",
-      status: elements.statusFilter?.value || "all",
-      sort: elements.sortBy?.value || "date-asc",
-    };
+    const filters = getCurrentFilters();
     renderStats(state.projects);
     renderUpcomingList(state.projects);
     renderDeadlineTip(state.projects);
@@ -290,6 +300,7 @@ export function createUi(elements, getState) {
     setSyncStatus,
     applyTheme,
     render,
+    getCurrentFilteredProjects,
     updateCountdowns,
     highlightFormPanel,
     focusProjectInList,

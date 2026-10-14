@@ -1,6 +1,24 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v0.2.5**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v0.2.6**，以长期使用为主。
+
+## [0.2.6] - 2026-10-14
+
+### Security
+- **Supabase CDN 锁版本 + SRI**：`@supabase/supabase-js@2.117.3` + `integrity`，不再浮动大版本。
+- **XSS 收口**：`ai-extract.js` 的 `escape()` 补单引号转义，风险等级改为白名单（high/medium/low）；`ui.js` 的 `data-id` 全部走 `escapeHtml`。
+- **Vercel 安全头**：`X-Content-Type-Options` / `X-Frame-Options` / `Referrer-Policy` / `Permissions-Policy`。
+
+### Fixed
+- **分页加载**：`loadProjects()` 改为每页 500 条循环拉取，绕过 Supabase 单次 1000 条上限，项目多时不再静默丢数据。
+- **AI 超时**：`callChat` 增加 120 秒 `AbortController` 超时 + `max_tokens: 4000`，网络卡死不再一直转圈。
+- **AI 日期校验**：新增 `normalizeBidDate`，只接受真实存在的日期，支持 `YYYY-MM-DD / YYYY/MM/DD / YYYY年M月D日`，非法值不再塞进日期输入框。
+- **扫描版 PDF 提示**：平均每页少于 20 字时判定为扫描版 / 图片 PDF，禁用 AI 按钮并提示先 OCR，避免模型对着空文本瞎编。
+- **导出与筛选一致**：导出按钮改为导出当前筛选结果，不再总是全量。
+
+### Added
+- **测试**：新增 `tests/ai-extract.test.js`（Node 原生 test），`npm test` 可跑日期校验、JSON 解析、风险等级白名单等用例。
+- **待办清单**：补 `docs/todo.md`（此前 changelog 引用但文件缺失）。
 
 ## [0.2.5] - 2026-08-06
 
