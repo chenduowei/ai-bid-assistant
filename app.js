@@ -2,7 +2,7 @@
  * AI Bid Assistant — 入口
  * 模块：js/utils.js · auth.js · projects.js · pdf-parser.js · ai-extract.js · ui.js
  */
-import { THEME_KEY, getReminder, getReminderDays, setReminderDays } from "./js/utils.js";
+import { THEME_KEY, getReminder, getReminderDays, setReminderDays, getMissedBidProjects } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -65,6 +65,8 @@ import {
     statusFilter: document.getElementById("statusFilter"),
     sortBy: document.getElementById("sortBy"),
     list: document.getElementById("list"),
+    trashList: document.getElementById("trashList"),
+    toggleTrashBtn: document.getElementById("toggleTrashBtn"),
     upcomingList: document.getElementById("upcomingList"),
     deadlineTip: document.getElementById("deadlineTip"),
     backToTop: document.getElementById("backToTop"),
@@ -92,6 +94,9 @@ import {
   let client = null;
   /** 最近一次 AI 分析结果，保存项目时一并写入 */
   let lastAiResult = null;
+  /** 错过提醒每个会话只提示一次，避免 Realtime 刷新时反复刷屏 */
+  let missedReminderShown = false;
+  let trashVisible = false;
 
   const state = {
     projects: [],
@@ -163,6 +168,8 @@ import {
     }
   }
 
+  // 注意：浏览器通知仅在页面打开时触发（setInterval），关页后不会提醒。
+  // 关页提醒需部署 Edge Function，见 docs/reminders.md。
   function sendBidNotifications() {
     if (
       !("Notification" in window) ||
@@ -185,6 +192,22 @@ import {
     });
   }
 
+  function showMissedReminders() {
+    if (missedReminderShown) return;
+    missedReminderShown = true;
+    const missed = getMissedBidProjects(state.projects);
+    if (!missed.length) return;
+    const names = missed.slice(0, 3).map((p) => `「${p.name}」`).join("、");
+    const more = missed.length > 3 ? `等共 ${missed.length} 个` : "";
+    ui.showToast(`提醒：${names}${more}已过开标时间但状态仍不是“已开标”，请核对（关闭页面时浏览器不会提醒）。`);
+  }
+
+  async function refreshTrashList() {
+    if (!trashVisible) return;
+    const deleted = await projectsApi.loadDeletedProjects();
+    ui.renderTrashList(deleted);
+  }
+
   function showApp(user) {
     if (
       state.user?.id === user.id &&
@@ -198,7 +221,9 @@ import {
     requestNotificationPermission();
     projectsApi.loadProjects().then((loaded) => {
       if (loaded) {
+        showMissedReminders();
         sendBidNotifications();
+        projectsApi.purgeExpiredTrash();
         return projectsApi.migrateLocalProjects();
       }
     });
@@ -429,6 +454,28 @@ import {
         elements.submitBtn.textContent = "保存修改";
         elements.cancelBtn.classList.remove("hidden");
         ui.highlightFormPanel();
+      }
+    });
+
+    elements.toggleTrashBtn?.addEventListener("click", async () => {
+      trashVisible = !trashVisible;
+      elements.trashList?.classList.toggle("hidden", !trashVisible);
+      elements.toggleTrashBtn.textContent = trashVisible ? "收起回收站" : "查看回收站";
+      elements.toggleTrashBtn.setAttribute("aria-expanded", trashVisible ? "true" : "false");
+      if (trashVisible) await refreshTrashList();
+    });
+
+    elements.trashList?.addEventListener("click", async (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      const id = button.dataset.id;
+      if (button.dataset.action === "restore") {
+        await projectsApi.restoreProject(id);
+        await refreshTrashList();
+      }
+      if (button.dataset.action === "permanent-delete") {
+        const ok = await projectsApi.permanentlyDeleteProject(id, button.dataset.name);
+        if (ok) await refreshTrashList();
       }
     });
 

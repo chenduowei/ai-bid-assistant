@@ -1,6 +1,6 @@
 # 维护说明
 
-当前以 **v0.2.5 稳定使用** 为主，新功能开发暂停。本文仅保留运行与改代码时需要的要点。
+当前以 **v0.2.7 稳定使用** 为主，新功能开发暂停。本文仅保留运行与改代码时需要的要点。
 
 ---
 
@@ -20,10 +20,11 @@
 
 ## 数据与提醒
 
-- 表 `projects`：`user_id` + RLS；状态仅 `报名中 | 制作中 | 已开标`。
+- 表 `projects`：`user_id` + RLS；状态仅 `报名中 | 制作中 | 已开标`；`deleted_at` 为空表示正常，非空表示在回收站（保留 30 天，过期自动彻底删除）。
 - AI 相关列：`risk_summary`、`risk_points`、`qualification`、`invalid_bid_clauses`、`extracted_meta`（均为可选）。
-- 旧库升级：在 Supabase SQL Editor 执行 `supabase.sql` 中的增量迁移段。
+- 旧库升级：在 Supabase SQL Editor 执行 `supabase.sql` 中的增量迁移段。v0.2.7 必须执行 `deleted_at` + `notification_log` 迁移，否则回收站不可用（列表会自动降级）。
 - 开标提醒天数：本机 `localStorage` 键 `bid-assistant-reminder-days`（1–30，默认 7）。
+- 提醒机制：浏览器通知仅在页面打开时触发；关页提醒需部署 `supabase/functions/send-bid-reminders/`，见 `docs/reminders.md`。
 
 ---
 

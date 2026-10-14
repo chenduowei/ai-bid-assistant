@@ -59,7 +59,7 @@
           <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
         </div>
         <div class="field full-width settings-hint">
-          <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。</span>
+          <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。如需关页也提醒，需按 docs/reminders.md 部署 Edge Function。</span>
         </div>
         <div class="field full-width">
           <label for="aiApiKey">API Key</label>
@@ -173,7 +173,7 @@
       <div class="panel-title">
         <div>
           <h2>项目列表</h2>
-          <p>支持搜索、筛选、排序、编辑和删除；开标时间会自动更新倒计时。</p>
+          <p>支持搜索、筛选、排序、编辑和删除（删除进回收站，30 天内可恢复）；开标时间会自动更新倒计时。</p>
         </div>
       </div>
 
@@ -197,6 +197,17 @@
       </div>
 
       <div id="list" class="project-list"></div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-title">
+        <div>
+          <h2>回收站</h2>
+          <p>删除的项目保留 30 天，过期自动彻底删除。可恢复或彻底删除。</p>
+        </div>
+        <button id="toggleTrashBtn" class="btn secondary" type="button" aria-expanded="false">查看回收站</button>
+      </div>
+      <div id="trashList" class="project-list hidden"></div>
     </section>
     </div>
 

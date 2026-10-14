@@ -1,6 +1,10 @@
 /** 项目数据层（Supabase CRUD / 迁移 / 导出） */
 
-import { LEGACY_STORAGE_KEY } from "./utils.js";
+import {
+  LEGACY_STORAGE_KEY,
+  TRASH_RETENTION_DAYS,
+  getTrashExpiryCutoff,
+} from "./utils.js";
 
 export function createProjectsApi({ getClient, getState, setState, ui }) {
   const toUiProject = (row) => ({
@@ -20,7 +24,24 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     qualification: row.qualification || null,
     invalidBidClauses: row.invalid_bid_clauses || null,
     extractedMeta: row.extracted_meta || null,
+    deletedAt: row.deleted_at || null,
   });
+
+  // 分页拉取一页。useDeletedFilter=false 时不加 deleted_at 条件，
+  // 用于还没执行 v0.2.7 增量迁移（无 deleted_at 列）的旧库兜底。
+  async function fetchProjectsPage(from, pageSize, { deletedOnly = false, useDeletedFilter = true } = {}) {
+    const client = getClient();
+    let query = client
+      .from("projects")
+      .select("*")
+      .order(deletedOnly ? "deleted_at" : "bid_date", { ascending: !deletedOnly });
+    if (useDeletedFilter) {
+      query = deletedOnly
+        ? query.not("deleted_at", "is", null)
+        : query.is("deleted_at", null);
+    }
+    return query.range(from, from + pageSize - 1);
+  }
 
   async function loadProjects() {
     const client = getClient();
@@ -32,12 +53,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const MAX_ROWS = 10000;
     const allRows = [];
     let from = 0;
+    let useDeletedFilter = true;
     while (from < MAX_ROWS) {
-      const { data, error } = await client
-        .from("projects")
-        .select("*")
-        .order("bid_date", { ascending: true })
-        .range(from, from + PAGE_SIZE - 1);
+      let { data, error } = await fetchProjectsPage(from, PAGE_SIZE, { useDeletedFilter });
+      if (error && useDeletedFilter && /deleted_at/.test(error.message || "")) {
+        // 旧库还没加 deleted_at 列：降级为不过滤，前端再按 deleted_at 为空过滤。
+        useDeletedFilter = false;
+        ({ data, error } = await fetchProjectsPage(from, PAGE_SIZE, { useDeletedFilter }));
+      }
       if (error) {
         ui.setSyncStatus("同步失败", true);
         ui.showToast(`同步失败：${error.message}`);
@@ -47,9 +70,54 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       if (!data || data.length < PAGE_SIZE) break;
       from += PAGE_SIZE;
     }
-    setState({ projects: allRows.map(toUiProject) });
+    const visible = useDeletedFilter
+      ? allRows
+      : allRows.filter((row) => !row.deleted_at);
+    setState({ projects: visible.map(toUiProject) });
     ui.render();
     return true;
+  }
+
+  /** 拉取回收站（deleted_at 非空），按删除时间倒序。旧库无列时返回 [] 并提示迁移。 */
+  async function loadDeletedProjects() {
+    const PAGE_SIZE = 500;
+    const allRows = [];
+    let from = 0;
+    while (from < 10000) {
+      const { data, error } = await fetchProjectsPage(from, PAGE_SIZE, {
+        deletedOnly: true,
+        useDeletedFilter: true,
+      });
+      if (error) {
+        if (/deleted_at/.test(error.message || "")) {
+          ui.showToast("回收站不可用：请先在 Supabase SQL Editor 执行 supabase.sql 的 v0.2.7 增量迁移（deleted_at）。");
+          return [];
+        }
+        ui.showToast(`回收站加载失败：${error.message}`);
+        return [];
+      }
+      allRows.push(...(data || []));
+      if (!data || data.length < PAGE_SIZE) break;
+      from += PAGE_SIZE;
+    }
+    return allRows.map(toUiProject);
+  }
+
+  /** 静默清理超过保留期的回收站项目（最佳努力，失败不打扰用户）。 */
+  async function purgeExpiredTrash() {
+    try {
+      const client = getClient();
+      const state = getState();
+      if (!state.user) return;
+      const cutoff = getTrashExpiryCutoff().toISOString();
+      await client
+        .from("projects")
+        .delete()
+        .lt("deleted_at", cutoff)
+        .eq("user_id", state.user.id);
+    } catch {
+      // 旧库无 deleted_at 列或网络异常：忽略，下次打开再试。
+    }
   }
 
   async function migrateLocalProjects() {
@@ -170,7 +238,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     ui.setSyncStatus("正在保存…");
     const wasEditing = Boolean(editingId);
     const query = wasEditing
-      ? client.from("projects").update(project).eq("id", editingId)
+      ? client
+          .from("projects")
+          .update(project)
+          .eq("id", editingId)
+          .eq("user_id", state.user.id)
       : client.from("projects").insert({ ...project, user_id: state.user.id });
     const { error } = await query;
     if (error) {
@@ -186,18 +258,62 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return true;
   }
 
+  /**
+   * 删除 = 移入回收站（软删除），不是彻底删除。
+   * 保留 deleted_at，30 天内可在回收站恢复，过期自动彻底删除。
+   */
   async function deleteProject(id) {
     const client = getClient();
     const state = getState();
     const project = state.projects.find((p) => p.id === id);
-    if (!project || !confirm(`确认删除「${project.name}」吗？`)) return false;
-    const { error } = await client.from("projects").delete().eq("id", id);
+    if (!project) return false;
+    if (!confirm(`将「${project.name}」移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`)) return false;
+    const { error } = await client
+      .from("projects")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", state.user.id);
     if (error) {
       ui.showToast(`删除失败：${error.message}`);
       return false;
     }
     await loadProjects();
-    ui.showToast("项目已删除。");
+    ui.showToast(`已移到回收站，${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`);
+    return true;
+  }
+
+  async function restoreProject(id) {
+    const client = getClient();
+    const state = getState();
+    const { error } = await client
+      .from("projects")
+      .update({ deleted_at: null })
+      .eq("id", id)
+      .eq("user_id", state.user.id);
+    if (error) {
+      ui.showToast(`恢复失败：${error.message}`);
+      return false;
+    }
+    await loadProjects();
+    ui.showToast("项目已从回收站恢复。");
+    return true;
+  }
+
+  async function permanentlyDeleteProject(id, name) {
+    const client = getClient();
+    const state = getState();
+    if (!confirm(`彻底删除「${name || "该项目"}」吗？删除后无法恢复。`)) return false;
+    const { error } = await client
+      .from("projects")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", state.user.id);
+    if (error) {
+      ui.showToast(`彻底删除失败：${error.message}`);
+      return false;
+    }
+    await loadProjects();
+    ui.showToast("项目已彻底删除。");
     return true;
   }
 
@@ -251,10 +367,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
 
   return {
     loadProjects,
+    loadDeletedProjects,
+    purgeExpiredTrash,
     migrateLocalProjects,
     subscribeToProjects,
     saveProject,
     deleteProject,
+    restoreProject,
+    permanentlyDeleteProject,
     exportCsv,
     toUiProject,
     validate,

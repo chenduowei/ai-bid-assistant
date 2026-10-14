@@ -36,6 +36,8 @@ export const getDaysUntilBid = (value) => {
 export const getStatusClass = (status) =>
   status === "已开标" ? "success" : status === "制作中" ? "warning" : "";
 
+export const TRASH_RETENTION_DAYS = 30;
+
 export const THEME_KEY = "bid-assistant-theme";
 export const LEGACY_STORAGE_KEY = "bid-assistant-projects";
 export const AI_KEY_STORAGE = "bid-assistant-ai-key";
@@ -65,6 +67,32 @@ export function setReminderDays(value) {
       : n;
   localStorage.setItem(REMINDER_DAYS_KEY, String(days));
   return days;
+}
+
+/**
+ * 错过提醒：已过开标时间但状态仍不是“已开标”的项目。
+ * 浏览器通知只在页面打开时触发，关页期间错过的提醒只能在下次打开时补提示。
+ * @param {Array} projects
+ * @param {Date} [now] 便于测试注入时间
+ * @param {number} [windowDays] 只看最近 N 天内过期的，避免旧数据一直刷屏
+ */
+export function getMissedBidProjects(projects, now = new Date(), windowDays = 7) {
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  return (projects || []).filter((p) => {
+    if (!p || p.status === "已开标" || !p.date) return false;
+    const target = new Date(`${p.date}T00:00:00`);
+    if (Number.isNaN(target.getTime())) return false;
+    const days = Math.round((target - today) / 86400000);
+    return days < 0 && days >= -windowDays;
+  });
+}
+
+/** 回收站过期清理的截止时间：早于该时间的 deleted_at 应彻底删除 */
+export function getTrashExpiryCutoff(now = new Date()) {
+  const d = new Date(now);
+  d.setDate(d.getDate() - TRASH_RETENTION_DAYS);
+  return d;
 }
 
 /**

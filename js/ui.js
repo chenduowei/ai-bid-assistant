@@ -83,7 +83,7 @@ export function createUi(elements, getState) {
       );
     const desc = document.getElementById("upcomingDesc");
     if (desc) {
-      desc.textContent = `按开标时间升序显示未来 ${reminderDays} 天内的项目。`;
+      desc.textContent = `按开标时间升序显示未来 ${reminderDays} 天内的项目（浏览器通知仅在页面打开时触发，关页后需下次打开补看）。`;
     }
     if (!upcoming.length) {
       elements.upcomingList.innerHTML = `<div class="upcoming-empty">未来 ${reminderDays} 天暂无待开标项目。</div>`;
@@ -238,6 +238,24 @@ export function createUi(elements, getState) {
       });
   };
 
+  const renderTrashList = (deletedProjects) => {
+    if (!elements.trashList) return;
+    if (!deletedProjects?.length) {
+      elements.trashList.innerHTML = '<div class="empty">回收站为空。</div>';
+      return;
+    }
+    elements.trashList.innerHTML = deletedProjects
+      .map(
+        (p) => {
+          const deletedDate = p.deletedAt
+            ? formatDateDisplay(String(p.deletedAt).slice(0, 10))
+            : "未知";
+          return `<div class="project-item"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>删除时间：${escapeHtml(deletedDate)}</span></div></div><div class="project-actions"><button class="btn secondary" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn danger" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
+        }
+      )
+      .join("");
+  };
+
   const getCurrentFilters = () => ({
     keyword: elements.search?.value || "",
     status: elements.statusFilter?.value || "all",
@@ -300,6 +318,7 @@ export function createUi(elements, getState) {
     setSyncStatus,
     applyTheme,
     render,
+    renderTrashList,
     getCurrentFilteredProjects,
     updateCountdowns,
     highlightFormPanel,

@@ -24,10 +24,29 @@ create table if not exists public.projects (
   invalid_bid_clauses jsonb,
   extracted_meta jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  -- v0.2.7 软删除：删除 = 移入回收站，deleted_at 为空表示正常
+  deleted_at timestamptz
 );
 
 create index if not exists projects_user_id_bid_date_idx on public.projects (user_id, bid_date);
+create index if not exists projects_deleted_at_idx on public.projects (deleted_at);
+
+-- 关页提醒去重日志（Edge Function 用，service_role 写入，用户只能读自己的）
+create table if not exists public.notification_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null,
+  stage text not null check (stage in ('today', 'tomorrow')),
+  sent_at timestamptz not null default now(),
+  unique (user_id, project_id, stage)
+);
+alter table public.notification_log enable row level security;
+drop policy if exists "Users can read their own notification log" on public.notification_log;
+create policy "Users can read their own notification log"
+on public.notification_log for select to authenticated
+using ((select auth.uid()) = user_id);
+grant select on public.notification_log to authenticated;
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -132,3 +151,21 @@ alter table public.projects add column if not exists invalid_bid_clauses jsonb;
 -- 5) 投标公司非空约束（仅在确认无空值后可执行；默认先不强制旧数据）
 -- update public.projects set bidding_company = '未填写' where bidding_company is null or trim(bidding_company) = '';
 -- alter table public.projects alter column bidding_company set not null;
+
+-- 6) v0.2.7：软删除 + 关页提醒日志
+alter table public.projects add column if not exists deleted_at timestamptz;
+create index if not exists projects_deleted_at_idx on public.projects (deleted_at);
+create table if not exists public.notification_log (
+  id bigint generated always as identity primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null,
+  stage text not null check (stage in ('today', 'tomorrow')),
+  sent_at timestamptz not null default now(),
+  unique (user_id, project_id, stage)
+);
+alter table public.notification_log enable row level security;
+drop policy if exists "Users can read their own notification log" on public.notification_log;
+create policy "Users can read their own notification log"
+on public.notification_log for select to authenticated
+using ((select auth.uid()) = user_id);
+grant select on public.notification_log to authenticated;

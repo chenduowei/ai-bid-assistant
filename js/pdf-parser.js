@@ -13,6 +13,11 @@ async function getPdfJs() {
 }
 
 export function createPdfParser({ elements, ui }) {
+  // 解析竞态令牌：每次 parsePdf 自增，旧任务在每个 await 后检查令牌，
+  // 若已不是最新任务则静默放弃，不再写 UI、不再弹失败提示。
+  let parseSeq = 0;
+  let currentLoadingTask = null;
+
   const setParseProgress = (percent, text) => {
     elements.parserStatus.classList.remove("hidden");
     elements.parseProgress.style.width = `${Math.max(0, Math.min(100, percent))}%`;
@@ -33,6 +38,19 @@ export function createPdfParser({ elements, ui }) {
       ui.showToast("请选择 PDF 文件。");
       return null;
     }
+    const mySeq = ++parseSeq;
+    const isStale = () => mySeq !== parseSeq;
+    // 取消上一次未完成的加载任务（新文件优先），旧任务的 reject 会走作废静默路径
+    if (currentLoadingTask) {
+      try {
+        currentLoadingTask.destroy();
+      } catch {
+        // 忽略销毁错误
+      }
+      currentLoadingTask = null;
+    }
+    // 允许同一文件重复选择：清空 input，否则 change 事件不会再次触发
+    if (elements.pdfInput) elements.pdfInput.value = "";
     elements.pdfFileName.textContent = `文件：${file.name}`;
     elements.pdfPageCount.textContent = "总页数：读取中";
     elements.parsedText.value = "";
@@ -40,24 +58,47 @@ export function createPdfParser({ elements, ui }) {
     elements.toggleTextBtn.disabled = true;
     elements.copyTextBtn.disabled = true;
     if (elements.aiAnalyzeBtn) elements.aiAnalyzeBtn.disabled = true;
+    elements.dropZone?.classList.add("parsing");
     setParseProgress(0, "正在加载 PDF…");
+    let loadingTask = null;
     try {
       const pdfjs = await getPdfJs();
+      if (isStale()) return null;
       const data = new Uint8Array(await file.arrayBuffer());
-      const loadingTask = pdfjs.getDocument({ data });
+      if (isStale()) return null;
+      loadingTask = pdfjs.getDocument({ data });
+      currentLoadingTask = loadingTask;
       loadingTask.onProgress = (progress) => {
-        if (progress.total)
-          setParseProgress(
-            (progress.loaded / progress.total) * 15,
-            "正在读取 PDF 文件…"
-          );
+        if (isStale() || !progress.total) return;
+        setParseProgress(
+          (progress.loaded / progress.total) * 15,
+          "正在读取 PDF 文件…"
+        );
       };
       const pdf = await loadingTask.promise;
+      if (isStale()) {
+        try {
+          pdf.destroy();
+        } catch {
+          // 忽略
+        }
+        return null;
+      }
       elements.pdfPageCount.textContent = `总页数：${pdf.numPages}`;
       const pages = [];
       for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
         const page = await pdf.getPage(pageNumber);
+        if (isStale()) {
+          try { page.cleanup(); } catch { /* 忽略 */ }
+          try { pdf.destroy(); } catch { /* 忽略 */ }
+          return null;
+        }
         const content = await page.getTextContent();
+        if (isStale()) {
+          try { page.cleanup(); } catch { /* 忽略 */ }
+          try { pdf.destroy(); } catch { /* 忽略 */ }
+          return null;
+        }
         const pageText = content.items
           .map((item) => item.str)
           .join(" ")
@@ -65,11 +106,14 @@ export function createPdfParser({ elements, ui }) {
           .trim();
         pages.push(`【第 ${pageNumber} 页】\n${pageText}`);
         page.cleanup();
-        setParseProgress(
-          15 + (pageNumber / pdf.numPages) * 85,
-          `正在解析第 ${pageNumber} / ${pdf.numPages} 页…`
-        );
+        if (!isStale()) {
+          setParseProgress(
+            15 + (pageNumber / pdf.numPages) * 85,
+            `正在解析第 ${pageNumber} / ${pdf.numPages} 页…`
+          );
+        }
       }
+      if (isStale()) return null;
       const fullText = pages.join("\n\n");
       elements.parsedText.value = fullText;
       elements.toggleTextBtn.disabled = false;
@@ -95,11 +139,19 @@ export function createPdfParser({ elements, ui }) {
       pdf.destroy();
       return fullText;
     } catch (error) {
+      // 旧任务被新任务作废：静默返回，不弹失败提示、不重置进度（新任务在写进度）
+      if (isStale()) return null;
       setParseProgress(0, "解析失败");
       ui.showToast(
         `PDF 解析失败：${error?.message || "请确认文件未损坏或受密码保护。"}`
       );
       return null;
+    } finally {
+      if (currentLoadingTask === loadingTask) currentLoadingTask = null;
+      // 只有最新任务负责清理 parsing 态，避免旧任务的 finally 抹掉新任务的状态
+      if (typeof isStale === "function" && !isStale()) {
+        elements.dropZone?.classList.remove("parsing");
+      }
     }
   }
 
