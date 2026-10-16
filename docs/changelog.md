@@ -1,6 +1,28 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v0.4.0**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v0.4.1**，以长期使用为主。
+
+## [0.4.1] - 2026-10-16
+
+用户真实使用反馈的 5 项改进（无数据库迁移，无新列，无后端变更）。
+
+### Fixed
+- **删除列表下方空白橙色方框**：根因是 `.deadline-tip` / `.refund-tip` 的 CSS 写了 `display: flex`，覆盖了 HTML `hidden` 属性的 UA 样式，无内容时仍显示空橙框占位。修复：在 styles.css 顶部基础样式区加全局规则 `[hidden] { display: none !important; }`，现有 display:flex 规则保留（有内容时仍 flex 布局）。`renderDeadlineTip` / `renderRefundReminder` 无内容时设 hidden=true，现在完全不占位。
+
+### Changed
+- **回收站移到最上面**：回收站 `<section>`（含 #toggleTrashBtn / #trashList）从项目列表之后移到“即将开标项目”之后、项目列表之前。id、按钮行为、文案不变。
+- **开标日期默认最晚优先排序**：`#sortBy` 的 `date-desc` 设为默认选中；`js/ui.js` 两处默认值（`getFilteredProjects` 的 `filters.sort ||` 与 `getCurrentFilters` 的 `elements.sortBy?.value ||`）由 `"date-asc"` 改为 `"date-desc"`。数据流确认：`getCurrentFilters` 始终从 select 读值，fallback 只在 filters 缺 sort 时兜底，不会覆盖用户手动选择的排序。
+- **项目列表折叠**：卡片改为两段式。头部（始终显示）：展开/收起 chevron、项目名称、状态徽章、开标日期 + 倒计时、投标公司、保证金状态小字；头部可点击（role=button，Enter/Space 也可切换），hover 高亮，chevron 平滑旋转 90°。详情区（默认折叠）：项目类型、招标单位、联系人、项目金额、保证金要求原文、4 个截止时间（选填有则显示）+ 最近截止、备注、风险卡片、检查清单、PDF 区、编辑/复制/删除按钮。展开态存在内存 `state.expandedIds`（Set）里，render / 筛选 / 排序 / 分页 / 保存后恢复不丢失；切换只更新对应卡片 DOM（toggle hidden + aria-expanded + .expanded 类），不全量 render，避免焦点丢失。点击委托排除详情区内的按钮/输入/勾选（详情区元素不含 `data-action="toggle-details"`，误触不可能）。`focusProjectInList` 定位时自动展开该项目。回收站列表（renderTrashItem）保持原样不折叠。
+- **整体 UI 优化（专业简洁）**：收紧卡片内边距（18px→14px/16px）、圆角统一 16px、`.project-actions` / `.project-meta` 间距收紧、标题 18px→17px、提示横幅与空状态更克制（deadline-tip 加边框、字号 13px、圆角 12px；empty 内边距 24px）。保持现有 CSS 变量主题体系，不引入新配色，不改暗色模式逻辑。
+
+### Performance
+- **长列表渲染优化**：`.project-item` 加 `content-visibility: auto; contain-intrinsic-size: auto 140px;`，减少屏幕外卡片的布局/绘制开销。不改分页/查询逻辑，不改 `fetchProjectsPage`。
+
+### Database
+- **无迁移。** v0.4.1 不新增字段、不改约束，旧库无需执行任何 SQL。
+
+### Tests
+- `npm test` 通过（测试内容未变：utils 纯函数不受本次改动影响）。
 
 ## [0.4.0] - 2026-10-14
 

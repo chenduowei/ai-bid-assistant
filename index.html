@@ -234,8 +234,19 @@
     <section class="card panel">
       <div class="panel-title">
         <div>
+          <h2>回收站</h2>
+          <p>删除的项目保留 30 天，过期自动彻底删除。可恢复或彻底删除。</p>
+        </div>
+        <button id="toggleTrashBtn" class="btn secondary" type="button" aria-expanded="false">查看回收站</button>
+      </div>
+      <div id="trashList" class="project-list hidden"></div>
+    </section>
+
+    <section class="card panel">
+      <div class="panel-title">
+        <div>
           <h2>项目列表</h2>
-          <p>支持搜索、筛选、排序、编辑和删除（删除进回收站，30 天内可恢复）；开标时间会自动更新倒计时。</p>
+          <p>支持搜索、筛选、排序、编辑和删除（删除进回收站，30 天内可恢复）；开标时间会自动更新倒计时。点击项目头部可展开 / 收起详情。</p>
         </div>
       </div>
 
@@ -254,23 +265,12 @@
         </select>
         <select id="sortBy" aria-label="项目排序方式">
           <option value="date-asc">开标日期：最近优先</option>
-          <option value="date-desc">开标日期：最晚优先</option>
+          <option value="date-desc" selected>开标日期：最晚优先</option>
           <option value="name-asc">项目名称：A 到 Z</option>
         </select>
       </div>
 
       <div id="list" class="project-list"></div>
-    </section>
-
-    <section class="card panel">
-      <div class="panel-title">
-        <div>
-          <h2>回收站</h2>
-          <p>删除的项目保留 30 天，过期自动彻底删除。可恢复或彻底删除。</p>
-        </div>
-        <button id="toggleTrashBtn" class="btn secondary" type="button" aria-expanded="false">查看回收站</button>
-      </div>
-      <div id="trashList" class="project-list hidden"></div>
     </section>
     </div>
 
