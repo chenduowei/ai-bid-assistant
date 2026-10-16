@@ -133,11 +133,31 @@ import {
     authMode: "login",
     realtimeReady: false,
     channel: null,
+    /** v0.4.1：项目卡片详情展开态（内存 Set，render/筛选/排序/分页/保存后恢复） */
+    expandedIds: new Set(),
   };
 
   const getState = () => state;
   const setState = (patch) => Object.assign(state, patch);
   const getClient = () => client;
+
+  /** v0.4.1：切换项目卡片展开 / 折叠。只更新对应卡片 DOM，不全量 ui.render()（避免焦点丢失）。 */
+  const toggleProjectDetails = (toggleEl) => {
+    const item = toggleEl.closest(".project-item");
+    const details = item?.querySelector(".project-details");
+    const id = toggleEl.dataset.id || item?.dataset.id;
+    if (!item || !details || !id) return;
+    const wasExpanded = state.expandedIds.has(id);
+    if (wasExpanded) {
+      state.expandedIds.delete(id);
+    } else {
+      state.expandedIds.add(id);
+    }
+    const expanded = !wasExpanded;
+    details.hidden = !expanded;
+    toggleEl.setAttribute("aria-expanded", String(expanded));
+    item.classList.toggle("expanded", expanded);
+  };
 
   const ui = createUi(elements, getState);
   const projectsApi = createProjectsApi({ getClient, getState, setState, ui });
@@ -646,6 +666,15 @@ import {
     });
 
     elements.list?.addEventListener("click", async (event) => {
+      // v0.4.1：卡片头部点击切换展开 / 折叠。只在 header 上触发：
+      // 详情区里的按钮/输入/勾选都不含 data-action="toggle-details"，不会误触。
+      const toggleEl = event.target.closest(
+        '.project-item [data-action="toggle-details"]'
+      );
+      if (toggleEl) {
+        toggleProjectDetails(toggleEl);
+        return;
+      }
       const button = event.target.closest("button");
       if (!button) return;
       const id = button.dataset.id;
@@ -793,6 +822,17 @@ import {
         ),
       });
       if (!ok) ui.render();
+    });
+
+    // v0.4.1：卡片头部键盘可操作（Enter / Space 切换展开）
+    elements.list?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const toggleEl = event.target.closest(
+        '.project-item [data-action="toggle-details"]'
+      );
+      if (!toggleEl) return;
+      event.preventDefault();
+      toggleProjectDetails(toggleEl);
     });
 
     // v0.4.0：保证金退还提醒横幅 — 标记已退回

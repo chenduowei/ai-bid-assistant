@@ -195,7 +195,7 @@ export function createUi(elements, getState) {
   const getFilteredProjects = (projects, filters) => {
     const keyword = (filters.keyword || "").trim().toLowerCase();
     const status = filters.status || "all";
-    const sort = filters.sort || "date-asc";
+    const sort = filters.sort || "date-desc";
     const filtered = projects.filter(
       (p) => matchesKeyword(p, keyword) && (status === "all" || p.status === status)
     );
@@ -239,6 +239,53 @@ export function createUi(elements, getState) {
     return `<div class="checklist"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div>`;
   };
 
+  /** v0.4.1：两段式项目卡片 —— 头部（始终显示）+ 详情区（默认折叠）。展开态由 state.expandedIds 维护，render 后恢复。 */
+  const renderProjectItem = (p, i) => {
+    const expandedIds = getState().expandedIds;
+    const expanded = expandedIds && expandedIds.has(p.id);
+    // 金额：新字段优先，旧文本兜底
+    const amountDisplay =
+      p.amountValue !== null && p.amountValue !== undefined
+        ? formatMoney(p.amountValue, p.amountUnit)
+        : p.amount || "-";
+    // 保证金：新字段优先（金额 + 状态），旧文本兜底；
+    // 旧文本存在且与结构化不同时，以“要求原文”小字显示
+    const guaranteeDisplay =
+      p.guaranteeAmount !== null && p.guaranteeAmount !== undefined
+        ? `${formatMoney(p.guaranteeAmount, p.guaranteeUnit)}（${escapeHtml(p.guaranteeStatus || "未缴纳")}）`
+        : escapeHtml(p.guarantee || "-");
+    const guaranteeExtra =
+      p.guaranteeAmount !== null &&
+      p.guaranteeAmount !== undefined &&
+      p.guarantee
+        ? `<span>保证金要求原文：${escapeHtml(p.guarantee)}</span>`
+        : "";
+    const next = getNextDeadline(p);
+    const deadlineHtml = next
+      ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
+      : "";
+    // 4 个截止时间（选填，有则显示）
+    const deadlineMeta = [
+      ["报名截止", p.registrationDeadline],
+      ["质疑截止", p.inquiryDeadline],
+      ["澄清截止", p.clarificationDeadline],
+      ["保证金缴纳截止", p.guaranteeDeadline],
+    ]
+      .filter(([, d]) => d)
+      .map(
+        ([label, d]) =>
+          `<span>${escapeHtml(label)}：${escapeHtml(formatDateDisplay(d))}</span>`
+      )
+      .join("");
+    // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
+    const pdfHtml =
+      p.pdfFilename || p.pdfParsedAt
+        ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+        : "";
+    const detailsHtml = `<div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>项目金额：${escapeHtml(amountDisplay)}</span>${guaranteeExtra}</div>${deadlineMeta ? `<div class="project-meta">${deadlineMeta}</div>` : ""}${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情"><span class="project-chevron" aria-hidden="true">›</span><div class="project-head-main"><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta project-head-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span>开标：${escapeHtml(formatDateDisplay(p.date))}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>保证金：${guaranteeDisplay}</span></div></div></div><div class="project-details"${expanded ? "" : " hidden"}>${detailsHtml}<div class="project-actions"><button class="btn secondary" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn danger" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`;
+  };
+
   const renderList = (projects, filters) => {
     const keyword = (filters.keyword || "").trim();
     const status = filters.status || "all";
@@ -252,44 +299,21 @@ export function createUi(elements, getState) {
       return;
     }
     elements.list.innerHTML = filtered
-      .map((p, i) => {
-        // 金额：新字段优先，旧文本兜底
-        const amountDisplay =
-          p.amountValue !== null && p.amountValue !== undefined
-            ? formatMoney(p.amountValue, p.amountUnit)
-            : p.amount || "-";
-        // 保证金：新字段优先（金额 + 状态），旧文本兜底；
-        // 旧文本存在且与结构化不同时，以“要求原文”小字显示
-        const guaranteeDisplay =
-          p.guaranteeAmount !== null && p.guaranteeAmount !== undefined
-            ? `${formatMoney(p.guaranteeAmount, p.guaranteeUnit)}（${escapeHtml(p.guaranteeStatus || "未缴纳")}）`
-            : escapeHtml(p.guarantee || "-");
-        const guaranteeExtra =
-          p.guaranteeAmount !== null &&
-          p.guaranteeAmount !== undefined &&
-          p.guarantee
-            ? `<span>保证金要求原文：${escapeHtml(p.guarantee)}</span>`
-            : "";
-        const next = getNextDeadline(p);
-        const deadlineHtml = next
-          ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
-          : "";
-        // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
-        const pdfHtml =
-          p.pdfFilename || p.pdfParsedAt
-            ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
-            : "";
-        return `<div class="project-item" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 45, 250)}ms"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>保证金：${guaranteeDisplay}</span><span>项目金额：${escapeHtml(amountDisplay)}</span>${guaranteeExtra}</div><div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span></div>${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}</div><div class="project-actions"><button class="btn secondary" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn danger" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div>`;
-      })
+      .map((p, i) => renderProjectItem(p, i))
       .join("");
   };
 
-  /** 定位到项目列表中的某一项并高亮 */
+  /** 定位到项目列表中的某一项并高亮（v0.4.1：自动展开该项目） */
   const focusProjectInList = (projectId) => {
     if (!projectId) return;
     // 清空搜索与状态筛选，确保目标项目可见
     if (elements.search) elements.search.value = "";
     if (elements.statusFilter) elements.statusFilter.value = "all";
+    // v0.4.1：自动展开目标项目的详情区，再 render
+    const s = getState();
+    if (s.expandedIds && !s.expandedIds.has(projectId)) {
+      s.expandedIds.add(projectId);
+    }
     render();
     const item = elements.list?.querySelector(
       `.project-item[data-id="${CSS.escape(String(projectId))}"]`
@@ -337,7 +361,7 @@ export function createUi(elements, getState) {
   const getCurrentFilters = () => ({
     keyword: elements.search?.value || "",
     status: elements.statusFilter?.value || "all",
-    sort: elements.sortBy?.value || "date-asc",
+    sort: elements.sortBy?.value || "date-desc",
   });
 
   // 导出用：返回当前搜索/筛选/排序后的项目，而非全量。
