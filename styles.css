@@ -568,6 +568,107 @@ body.dark {
   background: radial-gradient(circle at top left, var(--accent-soft), transparent 36%), var(--bg);
 }
 
+/* v0.4.2：登录页左右分栏 — 左侧海报 + 右侧登录卡片 */
+.auth-split {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  width: min(1080px, 100%);
+  min-height: min(660px, calc(100vh - 48px));
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.auth-poster {
+  position: relative;
+  min-height: 100%;
+  background: #0b2545 url("./assets/login-poster.webp") center / cover no-repeat;
+}
+.auth-poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(4, 16, 34, 0.15) 0%, rgba(4, 16, 34, 0.05) 40%, rgba(4, 16, 34, 0.72) 100%);
+}
+.auth-poster-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 44px 40px;
+  color: #fff;
+}
+.auth-poster-en {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+}
+.auth-poster-title {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45);
+}
+.auth-poster-points {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.92);
+}
+.auth-poster-points li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.auth-poster-points li::before {
+  content: "✓";
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: 13px;
+}
+.auth-poster-foot {
+  margin: 10px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.68);
+}
+.auth-split .auth-card {
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  align-self: center;
+  padding: 44px 40px;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .auth-shell { padding: 16px; }
+  .auth-split { grid-template-columns: 1fr; min-height: 0; }
+  .auth-poster { height: 220px; min-height: 220px; }
+  .auth-poster-overlay { padding: 20px 24px; gap: 6px; }
+  .auth-poster-title { font-size: 26px; }
+  .auth-poster-points, .auth-poster-foot { display: none; }
+  .auth-split .auth-card { padding: 28px 22px; max-width: none; }
+}
+
 .auth-card { width: min(440px, 100%); padding: 32px; }
 .auth-card h1 { margin: 0 0 8px; font-size: 28px; }
 .auth-card p { margin: 0 0 24px; color: var(--muted); line-height: 1.65; }

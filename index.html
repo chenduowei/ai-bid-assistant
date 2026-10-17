@@ -13,9 +13,21 @@
   <div id="scrollProgress" class="scroll-progress"></div>
   <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
   <main id="authView" class="auth-shell">
-    <section class="auth-card card">
-      <h1>项目管理工作台</h1>
-      <p>登录后，项目将安全保存到云端，并自动同步到你的其他设备。</p>
+    <div class="auth-split">
+      <aside class="auth-poster">
+        <div class="auth-poster-overlay">
+          <p class="auth-poster-en">AI Bid Assistant · 工程建设投标工作台</p>
+          <h1 class="auth-poster-title">项目管理工作台</h1>
+          <ul class="auth-poster-points">
+            <li>招标文件 AI 解析</li>
+            <li>开标倒计时与多截止提醒</li>
+            <li>保证金台账与废标检查清单</li>
+          </ul>
+          <p class="auth-poster-foot">数据云端同步 · API Key 仅存本机</p>
+        </div>
+      </aside>
+      <section class="auth-card card">
+        <p>登录后，项目将安全保存到云端，并自动同步到你的其他设备。</p>
       <div class="auth-tabs">
         <button class="btn secondary auth-tab active" type="button" data-mode="login">登录</button>
         <button class="btn secondary auth-tab" type="button" data-mode="signup">注册</button>
@@ -39,6 +51,7 @@
         <div id="resetPasswordMessage" class="auth-message" role="alert"></div>
       </form>
     </section>
+    </div>
   </main>
   <div id="appView" class="page hidden">
     <div id="dashboardView">
