@@ -163,7 +163,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       });
       if (error) {
         if (/deleted_at/.test(error.message || "")) {
-          ui.showToast("回收站不可用：请先在 Supabase SQL Editor 执行 supabase.sql 的 v0.2.7 增量迁移（deleted_at）。");
+          ui.showToast("回收站不可用：先在 Supabase SQL Editor 执行 supabase.sql 的 v0.2.7 增量迁移（deleted_at）。");
           return [];
         }
         ui.showToast(`回收站加载失败：${error.message}`);
@@ -195,7 +195,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       return null;
     }
     if (!data) {
-      ui.showToast("该项目暂无已保存的招标文件文本。");
+      ui.showToast("该项目没有已保存的招标文件文本。");
       return null;
     }
     const item = state.projects.find((p) => p.id === id);
@@ -326,7 +326,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       !project.name ||
       !project.bidding_company ||
       !project.contact
-      ? "请完整填写：开标时间、项目类型、项目名称、投标公司、联系人。"
+      ? "必填项没填完：开标时间、项目类型、项目名称、投标公司、联系人。"
       : "";
   }
 
@@ -359,7 +359,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     if (error) {
       ui.setSyncStatus("保存失败", true);
       if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
-        ui.showToast("保存失败：请先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
+        ui.showToast("保存失败：先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
       } else {
         ui.showToast(`保存失败：${error.message}`);
       }
@@ -414,7 +414,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       .eq("user_id", state.user.id);
     if (error) {
       if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
-        ui.showToast("保存失败：请先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
+        ui.showToast("保存失败：先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
       } else {
         ui.showToast(`保存失败：${error.message}`);
       }

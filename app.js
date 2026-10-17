@@ -80,6 +80,7 @@ import {
     list: document.getElementById("list"),
     trashList: document.getElementById("trashList"),
     toggleTrashBtn: document.getElementById("toggleTrashBtn"),
+    formBody: document.getElementById("formBody"),
     upcomingList: document.getElementById("upcomingList"),
     deadlineTip: document.getElementById("deadlineTip"),
     refundTip: document.getElementById("refundTip"),
@@ -135,6 +136,8 @@ import {
     channel: null,
     /** v0.4.1：项目卡片详情展开态（内存 Set，render/筛选/排序/分页/保存后恢复） */
     expandedIds: new Set(),
+    /** v0.4.3：新增 / 编辑表单默认折叠 */
+    formExpanded: false,
   };
 
   const getState = () => state;
@@ -159,6 +162,27 @@ import {
     item.classList.toggle("expanded", expanded);
   };
 
+  /** v0.4.3：新增 / 编辑表单折叠。只改 DOM + state，不触发 ui.render()。 */
+  const setFormExpanded = (expanded) => {
+    state.formExpanded = expanded;
+    const body = elements.formBody;
+    const panel = body?.closest(".form-panel");
+    const title = panel?.querySelector('[data-action="toggle-form"]');
+    if (body) body.hidden = !expanded;
+    if (title) title.setAttribute("aria-expanded", String(expanded));
+    if (panel) panel.classList.toggle("expanded", expanded);
+  };
+
+  /** v0.4.3：展开表单 → 滚动定位 → 高亮 → 聚焦第一个可见输入框 */
+  const revealForm = () => {
+    setFormExpanded(true);
+    ui.highlightFormPanel();
+    const first = elements.formBody?.querySelector(
+      "input:not([type=hidden]), textarea, select"
+    );
+    if (first) setTimeout(() => first.focus({ preventScroll: true }), 60);
+  };
+
   const ui = createUi(elements, getState);
   const projectsApi = createProjectsApi({ getClient, getState, setState, ui });
   const pdfParser = createPdfParser({ elements, ui });
@@ -178,6 +202,7 @@ import {
     lastAiResult = null;
     elements.submitBtn.textContent = "新增项目";
     elements.cancelBtn.classList.add("hidden");
+    setFormExpanded(false); // v0.4.3：保存成功 / 取消后自动收起表单
   };
 
   /** 表单数值解析：空字符串 / 非数字 / 负数 → null */
@@ -234,7 +259,7 @@ import {
       const permission = await Notification.requestPermission();
       if (permission === "granted") ui.showToast("已开启开标提醒通知。");
     } catch {
-      ui.showToast("浏览器不支持通知权限申请。");
+      ui.showToast("当前浏览器不支持通知。");
     }
   }
 
@@ -271,7 +296,7 @@ import {
     if (!missed.length) return;
     const names = missed.slice(0, 3).map((p) => `「${p.name}」`).join("、");
     const more = missed.length > 3 ? `等共 ${missed.length} 个` : "";
-    ui.showToast(`提醒：${names}${more}已过开标时间但状态仍不是“已开标”，请核对（关闭页面时浏览器不会提醒）。`);
+    ui.showToast(`${names}${more}已过开标时间，状态不是“已开标”，请核对（页面关闭时不提醒）。`);
   }
 
   async function refreshTrashList() {
@@ -442,21 +467,21 @@ import {
     elements.forgotPasswordBtn?.addEventListener("click", async () => {
       const email = elements.authEmail.value.trim();
       if (!email) {
-        ui.showToast("请先填写邮箱。");
+        ui.showToast("先填写邮箱。");
         return;
       }
       const result = await auth.sendPasswordReset(email);
-      if (result.ok) ui.showToast("重置链接已发到邮箱，请查收（含垃圾箱）。");
+      if (result.ok) ui.showToast("重置链接已发送，注意查收（含垃圾箱）。");
       else ui.showToast(`发送失败：${result.error || "请稍后重试"}`);
     });
     elements.resendVerificationBtn?.addEventListener("click", async () => {
       const email = elements.authEmail.value.trim();
       if (!email) {
-        ui.showToast("请先填写邮箱。");
+        ui.showToast("先填写邮箱。");
         return;
       }
       const result = await auth.resendVerification(email);
-      if (result.ok) ui.showToast("验证邮件已重发，请查收（含垃圾箱）。");
+      if (result.ok) ui.showToast("验证邮件已重发，注意查收（含垃圾箱）。");
       else ui.showToast(`发送失败：${result.error || "请稍后重试"}`);
     });
     elements.updatePasswordBtn?.addEventListener("click", async () => {
@@ -476,7 +501,7 @@ import {
         return;
       }
       hideResetPasswordPanel();
-      ui.showToast("密码已更新，请重新登录。");
+      ui.showToast("密码已更新，重新登录。");
       await auth.signOut();
     });
     elements.backToLoginBtn?.addEventListener("click", () => {
@@ -510,7 +535,7 @@ import {
       try {
         text = await file.text();
       } catch {
-        ui.showToast("读取文件失败，请重试。");
+        ui.showToast("读取文件失败，重试。");
         return;
       }
       const { rows, errors } = parseCsvProjects(text);
@@ -601,12 +626,12 @@ import {
     elements.savePdfTextBtn?.addEventListener("click", async () => {
       const projectId = elements.pdfProjectSelect?.value || "";
       if (!projectId) {
-        ui.showToast("请先选择要保存到的项目。");
+        ui.showToast("先选择要保存到的项目。");
         return;
       }
       const text = elements.parsedText?.value || "";
       if (!text.trim()) {
-        ui.showToast("没有可保存的解析文本，请先解析 PDF。");
+        ui.showToast("没有可保存的解析文本，先解析 PDF。");
         return;
       }
       const project = state.projects.find((p) => p.id === projectId);
@@ -622,7 +647,7 @@ import {
     elements.aiAnalyzeBtn?.addEventListener("click", async () => {
       const text = elements.parsedText?.value;
       if (!text) {
-        ui.showToast("请先完成 PDF 解析。");
+        ui.showToast("先完成 PDF 解析。");
         return;
       }
       elements.aiAnalyzeBtn.disabled = true;
@@ -634,9 +659,9 @@ import {
         aiExtract.applyToForm(elements, result);
         aiExtract.renderAiResultPanel(elements.aiResultPanel, result);
         pdfParser.setParseProgress(100, "AI 分析完成。");
-        ui.showToast("AI 分析完成，结果已回填表单，请核对后保存。");
+        ui.showToast("AI 分析完成，结果已回填表单，核对后保存。");
         showDashboard();
-        ui.highlightFormPanel();
+        revealForm();
       } catch (err) {
         ui.showToast(err?.message || "AI 分析失败");
         pdfParser.setParseProgress(0, "AI 分析失败");
@@ -661,7 +686,7 @@ import {
       const days = setReminderDays(elements.reminderDays?.value);
       if (elements.reminderDays) elements.reminderDays.value = String(days);
       ui.render();
-      ui.showToast(`设置已保存（提醒窗口：未来 ${days} 天）。`);
+      ui.showToast(`设置已保存，提醒窗口为未来 ${days} 天。`);
       elements.aiSettingsPanel?.classList.add("hidden");
     });
 
@@ -691,7 +716,7 @@ import {
           text = (await projectsApi.loadProjectPdfText(id)) || "";
         }
         if (!text) {
-          ui.showToast("该项目暂无已保存的招标文件文本。");
+          ui.showToast("该项目没有已保存的招标文件文本。");
           return;
         }
         elements.parsedText.value = text;
@@ -718,7 +743,7 @@ import {
         );
         const fresh = generated.filter((item) => !existingTexts.has(item.text));
         if (!fresh.length) {
-          ui.showToast("清单已是最新，无新增项。");
+          ui.showToast("清单已是最新。");
           return;
         }
         const ok = await projectsApi.updateProjectFields(id, {
@@ -733,7 +758,7 @@ import {
         const input = itemEl?.querySelector(".checklist-new-input");
         const text = (input?.value || "").trim();
         if (!text) {
-          ui.showToast("请输入清单内容。");
+          ui.showToast("输入清单内容。");
           return;
         }
         const newItem = {
@@ -801,7 +826,7 @@ import {
         elements.form.notes.value = p.notes || "";
         elements.submitBtn.textContent = "保存修改";
         elements.cancelBtn.classList.remove("hidden");
-        ui.highlightFormPanel();
+        revealForm();
       }
     });
 
@@ -855,6 +880,18 @@ import {
       if (trashVisible) await refreshTrashList();
     });
 
+    // v0.4.3：新增 / 编辑表单标题点击展开 / 收起（键盘 Enter / Space 同理）
+    const formTitle = document.querySelector('.form-panel [data-action="toggle-form"]');
+    formTitle?.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea")) return;
+      setFormExpanded(!state.formExpanded);
+    });
+    formTitle?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      setFormExpanded(!state.formExpanded);
+    });
+
     elements.trashList?.addEventListener("click", async (event) => {
       const button = event.target.closest("button");
       if (!button) return;
@@ -886,7 +923,19 @@ import {
     elements.backToTop?.addEventListener("click", () =>
       scrollTo({ top: 0, behavior: "smooth" })
     );
-    addEventListener("scroll", () => ui.updateScrollUi(), { passive: true });
+    // v0.4.3：scroll 高频触发，rAF 节流后再更新进度条 / 回顶按钮
+    let scrollRaf = 0;
+    addEventListener(
+      "scroll",
+      () => {
+        if (scrollRaf) return;
+        scrollRaf = requestAnimationFrame(() => {
+          scrollRaf = 0;
+          ui.updateScrollUi();
+        });
+      },
+      { passive: true }
+    );
   }
 
   async function init() {

@@ -35,7 +35,7 @@ export function createPdfParser({ elements, ui }) {
       file.type !== "application/pdf" &&
       !file.name.toLowerCase().endsWith(".pdf")
     ) {
-      ui.showToast("请选择 PDF 文件。");
+      ui.showToast("选择 PDF 文件。");
       return null;
     }
     const mySeq = ++parseSeq;
@@ -134,14 +134,14 @@ export function createPdfParser({ elements, ui }) {
           "该 PDF 几乎没有可提取文本，可能是扫描版 / 图片 PDF，请先用 OCR 转文字后再分析。"
         );
       } else {
-        ui.showToast("PDF 文本解析完成。");
+        ui.showToast("PDF 解析完成。");
       }
       pdf.destroy();
       return fullText;
     } catch (error) {
       // 旧任务被新任务作废：静默返回，不弹失败提示、不重置进度（新任务在写进度）
       if (isStale()) return null;
-      setParseProgress(0, "解析失败");
+      setParseProgress(0, "PDF 解析失败");
       ui.showToast(
         `PDF 解析失败：${error?.message || "请确认文件未损坏或受密码保护。"}`
       );
@@ -165,7 +165,7 @@ export function createPdfParser({ elements, ui }) {
       elements.parsedText.select();
       document.execCommand("copy");
     }
-    ui.showToast("全文已复制到剪贴板。");
+    ui.showToast("全文已复制。");
   }
 
   return { parsePdf, copyParsedText, setParseProgress };

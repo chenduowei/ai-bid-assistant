@@ -57,7 +57,7 @@ export function createAuth({ getClient, setState, ui, onSignedIn, onSignedOut, o
       // 密码重置链接回跳：优先显示重置面板，不直接进工作台
       if (event === "PASSWORD_RECOVERY") {
         if (onPasswordRecovery) onPasswordRecovery();
-        else ui.showToast("请设置新密码。");
+        else ui.showToast("设置新密码。");
         return;
       }
       if (session?.user) onSignedIn(session.user);

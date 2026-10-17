@@ -27,7 +27,7 @@
         </div>
       </aside>
       <section class="auth-card card">
-        <p>登录后，项目将安全保存到云端，并自动同步到你的其他设备。</p>
+        <p>登录后项目保存到云端，多设备自动同步。</p>
       <div class="auth-tabs">
         <button class="btn secondary auth-tab active" type="button" data-mode="login">登录</button>
         <button class="btn secondary auth-tab" type="button" data-mode="signup">注册</button>
@@ -58,7 +58,7 @@
     <header class="header card">
       <div class="header-title">
         <h1>项目管理工作台</h1>
-        <p>维护开标时间、项目类型、项目名称、保证金/保函、联系人、状态和备注。支持招标文件 AI 分析。</p>
+        <p>管理开标时间、项目类型、保证金、联系人与状态，支持招标文件 AI 解析。</p>
       </div>
       <button id="menuToggle" class="btn secondary menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
       <div id="headerMenu" class="header-actions">
@@ -78,7 +78,7 @@
       <div class="panel-title">
         <div>
           <h2>偏好与 AI 设置</h2>
-          <p>提醒天数保存在本机；API Key 仅存浏览器，不会上传到本项目服务器。支持 OpenAI 兼容接口（OpenAI / DeepSeek 等）。</p>
+          <p>提醒天数存本机；API Key 仅存本机浏览器。支持 OpenAI 兼容接口。</p>
         </div>
       </div>
       <div class="form-grid">
@@ -141,13 +141,15 @@
     </section>
 
     <section class="card panel form-panel">
-      <div class="panel-title">
+      <div class="panel-title form-title" data-action="toggle-form" role="button" tabindex="0" aria-expanded="false" title="点击展开 / 收起表单">
         <div>
           <h2>新增 / 编辑项目</h2>
-          <p>请按照顺序填写必填项，备注为选填。</p>
+          <p>必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。</p>
         </div>
+        <span class="form-chevron" aria-hidden="true">›</span>
       </div>
 
+      <div id="formBody" class="form-body" hidden>
       <div class="form-grid">
         <div class="field">
           <label for="date">开标时间</label>
@@ -155,7 +157,7 @@
         </div>
         <div class="field">
           <label for="biddingCompany">投标公司</label>
-          <input id="biddingCompany" placeholder="请输入投标公司" />
+          <input id="biddingCompany" placeholder="投标公司" />
         </div>
         <div class="field">
           <label for="tenderer">招标单位</label>
@@ -163,11 +165,11 @@
         </div>
         <div class="field">
           <label for="projectType">项目类型</label>
-          <input id="projectType" placeholder="请输入项目类型" />
+          <input id="projectType" placeholder="项目类型" />
         </div>
         <div class="field">
           <label for="contact">联系人</label>
-          <input id="contact" placeholder="请输入联系人" />
+          <input id="contact" placeholder="联系人" />
         </div>
         <div class="field">
           <label for="guarantee">保证金要求原文（选填）</label>
@@ -230,11 +232,11 @@
         </div>
         <div class="field full-width">
           <label for="name">项目名称</label>
-          <input id="name" placeholder="请输入项目名称" />
+          <input id="name" placeholder="项目名称" />
         </div>
         <div class="field full-width">
           <label for="notes">备注（选填）</label>
-          <textarea id="notes" placeholder="请输入备注信息"></textarea>
+          <textarea id="notes" placeholder="备注"></textarea>
         </div>
       </div>
 
@@ -242,13 +244,14 @@
         <button id="submitBtn" class="btn primary" type="button">新增项目</button>
         <button id="cancelBtn" class="btn secondary hidden" type="button">取消</button>
       </div>
+      </div>
     </section>
 
     <section class="card panel">
       <div class="panel-title">
         <div>
           <h2>回收站</h2>
-          <p>删除的项目保留 30 天，过期自动彻底删除。可恢复或彻底删除。</p>
+          <p>删除的项目保留 30 天，过期自动彻底删除。</p>
         </div>
         <button id="toggleTrashBtn" class="btn secondary" type="button" aria-expanded="false">查看回收站</button>
       </div>
@@ -259,7 +262,7 @@
       <div class="panel-title">
         <div>
           <h2>项目列表</h2>
-          <p>支持搜索、筛选、排序、编辑和删除（删除进回收站，30 天内可恢复）；开标时间会自动更新倒计时。点击项目头部可展开 / 收起详情。</p>
+          <p>支持搜索、筛选、排序；删除进回收站（30 天内可恢复）；倒计时每分钟更新。点击项目头部展开 / 收起详情。</p>
         </div>
       </div>
 
@@ -292,7 +295,7 @@
         <div class="panel-title">
           <div>
             <h1>招标文件解析</h1>
-            <p>PDF 仅在当前浏览器中解析，不会上传到 Supabase。完成解析后可使用 AI 抽取关键信息与风险点。</p>
+            <p>PDF 只在当前浏览器解析，不上传。解析后可用 AI 抽取关键信息与风险点。</p>
           </div>
           <button id="closeParserBtn" class="btn secondary" type="button">← 返回工作台</button>
         </div>
@@ -308,7 +311,7 @@
         </div>
       </section>
       <section class="card panel">
-        <div class="panel-title"><div><h2>解析文本与 AI 分析</h2><p>可查看、复制原始文本，或调用大模型抽取关键信息并生成风险报告。</p></div></div>
+        <div class="panel-title"><div><h2>解析文本与 AI 分析</h2><p>可查看、复制原文，或调用 AI 抽取关键信息、生成风险报告。</p></div></div>
         <div class="parser-actions">
           <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
           <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
