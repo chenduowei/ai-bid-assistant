@@ -716,17 +716,16 @@ import {
     });
 
     elements.list?.addEventListener("click", async (event) => {
-      // v0.4.1：卡片头部点击切换展开 / 折叠。只在 header 上触发：
-      // 详情区里的按钮/输入/勾选都不含 data-action="toggle-details"，不会误触。
-      const toggleEl = event.target.closest(
-        '.project-item [data-action="toggle-details"]'
-      );
-      if (toggleEl) {
-        toggleProjectDetails(toggleEl);
+      // v0.5.1：操作按钮已搬到行头部——点按钮只走按钮分支，不触发折叠切换
+      const button = event.target.closest("button");
+      if (!button) {
+        // v0.4.1：卡片头部点击切换展开 / 折叠
+        const toggleEl = event.target.closest(
+          '.project-item [data-action="toggle-details"]'
+        );
+        if (toggleEl) toggleProjectDetails(toggleEl);
         return;
       }
-      const button = event.target.closest("button");
-      if (!button) return;
       const id = button.dataset.id;
       // v0.5.0：空状态引导按钮 → 展开新增表单
       if (button.dataset.action === "empty-add") {
@@ -885,6 +884,8 @@ import {
     // v0.4.1：卡片头部键盘可操作（Enter / Space 切换展开）
     elements.list?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
+      // v0.5.1：焦点在行内按钮上时按回车/空格不触发折叠（防误触）
+      if (event.target.closest("button")) return;
       const toggleEl = event.target.closest(
         '.project-item [data-action="toggle-details"]'
       );
