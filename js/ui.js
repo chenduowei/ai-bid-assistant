@@ -3,7 +3,7 @@
 import {
   escapeHtml,
   formatDateDisplay,
-  formatCountdown,
+  getDaysUntilBid,
   getStatusClass,
   getReminderDays,
   formatMoney,
@@ -239,6 +239,25 @@ export function createUi(elements, getState) {
     return `<div class="checklist"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div>`;
   };
 
+  /** v0.4.5：列表 cell 右侧倒计时 pill —— 短文案 + 紧急度 class（60s 刷新只更新文字） */
+  const countdownCell = (proj) => {
+    if (proj.status === "已开标") return { text: "已开标", cls: "cd-done" };
+    const days = getDaysUntilBid(proj.date);
+    if (days === null) return { text: "已开标", cls: "cd-done" };
+    if (days < 0) return { text: `已过期${-days}天`, cls: "cd-overdue" };
+    if (days === 0) return { text: "今天开标", cls: "cd-urgent" };
+    if (days <= 3) return { text: `还有${days}天`, cls: "cd-warn" };
+    return { text: `还有${days}天`, cls: "cd-normal" };
+  };
+
+  /** v0.4.5：状态圆点 class（徽章已移到详情区） */
+  const statusDotClass = (status) =>
+    status === "已开标" ? "sd-done" : status === "制作中" ? "sd-warn" : "sd-info";
+
+  /** v0.4.5：M月d日（去掉年份，给 cell 第二行用） */
+  const shortDateDisplay = (value) =>
+    value ? formatDateDisplay(value).replace(/^\d+年/, "") : "";
+
   /** v0.4.1：两段式项目卡片 —— 头部（始终显示）+ 详情区（默认折叠）。展开态由 state.expandedIds 维护，render 后恢复。 */
   const renderProjectItem = (p, i) => {
     const expandedIds = getState().expandedIds;
@@ -282,8 +301,11 @@ export function createUi(elements, getState) {
       p.pdfFilename || p.pdfParsedAt
         ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
         : "";
-    const detailsHtml = `<div class="project-meta"><span>项目类型：${escapeHtml(p.type)}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>项目金额：${escapeHtml(amountDisplay)}</span><span>保证金：${guaranteeDisplay}</span>${guaranteeExtra}</div>${deadlineMeta ? `<div class="project-meta">${deadlineMeta}</div>` : ""}${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}`;
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情"><span class="project-chevron" aria-hidden="true">›</span><div class="project-head-main"><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta project-head-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span>开标：${escapeHtml(formatDateDisplay(p.date))}</span><span class="countdown" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">倒计时：${escapeHtml(p.status === "已开标" ? "已开标" : formatCountdown(p.date))}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>项目类型：${escapeHtml(p.type)}</span></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}<div class="project-actions"><button class="btn secondary" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn danger" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div></div>`;
+    const detailsHtml = `<div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span>项目类型：${escapeHtml(p.type)}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>项目金额：${escapeHtml(amountDisplay)}</span><span>保证金：${guaranteeDisplay}</span>${guaranteeExtra}</div>${deadlineMeta ? `<div class="project-meta">${deadlineMeta}</div>` : ""}${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}`;
+    const cd = countdownCell(p);
+    const dateShort = shortDateDisplay(p.date);
+    const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情"><span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}<div class="project-actions"><button class="btn secondary" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn danger" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div></div>`;
   };
 
   const renderList = (projects, filters) => {
@@ -332,11 +354,10 @@ export function createUi(elements, getState) {
     elements.list
       ?.querySelectorAll(".countdown[data-date]")
       .forEach((el) => {
-        const status = el.dataset.status;
-        const date = el.dataset.date;
-        el.textContent = `倒计时：${
-          status === "已开标" ? "已开标" : formatCountdown(date)
-        }`;
+        el.textContent = countdownCell({
+          date: el.dataset.date,
+          status: el.dataset.status,
+        }).text;
       });
   };
 
