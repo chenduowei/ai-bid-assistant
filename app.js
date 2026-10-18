@@ -81,6 +81,7 @@ import {
     trashList: document.getElementById("trashList"),
     toggleTrashBtn: document.getElementById("toggleTrashBtn"),
     formBody: document.getElementById("formBody"),
+    formSubtitle: document.getElementById("formSubtitle"),
     upcomingList: document.getElementById("upcomingList"),
     deadlineTip: document.getElementById("deadlineTip"),
     refundTip: document.getElementById("refundTip"),
@@ -157,19 +158,23 @@ import {
       state.expandedIds.add(id);
     }
     const expanded = !wasExpanded;
-    details.hidden = !expanded;
+    details.classList.toggle("expanded", expanded);
     toggleEl.setAttribute("aria-expanded", String(expanded));
     item.classList.toggle("expanded", expanded);
   };
 
-  /** v0.4.3：新增 / 编辑表单折叠。只改 DOM + state，不触发 ui.render()。 */
+  /** v0.4.4：新增 / 编辑表单折叠。class 切换（grid 高度动画），只改 DOM + state，不触发 ui.render()。 */
   const setFormExpanded = (expanded) => {
     state.formExpanded = expanded;
     const body = elements.formBody;
     const panel = body?.closest(".form-panel");
     const title = panel?.querySelector('[data-action="toggle-form"]');
-    if (body) body.hidden = !expanded;
-    if (title) title.setAttribute("aria-expanded", String(expanded));
+    if (body) body.classList.toggle("expanded", expanded);
+    if (title) {
+      title.setAttribute("aria-expanded", String(expanded));
+      const pillLabel = title.querySelector(".form-pill-label");
+      if (pillLabel) pillLabel.textContent = expanded ? "收起" : "展开";
+    }
     if (panel) panel.classList.toggle("expanded", expanded);
   };
 
@@ -202,6 +207,10 @@ import {
     lastAiResult = null;
     elements.submitBtn.textContent = "新增项目";
     elements.cancelBtn.classList.add("hidden");
+    elements.formBody?.closest(".form-panel")?.classList.remove("editing");
+    if (elements.formSubtitle)
+      elements.formSubtitle.textContent =
+        "必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。";
     setFormExpanded(false); // v0.4.3：保存成功 / 取消后自动收起表单
   };
 
@@ -826,6 +835,9 @@ import {
         elements.form.notes.value = p.notes || "";
         elements.submitBtn.textContent = "保存修改";
         elements.cancelBtn.classList.remove("hidden");
+        elements.formBody?.closest(".form-panel")?.classList.add("editing");
+        if (elements.formSubtitle)
+          elements.formSubtitle.textContent = `正在编辑：${String(p.name || "").slice(0, 12)}…`;
         revealForm();
       }
     });

@@ -142,14 +142,15 @@
 
     <section class="card panel form-panel">
       <div class="panel-title form-title" data-action="toggle-form" role="button" tabindex="0" aria-expanded="false" title="点击展开 / 收起表单">
-        <div>
+        <span class="form-badge" aria-hidden="true"><span class="form-badge-plus">＋</span><span class="form-badge-edit">✎</span></span>
+        <div class="form-title-text">
           <h2>新增 / 编辑项目</h2>
-          <p>必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。</p>
+          <p id="formSubtitle">必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。</p>
         </div>
-        <span class="form-chevron" aria-hidden="true">›</span>
+        <span class="form-pill"><span class="form-pill-label">展开</span><span class="form-pill-chevron" aria-hidden="true">›</span></span>
       </div>
 
-      <div id="formBody" class="form-body" hidden>
+      <div id="formBody" class="form-body collapse"><div class="collapse-inner">
       <div class="form-grid">
         <div class="field">
           <label for="date">开标时间</label>
@@ -244,7 +245,7 @@
         <button id="submitBtn" class="btn primary" type="button">新增项目</button>
         <button id="cancelBtn" class="btn secondary hidden" type="button">取消</button>
       </div>
-      </div>
+      </div></div>
     </section>
 
     <section class="card panel">

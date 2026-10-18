@@ -1,6 +1,23 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v0.4.3**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v0.4.4**，以长期使用为主。
+
+## [0.4.4] - 2026-10-18
+
+主题：iOS / 苹果官网式丝滑 UI（无数据库迁移，无新列，无后端变更）。
+
+### Changed
+- **新增 / 编辑表单折叠重设计**：标题栏重做成 CTA 头——左侧图标徽章（accent 渐变圆角正方形，新增模式显示＋、编辑模式显示✎），中间标题 + 副标题（编辑模式副标题显示正在编辑的项目名前 12 字），右侧"展开 / 收起"胶囊按钮（chevron 旋转）。展开/收起改用 `grid-template-rows: 0fr → 1fr` 真实高度动画，替代 hidden 瞬时切换；aria-expanded、键盘操作、编辑/AI 回填自动展开、保存后自动收起等行为不变。
+- **项目卡片折叠同样丝滑化**：详情区改用同一套 `.collapse` 高度动画；卡片 hover 上浮（-1px + 阴影加深），入场 stagger 保留收敛值、缓动换 spring。
+- **全站动效语言统一**：新增 `--ease-spring: cubic-bezier(0.32, 0.72, 0, 1)` / `--ease-out` / `--dur-fast: 0.18s` / `--dur-med: 0.35s`；字体栈加入 SF Pro / PingFang SC；所有动效只用 transform / opacity；`prefers-reduced-motion` 时全局禁用动画。
+- **微交互**：按钮按压缩放（scale 0.96）、主按钮微渐变、输入框 focus 光环（accent 边框 + 4px accent-soft）、toast 移到底部中央（深色胶囊，slide-up + spring）、倒计时数字等宽（tabular-nums）防跳动。
+- 登录页海报底图仍以 data URI 内联于 styles.css（推送通道不支持二进制）。
+
+### Database
+- **无迁移。** v0.4.4 不新增字段、不改约束，旧库无需执行任何 SQL。
+
+### Tests
+- `npm test` 22/22 通过；全部 JS 文件 `node --check` 通过。
 
 ## [0.4.3] - 2026-10-17
 
