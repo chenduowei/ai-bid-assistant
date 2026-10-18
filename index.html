@@ -55,12 +55,14 @@
   </main>
   <div id="appView" class="page hidden">
     <div id="dashboardView">
-    <header class="header card">
-      <div class="header-title">
-        <h1>项目管理工作台</h1>
-        <p>管理开标时间、项目类型、保证金、联系人与状态，支持招标文件 AI 解析。</p>
+    <header class="header">
+      <div class="header-top">
+        <div class="header-title">
+          <h1>项目管理工作台</h1>
+          <p id="headerSubtitle">管理开标时间、项目类型、保证金、联系人与状态，支持招标文件 AI 解析。</p>
+        </div>
+        <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
       </div>
-      <button id="menuToggle" class="btn secondary menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
       <div id="headerMenu" class="header-actions">
         <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span></div>
         <button id="themeBtn" class="btn secondary" type="button">🌙 深色</button>
@@ -82,28 +84,38 @@
         </div>
       </div>
       <div class="form-grid">
-        <div class="field">
-          <label for="reminderDays">开标提醒天数</label>
-          <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
+        <div class="form-section">
+          <div class="form-section-title">提醒</div>
+          <div class="form-group">
+            <div class="field">
+              <label for="reminderDays">开标提醒天数</label>
+              <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
+            </div>
+            <div class="field settings-hint">
+              <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。如需关页也提醒，需按 docs/reminders.md 部署 Edge Function。</span>
+            </div>
+          </div>
         </div>
-        <div class="field full-width settings-hint">
-          <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。如需关页也提醒，需按 docs/reminders.md 部署 Edge Function。</span>
-        </div>
-        <div class="field full-width">
-          <label for="aiApiKey">API Key</label>
-          <input id="aiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
-        </div>
-        <div class="field">
-          <label for="aiBaseUrl">API Base URL</label>
-          <input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1" />
-        </div>
-        <div class="field">
-          <label for="aiModel">模型</label>
-          <input id="aiModel" type="text" placeholder="gpt-4o-mini" />
+        <div class="form-section">
+          <div class="form-section-title">AI 接口（OpenAI 兼容）</div>
+          <div class="form-group">
+            <div class="field">
+              <label for="aiApiKey">API Key</label>
+              <input id="aiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
+            </div>
+            <div class="field">
+              <label for="aiBaseUrl">API Base URL</label>
+              <input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1" />
+            </div>
+            <div class="field">
+              <label for="aiModel">模型</label>
+              <input id="aiModel" type="text" placeholder="gpt-4o-mini" />
+            </div>
+          </div>
         </div>
       </div>
-      <div class="action-row">
-        <button id="aiSaveSettings" class="btn primary" type="button">保存设置</button>
+      <div class="action-row form-actions">
+        <button id="aiSaveSettings" class="btn primary btn-block" type="button">保存设置</button>
       </div>
     </section>
 
@@ -152,98 +164,108 @@
 
       <div id="formBody" class="form-body collapse"><div class="collapse-inner">
       <div class="form-grid">
-        <div class="field">
-          <label for="date">开标时间</label>
-          <input id="date" type="date" />
+        <div class="form-section">
+          <div class="form-section-title">必填信息</div>
+          <div class="form-group">
+            <div class="field">
+              <label for="date">开标时间</label>
+              <input id="date" type="date" />
+            </div>
+            <div class="field">
+              <label for="projectType">项目类型</label>
+              <input id="projectType" placeholder="项目类型" />
+            </div>
+            <div class="field">
+              <label for="name">项目名称</label>
+              <input id="name" placeholder="项目名称" />
+            </div>
+            <div class="field">
+              <label for="biddingCompany">投标公司</label>
+              <input id="biddingCompany" placeholder="投标公司" />
+            </div>
+            <div class="field">
+              <label for="contact">联系人</label>
+              <input id="contact" placeholder="联系人" />
+            </div>
+            <div class="field">
+              <label for="status">项目状态</label>
+              <select id="status">
+                <option value="报名中">报名中</option>
+                <option value="制作中">制作中</option>
+                <option value="已开标">已开标</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div class="field">
-          <label for="biddingCompany">投标公司</label>
-          <input id="biddingCompany" placeholder="投标公司" />
-        </div>
-        <div class="field">
-          <label for="tenderer">招标单位</label>
-          <input id="tenderer" placeholder="招标人 / 代理机构（选填）" />
-        </div>
-        <div class="field">
-          <label for="projectType">项目类型</label>
-          <input id="projectType" placeholder="项目类型" />
-        </div>
-        <div class="field">
-          <label for="contact">联系人</label>
-          <input id="contact" placeholder="联系人" />
-        </div>
-        <div class="field">
-          <label for="guarantee">保证金要求原文（选填）</label>
-          <input id="guarantee" type="text" placeholder="如 保证金 5 万元，开标后 5 个工作日内退还（选填）" />
-        </div>
-        <div class="field">
-          <label for="amountValue">项目金额（数值）</label>
-          <input id="amountValue" type="number" min="0" step="0.01" placeholder="如 500（选填）" />
-        </div>
-        <div class="field">
-          <label for="amountUnit">项目金额单位</label>
-          <select id="amountUnit">
-            <option value="万元">万元</option>
-            <option value="元">元</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="guaranteeAmount">保证金金额（数值）</label>
-          <input id="guaranteeAmount" type="number" min="0" step="0.01" placeholder="如 10（选填）" />
-        </div>
-        <div class="field">
-          <label for="guaranteeUnit">保证金单位</label>
-          <select id="guaranteeUnit">
-            <option value="万元">万元</option>
-            <option value="元">元</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="guaranteeStatus">保证金状态</label>
-          <select id="guaranteeStatus">
-            <option value="未缴纳">未缴纳</option>
-            <option value="已缴纳">已缴纳</option>
-            <option value="已退回">已退回</option>
-            <option value="已没收">已没收</option>
-          </select>
-        </div>
-        <div class="field">
-          <label for="registrationDeadline">报名截止（选填）</label>
-          <input id="registrationDeadline" type="date" />
-        </div>
-        <div class="field">
-          <label for="inquiryDeadline">质疑截止（选填）</label>
-          <input id="inquiryDeadline" type="date" />
-        </div>
-        <div class="field">
-          <label for="clarificationDeadline">澄清截止（选填）</label>
-          <input id="clarificationDeadline" type="date" />
-        </div>
-        <div class="field">
-          <label for="guaranteeDeadline">保证金缴纳截止（选填）</label>
-          <input id="guaranteeDeadline" type="date" />
-        </div>
-        <div class="field">
-          <label for="status">项目状态</label>
-          <select id="status">
-            <option value="报名中">报名中</option>
-            <option value="制作中">制作中</option>
-            <option value="已开标">已开标</option>
-          </select>
-        </div>
-        <div class="field full-width">
-          <label for="name">项目名称</label>
-          <input id="name" placeholder="项目名称" />
-        </div>
-        <div class="field full-width">
-          <label for="notes">备注（选填）</label>
-          <textarea id="notes" placeholder="备注"></textarea>
+        <div class="form-section">
+          <div class="form-section-title">选填信息</div>
+          <div class="form-group">
+            <div class="field">
+              <label for="tenderer">招标单位</label>
+              <input id="tenderer" placeholder="招标人 / 代理机构" />
+            </div>
+            <div class="field">
+              <label for="guarantee">保证金要求原文</label>
+              <input id="guarantee" type="text" placeholder="如 保证金 5 万元，开标后 5 个工作日内退还" />
+            </div>
+            <div class="field">
+              <label for="amountValue">项目金额（数值）</label>
+              <input id="amountValue" type="number" min="0" step="0.01" placeholder="如 500" />
+            </div>
+            <div class="field">
+              <label for="amountUnit">项目金额单位</label>
+              <select id="amountUnit">
+                <option value="万元">万元</option>
+                <option value="元">元</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="guaranteeAmount">保证金金额（数值）</label>
+              <input id="guaranteeAmount" type="number" min="0" step="0.01" placeholder="如 10" />
+            </div>
+            <div class="field">
+              <label for="guaranteeUnit">保证金单位</label>
+              <select id="guaranteeUnit">
+                <option value="万元">万元</option>
+                <option value="元">元</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="guaranteeStatus">保证金状态</label>
+              <select id="guaranteeStatus">
+                <option value="未缴纳">未缴纳</option>
+                <option value="已缴纳">已缴纳</option>
+                <option value="已退回">已退回</option>
+                <option value="已没收">已没收</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="registrationDeadline">报名截止</label>
+              <input id="registrationDeadline" type="date" />
+            </div>
+            <div class="field">
+              <label for="inquiryDeadline">质疑截止</label>
+              <input id="inquiryDeadline" type="date" />
+            </div>
+            <div class="field">
+              <label for="clarificationDeadline">澄清截止</label>
+              <input id="clarificationDeadline" type="date" />
+            </div>
+            <div class="field">
+              <label for="guaranteeDeadline">保证金缴纳截止</label>
+              <input id="guaranteeDeadline" type="date" />
+            </div>
+            <div class="field">
+              <label for="notes">备注</label>
+              <textarea id="notes" placeholder="备注"></textarea>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div class="action-row">
-        <button id="submitBtn" class="btn primary" type="button">新增项目</button>
-        <button id="cancelBtn" class="btn secondary hidden" type="button">取消</button>
+      <div class="action-row form-actions">
+        <button id="submitBtn" class="btn primary btn-block" type="button">新增项目</button>
+        <button id="cancelBtn" class="btn secondary btn-block hidden" type="button">取消</button>
       </div>
       </div></div>
     </section>
@@ -274,13 +296,19 @@
         <div id="filterResultCount" class="filter-result-count">共 0 个项目</div>
       </div>
       <div class="list-tools">
-        <select id="statusFilter" aria-label="按状态筛选">
+        <div class="seg-control" role="group" aria-label="按状态筛选">
+          <button type="button" class="seg-btn active" data-value="all">全部</button>
+          <button type="button" class="seg-btn" data-value="报名中">报名中</button>
+          <button type="button" class="seg-btn" data-value="制作中">制作中</button>
+          <button type="button" class="seg-btn" data-value="已开标">已开标</button>
+        </div>
+        <select id="statusFilter" class="hidden" aria-hidden="true" tabindex="-1">
           <option value="all">全部状态</option>
           <option value="报名中">报名中</option>
           <option value="制作中">制作中</option>
           <option value="已开标">已开标</option>
         </select>
-        <select id="sortBy" aria-label="项目排序方式">
+        <select id="sortBy" class="sort-select" aria-label="项目排序方式">
           <option value="date-asc">开标日期：最近优先</option>
           <option value="date-desc" selected>开标日期：最晚优先</option>
           <option value="name-asc">项目名称：A 到 Z</option>

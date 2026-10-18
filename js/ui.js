@@ -59,6 +59,15 @@ export function createUi(elements, getState) {
         { minimumFractionDigits: 2, maximumFractionDigits: 2 }
       );
     }
+    // v0.5.0：页头副标题 —— 有用的数据一句话
+    if (elements.headerSubtitle) {
+      const active = projects.filter((p) => p.status !== "已开标").length;
+      const upcomingCount = getUpcomingDeadlines(projects, getReminderDays()).length;
+      elements.headerSubtitle.textContent =
+        active === 0 && upcomingCount === 0
+          ? "还没有进行中的项目，新增一个开始吧。"
+          : `${active} 个进行中 · ${upcomingCount} 个截止事项临近`;
+    }
   };
 
   const renderDeadlineTip = (projects) => {
@@ -106,19 +115,16 @@ export function createUi(elements, getState) {
       desc.textContent = `未来 ${reminderDays} 天内的截止事项，按时间排序；浏览器通知仅在页面打开时触发。`;
     }
     if (!upcoming.length) {
-      elements.upcomingList.innerHTML = `<div class="upcoming-empty">未来 ${reminderDays} 天暂无截止事项。</div>`;
+      elements.upcomingList.innerHTML = `<div class="upcoming-empty"><div class="up-empty-icon">✓</div><div class="up-empty-title">未来 ${reminderDays} 天暂无截止事项</div><div class="up-empty-sub">新的截止时间会在这里提醒你</div></div>`;
       return;
     }
     elements.upcomingList.innerHTML = upcoming
       .map(({ project, label, date, days }) => {
         const level = upcomingLevel(days);
+        const [y, m, d] = String(date).split("-");
         const labelText =
-          days === 0
-            ? `${label}：今日`
-            : days === 1
-              ? `${label}：明日`
-              : `${label}：${days} 天后`;
-        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="upcoming-name">${escapeHtml(project.name)}</div><div class="upcoming-date">${escapeHtml(label)}：${escapeHtml(formatDateDisplay(date))}</div><div class="reminder-label">${escapeHtml(labelText)}</div></div>`;
+          days === 0 ? "今日截止" : days === 1 ? "明日截止" : `${days} 天后`;
+        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="up-date"><span class="up-day">${escapeHtml(String(Number(d) || ""))}</span><span class="up-month">${escapeHtml(String(Number(m) || ""))}月</span></div><div class="up-main"><div class="up-name">${escapeHtml(project.name)}</div><div class="up-label">${escapeHtml(label)} · ${escapeHtml(formatDateDisplay(date))}</div></div><span class="up-pill">${escapeHtml(labelText)}</span></div>`;
       })
       .join("");
   };
@@ -284,7 +290,15 @@ export function createUi(elements, getState) {
       ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
       : "";
     // 4 个截止时间（选填，有则显示）
-    const deadlineMeta = [
+    // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
+    const pdfHtml =
+      p.pdfFilename || p.pdfParsedAt
+        ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+        : "";
+    // v0.5.0：iOS 定义列表 —— label 左、value 右、hairline 分隔
+    const kv = (label, valueHtml) =>
+      `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value">${valueHtml}</span></div>`;
+    const deadlineRows = [
       ["报名截止", p.registrationDeadline],
       ["质疑截止", p.inquiryDeadline],
       ["澄清截止", p.clarificationDeadline],
@@ -292,20 +306,29 @@ export function createUi(elements, getState) {
     ]
       .filter(([, d]) => d)
       .map(
-        ([label, d]) =>
-          `<span>${escapeHtml(label)}：${escapeHtml(formatDateDisplay(d))}</span>`
+        ([label, d]) => kv(label, escapeHtml(formatDateDisplay(d)))
       )
       .join("");
-    // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
-    const pdfHtml =
-      p.pdfFilename || p.pdfParsedAt
-        ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
-        : "";
-    const detailsHtml = `<div class="project-meta"><span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span><span>项目类型：${escapeHtml(p.type)}</span><span>招标单位：${escapeHtml(p.tenderer || "-")}</span><span>联系人：${escapeHtml(p.contact)}</span></div><div class="project-meta"><span>项目金额：${escapeHtml(amountDisplay)}</span><span>保证金：${guaranteeDisplay}</span>${guaranteeExtra}</div>${deadlineMeta ? `<div class="project-meta">${deadlineMeta}</div>` : ""}${p.notes ? `<div class="project-meta"><span>备注：${escapeHtml(p.notes)}</span></div>` : ""}${deadlineHtml}${renderRiskCard(p)}${renderChecklist(p)}${pdfHtml}`;
+    const detailsHtml =
+      `<div class="kv-list">` +
+      kv("状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
+      kv("项目类型", escapeHtml(p.type)) +
+      kv("招标单位", escapeHtml(p.tenderer || "-")) +
+      kv("联系人", escapeHtml(p.contact)) +
+      kv("项目金额", escapeHtml(amountDisplay)) +
+      kv("保证金", guaranteeDisplay) +
+      deadlineRows +
+      `</div>` +
+      (guaranteeExtra ? `<div class="kv-note">${guaranteeExtra}</div>` : "") +
+      (p.notes ? `<div class="kv-note">备注：${escapeHtml(p.notes)}</div>` : "") +
+      deadlineHtml +
+      renderRiskCard(p) +
+      renderChecklist(p) +
+      pdfHtml;
     const cd = countdownCell(p);
     const dateShort = shortDateDisplay(p.date);
     const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情"><span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}<div class="project-actions"><button class="btn secondary" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn danger" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div></div>`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情"><span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}<div class="project-actions"><button class="btn tint-blue" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="btn secondary" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="btn tint-red" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div></div>`;
   };
 
   const renderList = (projects, filters) => {
@@ -317,7 +340,7 @@ export function createUi(elements, getState) {
 
     if (!filtered.length) {
       elements.list.innerHTML =
-        '<div class="empty">暂无符合条件的项目。</div>';
+        '<div class="empty-state"><div class="empty-icon">＋</div><div class="empty-title">还没有项目</div><div class="empty-sub">新增第一个项目，开始管理投标进度</div><button class="btn primary" type="button" data-action="empty-add">新增第一个项目</button></div>';
       return;
     }
     elements.list.innerHTML = filtered
@@ -331,6 +354,9 @@ export function createUi(elements, getState) {
     // 清空搜索与状态筛选，确保目标项目可见
     if (elements.search) elements.search.value = "";
     if (elements.statusFilter) elements.statusFilter.value = "all";
+    // v0.5.0：seg 同步（app.js 在 state 上挂了 syncSegControl）
+    const s0 = getState();
+    if (typeof s0.syncSegControl === "function") s0.syncSegControl();
     // v0.4.1：自动展开目标项目的详情区，再 render
     const s = getState();
     if (s.expandedIds && !s.expandedIds.has(projectId)) {
@@ -373,7 +399,7 @@ export function createUi(elements, getState) {
           const deletedDate = p.deletedAt
             ? formatDateDisplay(String(p.deletedAt).slice(0, 10))
             : "未知";
-          return `<div class="project-item"><div class="project-row"><div><h3 class="project-name">${escapeHtml(p.name)}</h3><div class="project-meta"><span>开标时间：${escapeHtml(formatDateDisplay(p.date))}</span><span>投标公司：${escapeHtml(p.biddingCompany || "-")}</span><span>删除时间：${escapeHtml(deletedDate)}</span></div></div><div class="project-actions"><button class="btn secondary" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn danger" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
+          return `<div class="project-item"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
         }
       )
       .join("");

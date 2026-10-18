@@ -77,6 +77,7 @@ import {
     filterResultCount: document.getElementById("filterResultCount"),
     statusFilter: document.getElementById("statusFilter"),
     sortBy: document.getElementById("sortBy"),
+    headerSubtitle: document.getElementById("headerSubtitle"),
     list: document.getElementById("list"),
     trashList: document.getElementById("trashList"),
     toggleTrashBtn: document.getElementById("toggleTrashBtn"),
@@ -578,6 +579,21 @@ import {
     [elements.statusFilter, elements.sortBy].forEach((el) =>
       el?.addEventListener("change", () => ui.render())
     );
+    // v0.5.0：iOS segmented control 与隐藏的 statusFilter 同步
+    const syncSegControl = () => {
+      const value = elements.statusFilter?.value || "all";
+      document.querySelectorAll(".seg-btn").forEach((b) =>
+        b.classList.toggle("active", b.dataset.value === value)
+      );
+    };
+    document.querySelectorAll(".seg-btn").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        if (elements.statusFilter) elements.statusFilter.value = btn.dataset.value;
+        syncSegControl();
+        ui.render();
+      })
+    );
+    state.syncSegControl = syncSegControl;
 
     elements.upcomingList?.addEventListener("click", (event) => {
       const item = event.target.closest(".upcoming-item[data-id]");
@@ -712,6 +728,11 @@ import {
       const button = event.target.closest("button");
       if (!button) return;
       const id = button.dataset.id;
+      // v0.5.0：空状态引导按钮 → 展开新增表单
+      if (button.dataset.action === "empty-add") {
+        revealForm();
+        return;
+      }
       if (button.dataset.action === "delete") {
         const ok = await projectsApi.deleteProject(id);
         if (ok && state.editingId === id) resetForm();
@@ -922,7 +943,6 @@ import {
       ui.toggleMobileMenu()
     );
     document.addEventListener("click", (e) => {
-      ui.addRipple(e);
       const menu = document.getElementById("headerMenu");
       if (
         menu?.classList.contains("open") &&
