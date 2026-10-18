@@ -448,6 +448,34 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return true;
   }
 
+  /**
+   * v0.6.0：批量删除 = 批量移入回收站。一次 confirm、一次 update、一个 toast。
+   */
+  async function deleteProjects(ids) {
+    const client = getClient();
+    const state = getState();
+    const list = [...new Set(ids || [])];
+    if (!list.length) return false;
+    if (
+      !confirm(
+        `将 ${list.length} 个项目移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`
+      )
+    )
+      return false;
+    const { error } = await client
+      .from("projects")
+      .update({ deleted_at: new Date().toISOString() })
+      .in("id", list)
+      .eq("user_id", state.user.id);
+    if (error) {
+      ui.showToast(`批量删除失败：${error.message}`);
+      return false;
+    }
+    await loadProjects();
+    ui.showToast(`已将 ${list.length} 个项目移到回收站。`);
+    return true;
+  }
+
   async function restoreProject(id) {
     const client = getClient();
     const state = getState();
@@ -563,13 +591,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   }
 
   const exportCsv = (projects) => {
+    // v0.6.0：开标时间移到第一列，其余顺序不变
     const headers = [
+      "开标时间",
       "项目名称",
       "项目类型",
       "投标公司",
       "招标单位",
       "联系人",
-      "开标时间",
       "保证金/保函",
       "项目金额",
       "项目状态",
@@ -586,12 +615,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       "PDF 文件名",
     ];
     const rows = projects.map((p) => [
+      p.date,
       p.name,
       p.type,
       p.biddingCompany || "",
       p.tenderer || "",
       p.contact,
-      p.date,
       p.guarantee,
       p.amount || "",
       p.status,
@@ -642,6 +671,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     importProjects,
     cloneProject,
     deleteProject,
+    deleteProjects,
     restoreProject,
     permanentlyDeleteProject,
     exportCsv,

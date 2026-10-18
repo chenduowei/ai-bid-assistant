@@ -78,6 +78,16 @@ import {
     statusFilter: document.getElementById("statusFilter"),
     sortBy: document.getElementById("sortBy"),
     headerSubtitle: document.getElementById("headerSubtitle"),
+    selectModeBtn: document.getElementById("selectModeBtn"),
+    selectBar: document.getElementById("selectBar"),
+    selectAllBtn: document.getElementById("selectAllBtn"),
+    selectedCount: document.getElementById("selectedCount"),
+    cancelSelectBtn: document.getElementById("cancelSelectBtn"),
+    deleteSelectedBtn: document.getElementById("deleteSelectedBtn"),
+    resetAccountBtn: document.getElementById("resetAccountBtn"),
+    optionalToggle: document.getElementById("optionalToggle"),
+    optionalBody: document.getElementById("optionalBody"),
+    optionalCount: document.getElementById("optionalCount"),
     list: document.getElementById("list"),
     trashList: document.getElementById("trashList"),
     toggleTrashBtn: document.getElementById("toggleTrashBtn"),
@@ -140,6 +150,11 @@ import {
     expandedIds: new Set(),
     /** v0.4.3：新增 / 编辑表单默认折叠 */
     formExpanded: false,
+    /** v0.6.0：选填信息默认折叠（与 formExpanded 独立） */
+    optionalExpanded: false,
+    /** v0.6.0：批量选择模式 */
+    selectMode: false,
+    selectedIds: new Set(),
   };
 
   const getState = () => state;
@@ -189,6 +204,85 @@ import {
     if (first) setTimeout(() => first.focus({ preventScroll: true }), 60);
   };
 
+  /** v0.6.0：选填信息折叠（只做 UI 切换，不清空已填值；与 formExpanded 独立） */
+  const OPTIONAL_FIELDS = [
+    "tenderer",
+    "guarantee",
+    "amountValue",
+    "amountUnit",
+    "guaranteeAmount",
+    "guaranteeUnit",
+    "guaranteeStatus",
+    "registrationDeadline",
+    "inquiryDeadline",
+    "clarificationDeadline",
+    "guaranteeDeadline",
+    "notes",
+  ];
+  const setOptionalExpanded = (expanded) => {
+    state.optionalExpanded = expanded;
+    elements.optionalBody?.classList.toggle("expanded", expanded);
+    elements.optionalToggle?.setAttribute("aria-expanded", String(expanded));
+  };
+  /** 选填区是否有"有效"值（单位/状态的默认值不算） */
+  const hasOptionalValues = () =>
+    OPTIONAL_FIELDS.some((k) => {
+      const el = elements.form[k];
+      if (!el || typeof el.value !== "string") return false;
+      const v = el.value.trim();
+      if (!v) return false;
+      if (k === "amountUnit" && v === "万元") return false;
+      if (k === "guaranteeUnit" && v === "万元") return false;
+      if (k === "guaranteeStatus" && v === "未缴纳") return false;
+      return true;
+    });
+
+  /** v0.6.0：批量选择模式 */
+  const updateSelectBar = () => {
+    const n = state.selectedIds.size;
+    if (elements.selectedCount)
+      elements.selectedCount.textContent = `已选 ${n} 项`;
+    if (elements.deleteSelectedBtn)
+      elements.deleteSelectedBtn.textContent = `删除所选（${n}）`;
+    const filtered =
+      typeof ui.getCurrentFilteredProjects === "function"
+        ? ui.getCurrentFilteredProjects()
+        : [];
+    const allSelected =
+      filtered.length > 0 &&
+      filtered.every((p) => state.selectedIds.has(p.id));
+    if (elements.selectAllBtn)
+      elements.selectAllBtn.textContent = allSelected ? "取消全选" : "全选";
+  };
+  const enterSelectMode = () => {
+    state.selectMode = true;
+    state.selectedIds.clear();
+    elements.selectBar?.classList.remove("hidden");
+    ui.render();
+    updateSelectBar();
+  };
+  const exitSelectMode = () => {
+    state.selectMode = false;
+    state.selectedIds.clear();
+    elements.selectBar?.classList.add("hidden");
+    ui.render();
+  };
+  const toggleSelectOne = (id) => {
+    if (!id) return;
+    if (state.selectedIds.has(id)) state.selectedIds.delete(id);
+    else state.selectedIds.add(id);
+    // 只更新该行复选框，不全量 render（保持滚动位置）
+    const box = elements.list?.querySelector(
+      `.project-item[data-id="${CSS.escape(String(id))}"] .select-check`
+    );
+    if (box)
+      box.setAttribute(
+        "aria-checked",
+        state.selectedIds.has(id) ? "true" : "false"
+      );
+    updateSelectBar();
+  };
+
   const ui = createUi(elements, getState);
   const projectsApi = createProjectsApi({ getClient, getState, setState, ui });
   const pdfParser = createPdfParser({ elements, ui });
@@ -198,6 +292,7 @@ import {
     Object.values(elements.form).forEach((input) => {
       if (input) input.value = "";
     });
+    setOptionalExpanded(false); // v0.6.0：新建时选填区收起
     if (elements.form.status) elements.form.status.value = "报名中";
     if (elements.form.amountUnit) elements.form.amountUnit.value = "万元";
     if (elements.form.guaranteeUnit)
@@ -681,10 +776,23 @@ import {
           pdfParser.setParseProgress(90, msg)
         );
         lastAiResult = result;
+        // v0.6.0：AI 回填到选填字段时自动展开选填区
+        const beforeOptional = OPTIONAL_FIELDS.map(
+          (k) => elements.form[k]?.value ?? ""
+        );
         aiExtract.applyToForm(elements, result);
+        const optionalFilled = OPTIONAL_FIELDS.some((k, i) => {
+          const v = elements.form[k]?.value ?? "";
+          return v !== beforeOptional[i] && String(v).trim() !== "";
+        });
+        if (optionalFilled) setOptionalExpanded(true);
         aiExtract.renderAiResultPanel(elements.aiResultPanel, result);
         pdfParser.setParseProgress(100, "AI 分析完成。");
-        ui.showToast("AI 分析完成，结果已回填表单，核对后保存。");
+        ui.showToast(
+          optionalFilled
+            ? "AI 分析完成，结果已回填表单（含选填信息），核对后保存。"
+            : "AI 分析完成，结果已回填表单，核对后保存。"
+        );
         showDashboard();
         revealForm();
       } catch (err) {
@@ -715,18 +823,109 @@ import {
       elements.aiSettingsPanel?.classList.add("hidden");
     });
 
+    // v0.6.0：选填信息折叠开关 + 字段数
+    elements.optionalToggle?.addEventListener("click", () => {
+      setOptionalExpanded(!state.optionalExpanded);
+    });
+    if (elements.optionalCount)
+      elements.optionalCount.textContent = String(OPTIONAL_FIELDS.length);
+
+    // v0.6.0：批量选择模式
+    elements.selectModeBtn?.addEventListener("click", () => {
+      if (state.selectMode) exitSelectMode();
+      else enterSelectMode();
+    });
+    elements.cancelSelectBtn?.addEventListener("click", exitSelectMode);
+    elements.selectAllBtn?.addEventListener("click", () => {
+      const filtered =
+        typeof ui.getCurrentFilteredProjects === "function"
+          ? ui.getCurrentFilteredProjects()
+          : [];
+      const allSelected =
+        filtered.length > 0 &&
+        filtered.every((p) => state.selectedIds.has(p.id));
+      if (allSelected) filtered.forEach((p) => state.selectedIds.delete(p.id));
+      else filtered.forEach((p) => state.selectedIds.add(p.id));
+      ui.render();
+      updateSelectBar();
+    });
+    elements.deleteSelectedBtn?.addEventListener("click", async () => {
+      const ok = await projectsApi.deleteProjects([...state.selectedIds]);
+      if (ok) exitSelectMode();
+    });
+
+    // v0.6.0：重置账户（双重确认，只删当前用户数据）
+    let resetArmed = false;
+    let resetTimer = null;
+    elements.resetAccountBtn?.addEventListener("click", async () => {
+      const btn = elements.resetAccountBtn;
+      if (!resetArmed) {
+        resetArmed = true;
+        btn.textContent = "再次点击确认重置";
+        btn.classList.add("armed");
+        ui.showToast("再次点击确认重置，10 秒内有效。");
+        resetTimer = setTimeout(() => {
+          resetArmed = false;
+          btn.textContent = "重置账户";
+          btn.classList.remove("armed");
+        }, 10000);
+        return;
+      }
+      clearTimeout(resetTimer);
+      resetArmed = false;
+      btn.textContent = "重置账户";
+      btn.classList.remove("armed");
+      btn.disabled = true;
+      try {
+        const uid = state.user?.id;
+        if (!uid) throw new Error("未登录");
+        const { error: e1 } = await client
+          .from("projects")
+          .delete()
+          .eq("user_id", uid);
+        if (e1) throw e1;
+        // notification_log 可能不存在（旧库），不存在则跳过
+        const { error: e2 } = await client
+          .from("notification_log")
+          .delete()
+          .eq("user_id", uid);
+        if (e2 && e2.code !== "42P01") throw e2;
+        state.selectedIds.clear();
+        state.expandedIds.clear();
+        await projectsApi.loadProjects();
+        ui.render();
+        ui.showToast("账户已重置，全部项目与通知记录已删除。");
+      } catch (err) {
+        ui.showToast(`重置失败：${err?.message || err}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
     elements.list?.addEventListener("click", async (event) => {
       // v0.5.1：操作按钮已搬到行头部——点按钮只走按钮分支，不触发折叠切换
       const button = event.target.closest("button");
       if (!button) {
         // v0.4.1：卡片头部点击切换展开 / 折叠
+        // v0.6.0：选择模式下点行切换选中，不展开详情
         const toggleEl = event.target.closest(
           '.project-item [data-action="toggle-details"]'
         );
-        if (toggleEl) toggleProjectDetails(toggleEl);
+        if (toggleEl) {
+          const tid =
+            toggleEl.dataset.id ||
+            toggleEl.closest(".project-item")?.dataset.id;
+          if (state.selectMode) toggleSelectOne(tid);
+          else toggleProjectDetails(toggleEl);
+        }
         return;
       }
       const id = button.dataset.id;
+      // v0.6.0：选择模式复选框
+      if (button.dataset.action === "toggle-select") {
+        toggleSelectOne(id);
+        return;
+      }
       // v0.5.0：空状态引导按钮 → 展开新增表单
       if (button.dataset.action === "empty-add") {
         revealForm();
@@ -853,6 +1052,7 @@ import {
         elements.form.contact.value = p.contact || "";
         elements.form.status.value = p.status || "报名中";
         elements.form.notes.value = p.notes || "";
+        setOptionalExpanded(hasOptionalValues()); // v0.6.0：编辑时有选填值则展开
         elements.submitBtn.textContent = "保存修改";
         elements.cancelBtn.classList.remove("hidden");
         elements.formBody?.closest(".form-panel")?.classList.add("editing");
@@ -891,7 +1091,11 @@ import {
       );
       if (!toggleEl) return;
       event.preventDefault();
-      toggleProjectDetails(toggleEl);
+      // v0.6.0：选择模式下键盘切换选中
+      const tid =
+        toggleEl.dataset.id || toggleEl.closest(".project-item")?.dataset.id;
+      if (state.selectMode) toggleSelectOne(tid);
+      else toggleProjectDetails(toggleEl);
     });
 
     // v0.4.0：保证金退还提醒横幅 — 标记已退回

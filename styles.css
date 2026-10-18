@@ -1124,3 +1124,104 @@ body.dark .toast { background: rgba(72, 72, 74, 0.94); }
   }
   html { scroll-behavior: auto; }
 }
+
+/* —— v0.6.0：批量选择模式 —— */
+.btn-text {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 6px 8px;
+}
+.btn-text:active { opacity: 0.6; }
+.select-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 12px;
+}
+.select-count {
+  color: var(--muted);
+  font-size: 13px;
+}
+.select-spacer { flex: 1; }
+.select-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+.select-check svg { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.select-check[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.select-check[aria-checked="true"] svg { opacity: 1; }
+.project-list.selecting .project-head-actions { display: none; }
+.project-list.selecting .project-head { cursor: default; }
+
+/* —— v0.6.0：危险区（重置账户） —— */
+.danger-zone { margin-top: 18px; }
+.danger-title { color: #FF3B30; }
+body.dark .danger-title { color: #FF453A; }
+.danger-zone .field-hint { margin-bottom: 8px; display: block; }
+.btn.danger-text {
+  color: #FF3B30;
+  background: none;
+  border: 0;
+  font-weight: 600;
+  padding: 8px 0;
+  align-self: flex-start;
+}
+body.dark .btn.danger-text { color: #FF453A; }
+.btn.danger-text.armed {
+  background: #FF3B30;
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 16px;
+}
+body.dark .btn.danger-text.armed { background: #FF453A; }
+
+/* —— v0.6.0：选填信息折叠 —— */
+.form-section-title.collapsible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding-left: 0;
+  padding-right: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+.section-chevron {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+  transition: transform var(--dur-med) var(--ease-spring);
+  transform-origin: center;
+}
+#optionalToggle[aria-expanded="true"] .section-chevron { transform: rotate(90deg); }
+#optionalBody.collapse.expanded > .collapse-inner { padding-top: 10px; }
+
+/* —— v0.6.0：列表到底趣味文案 —— */
+.list-end {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 20px 8px 8px;
+}

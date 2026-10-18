@@ -328,8 +328,22 @@ export function createUi(elements, getState) {
     const cd = countdownCell(p);
     const dateShort = shortDateDisplay(p.date);
     const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情"><span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></div><div class="project-head-actions"><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}</div></div></div>`;
+    // v0.6.0：选择模式下行首显示 iOS 圆形复选框
+    const st = getState();
+    const selectMode = !!(st && st.selectMode);
+    const checked = !!(st && st.selectedIds && st.selectedIds.has(p.id));
+    const checkHtml = selectMode
+      ? `<button class="select-check" type="button" role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-label="选择项目" data-action="toggle-select" data-id="${escapeHtml(p.id)}"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.8 5.3 9.5 10.5 3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
+      : "";
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></div><div class="project-head-actions"><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}</div></div></div>`;
   };
+
+  /** v0.6.0：列表到底趣味文案（按数量轮换） */
+  const END_QUOTES = [
+    "到底啦，共 {n} 个项目，去喝杯茶吧 🍵",
+    "已经到底了，剩下的时间都是你的 ☕",
+    "没有更多项目了，项目都在这儿啦 📋",
+  ];
 
   const renderList = (projects, filters) => {
     const keyword = (filters.keyword || "").trim();
@@ -337,15 +351,26 @@ export function createUi(elements, getState) {
     const hasActiveFilter = Boolean(keyword) || status !== "all";
     const filtered = getFilteredProjects(projects, filters);
     updateFilterCount(filtered.length, projects.length, hasActiveFilter);
+    // v0.6.0：选择模式下给容器加 selecting（隐藏行内操作按钮）
+    if (elements.list)
+      elements.list.classList.toggle(
+        "selecting",
+        !!(getState() && getState().selectMode)
+      );
 
     if (!filtered.length) {
       elements.list.innerHTML =
         '<div class="empty-state"><div class="empty-icon">＋</div><div class="empty-title">还没有项目</div><div class="empty-sub">新增第一个项目，开始管理投标进度</div><button class="btn primary" type="button" data-action="empty-add">新增第一个项目</button></div>';
       return;
     }
-    elements.list.innerHTML = filtered
-      .map((p, i) => renderProjectItem(p, i))
-      .join("");
+    elements.list.innerHTML =
+      filtered.map((p, i) => renderProjectItem(p, i)).join("") +
+      `<div class="list-end">—— ${escapeHtml(
+        END_QUOTES[filtered.length % END_QUOTES.length].replace(
+          "{n}",
+          String(filtered.length)
+        )
+      )} ——</div>`;
   };
 
   /** 定位到项目列表中的某一项并高亮（v0.4.1：自动展开该项目） */
