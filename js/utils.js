@@ -625,3 +625,49 @@ export function buildImportCsvTemplate() {
     "\n"
   );
 }
+
+// v0.8.1：备份恢复 —— 纯函数（可单测），不碰数据库。
+// 校验备份 JSON：必须是本应用的备份、projects 为数组、每行有 id、
+// 且全部行属于当前登录账号（user_id 一致）；备份内重复 id 只留最后一条。
+export function parseBackupPayload(text, uid) {
+  let payload;
+  try {
+    payload = JSON.parse(text);
+  } catch {
+    return { ok: false, error: "文件不是有效的 JSON。" };
+  }
+  if (!payload || typeof payload !== "object" || payload.app !== "ai-bid-assistant") {
+    return { ok: false, error: "这不是投标工作台的备份文件。" };
+  }
+  if (!Array.isArray(payload.projects)) {
+    return { ok: false, error: "备份文件缺少项目数据。" };
+  }
+  const rows = [];
+  const seen = new Set();
+  let duplicates = 0;
+  for (const row of payload.projects) {
+    if (!row || typeof row !== "object" || typeof row.id !== "string" || !row.id) {
+      return { ok: false, error: "备份中存在缺失编号的项目，无法恢复。" };
+    }
+    if (row.user_id !== uid) {
+      return { ok: false, error: "该备份不属于当前登录账号，无法恢复。" };
+    }
+    if (seen.has(row.id)) {
+      duplicates += 1;
+      continue;
+    }
+    seen.add(row.id);
+    rows.push(row);
+  }
+  return { ok: true, rows, duplicates };
+}
+
+// v0.8.1：按现有编号拆分恢复行 —— 已存在的进 update（覆盖用），其余进 insert。
+export function splitRestoreRows(rows, existingIds) {
+  const insert = [];
+  const update = [];
+  for (const row of rows) {
+    (existingIds.has(row.id) ? update : insert).push(row);
+  }
+  return { insert, update };
+}

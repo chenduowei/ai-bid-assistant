@@ -41,6 +41,8 @@ import {
     themeBtn: document.getElementById("themeBtn"),
     exportBtn: document.getElementById("exportBtn"),
     backupBtn: document.getElementById("backupBtn"),
+    restoreBtn: document.getElementById("restoreBtn"),
+    restoreFileInput: document.getElementById("restoreFileInput"),
     backupTip: document.getElementById("backupTip"),
     backupNowBtn: document.getElementById("backupNowBtn"),
     backupTipClose: document.getElementById("backupTipClose"),
@@ -632,6 +634,29 @@ import {
     elements.backupTipClose?.addEventListener("click", () =>
       elements.backupTip?.classList.add("hidden")
     );
+
+    // v0.8.1：从备份恢复 —— 无重叠直接补齐；有重叠时一次确认：
+    // 确定 = 用备份覆盖已有，取消 = 只补新增；库里有、备份里没有的一律不动
+    elements.restoreBtn?.addEventListener("click", () =>
+      elements.restoreFileInput?.click()
+    );
+    elements.restoreFileInput?.addEventListener("change", async (event) => {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) return;
+      let text = "";
+      try {
+        text = await file.text();
+      } catch {
+        ui.showToast("读取文件失败，重试。");
+        return;
+      }
+      await projectsApi.restoreBackup(text, ({ overlap, fresh }) =>
+        confirm(
+          `备份中有 ${overlap} 条已存在于当前数据库，点「确定」用备份覆盖它们，点「取消」只补新增的 ${fresh} 条。\n（数据库里有、备份里没有的项目不会被删除。）`
+        )
+      );
+    });
 
     // v0.8.0：列表 / 日历视图切换（日历模式下退出选择模式，避免两者叠加）
     const setViewMode = (mode) => {

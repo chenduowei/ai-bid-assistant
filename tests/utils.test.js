@@ -18,6 +18,8 @@ import {
   buildImportCsvTemplate,
   getGuaranteeRefundReminders,
   sheetRowsToCsv,
+  parseBackupPayload,
+  splitRestoreRows,
 } from "../js/utils.js";
 
 test("getMissedBidProjects：只返回最近 7 天内过期且未开标的项目", () => {
@@ -379,4 +381,55 @@ test("sheetRowsToCsv + parseCsvProjects：Excel 表格行可直接走 CSV 导入
   assert.equal(rows[0].name, "X 项目");
   assert.equal(rows[0].bid_date, "2026-12-01");
   assert.equal(errors.length, 0);
+});
+
+test("parseBackupPayload：合法备份去重后返回行 + 重复数", () => {
+  const payload = {
+    app: "ai-bid-assistant",
+    version: "0.8.0",
+    exportedAt: "2026-10-27T00:00:00.000Z",
+    count: 3,
+    projects: [
+      { id: "a", user_id: "u1", name: "甲" },
+      { id: "b", user_id: "u1", name: "乙" },
+      { id: "a", user_id: "u1", name: "甲重复" },
+    ],
+  };
+  const result = parseBackupPayload(JSON.stringify(payload), "u1");
+  assert.equal(result.ok, true);
+  assert.equal(result.rows.length, 2);
+  assert.equal(result.rows[0].name, "甲");
+  assert.equal(result.duplicates, 1);
+});
+
+test("parseBackupPayload：非法 JSON / 非本应用备份 / 缺项目数组均拒绝", () => {
+  assert.equal(parseBackupPayload("not json", "u1").ok, false);
+  assert.equal(
+    parseBackupPayload(JSON.stringify({ app: "other", projects: [] }), "u1").ok,
+    false
+  );
+  assert.equal(
+    parseBackupPayload(JSON.stringify({ app: "ai-bid-assistant" }), "u1").ok,
+    false
+  );
+});
+
+test("parseBackupPayload：缺 id 的行 / 他人账号的备份均拒绝", () => {
+  const noId = JSON.stringify({
+    app: "ai-bid-assistant",
+    projects: [{ user_id: "u1", name: "无编号" }],
+  });
+  assert.equal(parseBackupPayload(noId, "u1").ok, false);
+  const foreign = JSON.stringify({
+    app: "ai-bid-assistant",
+    projects: [{ id: "a", user_id: "u2", name: "别人的" }],
+  });
+  assert.equal(parseBackupPayload(foreign, "u1").ok, false);
+});
+
+test("splitRestoreRows：已有进 update、新行进 insert", () => {
+  const rows = [{ id: "a" }, { id: "b" }, { id: "c" }];
+  const { insert, update } = splitRestoreRows(rows, new Set(["a", "c"]));
+  assert.deepEqual(insert.map((r) => r.id), ["b"]);
+  assert.deepEqual(update.map((r) => r.id), ["a", "c"]);
 });

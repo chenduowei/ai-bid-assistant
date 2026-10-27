@@ -5,6 +5,8 @@ import {
   TRASH_RETENTION_DAYS,
   getTrashExpiryCutoff,
   normalizeChecklist,
+  parseBackupPayload,
+  splitRestoreRows,
 } from "./utils.js";
 
 /** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
@@ -743,6 +745,82 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     }
   };
 
+  // v0.8.1：从备份恢复 —— 只写本账号数据；库里有、备份里没有的项目一律不动。
+  // decideOverwrite({ overlap, fresh }) 仅在有重叠时调用，返回 true = 覆盖已有。
+  const restoreBackup = async (text, decideOverwrite) => {
+    const client = getClient();
+    const state = getState();
+    const uid = state.user?.id;
+    if (!uid) {
+      ui.showToast("未登录，无法恢复。");
+      return false;
+    }
+    const parsed = parseBackupPayload(text, uid);
+    if (!parsed.ok) {
+      ui.showToast(`恢复失败：${parsed.error}`);
+      return false;
+    }
+    const { rows, duplicates } = parsed;
+    if (!rows.length) {
+      ui.showToast("备份中没有项目，无需恢复。");
+      return false;
+    }
+    try {
+      // 现有编号集合（只拉 id，分批同导出备份）
+      const existingIds = new Set();
+      const PAGE_SIZE = 500;
+      const MAX_ROWS = 10000;
+      let from = 0;
+      while (from < MAX_ROWS) {
+        const { data, error } = await client
+          .from("projects")
+          .select("id")
+          .eq("user_id", uid)
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || !data.length) break;
+        for (const row of data) existingIds.add(row.id);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      const { insert, update } = splitRestoreRows(rows, existingIds);
+      let overwrite = false;
+      if (update.length && typeof decideOverwrite === "function") {
+        overwrite = await decideOverwrite({
+          overlap: update.length,
+          fresh: insert.length,
+        });
+      }
+      const BATCH = 100;
+      if (overwrite) {
+        for (let i = 0; i < rows.length; i += BATCH) {
+          const { error } = await client
+            .from("projects")
+            .upsert(rows.slice(i, i + BATCH), { onConflict: "id" });
+          if (error) throw error;
+        }
+      } else {
+        for (let i = 0; i < insert.length; i += BATCH) {
+          const { error } = await client
+            .from("projects")
+            .insert(insert.slice(i, i + BATCH));
+          if (error) throw error;
+        }
+      }
+      const inserted = insert.length;
+      const updated = overwrite ? update.length : 0;
+      const skipped = duplicates + (overwrite ? 0 : update.length);
+      await loadProjects();
+      ui.showToast(
+        `恢复完成：新增 ${inserted} 条${updated ? `，覆盖 ${updated} 条` : ""}${skipped ? `，跳过 ${skipped} 条` : ""}。`
+      );
+      return true;
+    } catch (err) {
+      ui.showToast(`恢复失败：${err?.message || err}`);
+      return false;
+    }
+  };
+
   return {
     loadProjects,
     loadDeletedProjects,
@@ -760,6 +838,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     permanentlyDeleteProject,
     exportCsv,
     exportBackup,
+    restoreBackup,
     toUiProject,
     validate,
   };
