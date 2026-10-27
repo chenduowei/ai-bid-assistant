@@ -2,7 +2,7 @@
  * AI Bid Assistant — 入口
  * 模块：js/utils.js · auth.js · projects.js · pdf-parser.js · ai-extract.js · ui.js
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -40,6 +40,10 @@ import {
     resetPasswordMessage: document.getElementById("resetPasswordMessage"),
     themeBtn: document.getElementById("themeBtn"),
     exportBtn: document.getElementById("exportBtn"),
+    backupBtn: document.getElementById("backupBtn"),
+    backupTip: document.getElementById("backupTip"),
+    backupNowBtn: document.getElementById("backupNowBtn"),
+    backupTipClose: document.getElementById("backupTipClose"),
     importBtn: document.getElementById("importBtn"),
     downloadTemplateBtn: document.getElementById("downloadTemplateBtn"),
     importFileInput: document.getElementById("importFileInput"),
@@ -89,6 +93,16 @@ import {
     optionalBody: document.getElementById("optionalBody"),
     optionalCount: document.getElementById("optionalCount"),
     list: document.getElementById("list"),
+    calendarView: document.getElementById("calendarView"),
+    calendarGrid: document.getElementById("calendarGrid"),
+    calendarTitle: document.getElementById("calendarTitle"),
+    calendarDayTitle: document.getElementById("calendarDayTitle"),
+    calendarDayList: document.getElementById("calendarDayList"),
+    guaranteePanel: document.getElementById("guaranteePanel"),
+    guaranteeList: document.getElementById("guaranteeList"),
+    guaranteeCount: document.getElementById("guaranteeCount"),
+    toggleGuaranteeBtn: document.getElementById("toggleGuaranteeBtn"),
+    guaranteeStatCard: document.getElementById("guaranteeStatCard"),
     trashList: document.getElementById("trashList"),
     toggleTrashBtn: document.getElementById("toggleTrashBtn"),
     formBody: document.getElementById("formBody"),
@@ -105,6 +119,7 @@ import {
     openedCount: document.getElementById("openedCount"),
     inTransitGuarantee: document.getElementById("inTransitGuarantee"),
     menuToggle: document.getElementById("menuToggle"),
+    addProjectBtn: document.getElementById("addProjectBtn"),
     form: {
       date: document.getElementById("date"),
       type: document.getElementById("projectType"),
@@ -155,6 +170,11 @@ import {
     /** v0.6.0：批量选择模式 */
     selectMode: false,
     selectedIds: new Set(),
+    /** v0.8.0：列表 / 日历视图 + 日历年月/选中日（默认本月今天） */
+    viewMode: "list",
+    calYear: new Date().getFullYear(),
+    calMonth: new Date().getMonth(),
+    calSelected: null,
   };
 
   const getState = () => state;
@@ -454,6 +474,24 @@ import {
     elements.authForm?.classList.remove("hidden");
   }
 
+  // v0.8.0：30 天备份提醒（每次打开应用登录后检查一次，关闭后本次不再出现）
+  let backupTipShown = false;
+  const maybeShowBackupTip = () => {
+    if (backupTipShown || !elements.backupTip) return;
+    let last = null;
+    try {
+      last = localStorage.getItem("lastBackupAt");
+    } catch {
+      // 读失败视为未备份过
+    }
+    const t = last ? new Date(last).getTime() : NaN;
+    const overdue =
+      !Number.isFinite(t) || Date.now() - t > 30 * 24 * 3600 * 1000;
+    if (!overdue) return;
+    backupTipShown = true;
+    elements.backupTip.classList.remove("hidden");
+  };
+
   function showApp(user) {
     // 密码重置流程中：停留在重置面板，不切回工作台
     if (passwordRecoveryActive) return;
@@ -472,6 +510,7 @@ import {
         refreshPdfProjectOptions();
         showMissedReminders();
         sendBidNotifications();
+        maybeShowBackupTip(); // v0.8.0：登录后检查 30 天备份提醒
         projectsApi.purgeExpiredTrash();
         return projectsApi.migrateLocalProjects();
       }
@@ -511,13 +550,28 @@ import {
     refreshPdfProjectOptions();
     elements.dashboardView.classList.add("hidden");
     elements.parserView.classList.remove("hidden");
+    playViewEnter(elements.parserView);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const showDashboard = () => {
     elements.parserView.classList.add("hidden");
     elements.dashboardView.classList.remove("hidden");
+    playViewEnter(elements.dashboardView);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  /** v0.7.0：视图切换过渡——淡入 + 轻微上滑（动画结束自动清理 class，保证下次可重触发） */
+  const playViewEnter = (el) => {
+    if (!el) return;
+    el.classList.remove("view-enter");
+    void el.offsetWidth;
+    el.classList.add("view-enter");
+    el.addEventListener(
+      "animationend",
+      () => el.classList.remove("view-enter"),
+      { once: true }
+    );
   };
 
   function bindEvents() {
@@ -567,6 +621,111 @@ import {
       // 导出当前筛选结果，与列表看到的一致，而非全量。
       projectsApi.exportCsv(ui.getCurrentFilteredProjects?.() ?? state.projects)
     );
+
+    // v0.8.0：一键备份（直接拉 Supabase 全量，含回收站）+ 30 天备份提醒
+    const runBackup = async () => {
+      const ok = await projectsApi.exportBackup();
+      if (ok) elements.backupTip?.classList.add("hidden");
+    };
+    elements.backupBtn?.addEventListener("click", runBackup);
+    elements.backupNowBtn?.addEventListener("click", runBackup);
+    elements.backupTipClose?.addEventListener("click", () =>
+      elements.backupTip?.classList.add("hidden")
+    );
+
+    // v0.8.0：列表 / 日历视图切换（日历模式下退出选择模式，避免两者叠加）
+    const setViewMode = (mode) => {
+      if (mode !== "list" && mode !== "calendar") return;
+      state.viewMode = mode;
+      document.querySelectorAll(".view-btn").forEach((b) =>
+        b.classList.toggle("active", b.dataset.view === mode)
+      );
+      elements.calendarView?.classList.toggle("hidden", mode !== "calendar");
+      elements.list?.classList.toggle("hidden", mode !== "list");
+      if (mode === "calendar" && state.selectMode) {
+        state.selectMode = false;
+        state.selectedIds.clear();
+        elements.selectBar?.classList.add("hidden");
+      }
+      ui.render();
+    };
+    document.querySelectorAll(".view-btn").forEach((btn) =>
+      btn.addEventListener("click", () => setViewMode(btn.dataset.view))
+    );
+
+    // v0.8.0：日历交互（导航 / 选日 / 点项目回到列表定位）
+    const calToDateStr = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    elements.calendarView?.addEventListener("click", (event) => {
+      const nav = event.target.closest("[data-cal-nav]");
+      if (nav) {
+        const type = nav.dataset.calNav;
+        if (type === "today") {
+          const t = new Date();
+          state.calYear = t.getFullYear();
+          state.calMonth = t.getMonth();
+          state.calSelected = calToDateStr(t);
+        } else {
+          let y = state.calYear;
+          let m = state.calMonth + (type === "next" ? 1 : -1);
+          if (m < 0) {
+            m = 11;
+            y -= 1;
+          }
+          if (m > 11) {
+            m = 0;
+            y += 1;
+          }
+          state.calYear = y;
+          state.calMonth = m;
+        }
+        ui.render();
+        return;
+      }
+      const day = event.target.closest("[data-cal-date]");
+      if (day) {
+        state.calSelected = day.dataset.calDate;
+        ui.render();
+        return;
+      }
+      const proj = event.target.closest("[data-cal-project-id]");
+      if (proj) {
+        setViewMode("list");
+        ui.focusProjectInList(proj.dataset.calProjectId);
+      }
+    });
+
+    // v0.8.0：保证金清单折叠 + 在途保证金统计卡片联动（点卡片展开清单并滚动定位）
+    let guaranteeVisible = false;
+    const setGuaranteeVisible = (visible) => {
+      guaranteeVisible = visible;
+      elements.guaranteeList?.classList.toggle("hidden", !visible);
+      if (elements.toggleGuaranteeBtn) {
+        elements.toggleGuaranteeBtn.textContent = visible
+          ? "收起清单"
+          : "查看清单";
+        elements.toggleGuaranteeBtn.setAttribute(
+          "aria-expanded",
+          String(visible)
+        );
+      }
+    };
+    elements.toggleGuaranteeBtn?.addEventListener("click", () =>
+      setGuaranteeVisible(!guaranteeVisible)
+    );
+    const scrollToGuarantee = () => {
+      if (!guaranteeVisible) setGuaranteeVisible(true);
+      elements.guaranteePanel?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    };
+    elements.guaranteeStatCard?.addEventListener("click", scrollToGuarantee);
+    elements.guaranteeStatCard?.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      scrollToGuarantee();
+    });
 
     // v0.4.0：忘记密码 / 重发验证邮件
     elements.forgotPasswordBtn?.addEventListener("click", async () => {
@@ -636,14 +795,44 @@ import {
       const file = event.target.files?.[0];
       event.target.value = "";
       if (!file) return;
-      let text = "";
-      try {
-        text = await file.text();
-      } catch {
-        ui.showToast("读取文件失败，重试。");
-        return;
+      let rows = [];
+      let errors = [];
+      if (/\.xlsx$/i.test(file.name)) {
+        // v0.8.0：Excel 导入 —— 第一张表转 CSV 文本，复用 parseCsvProjects 的表头映射与校验
+        if (!window.XLSX) {
+          ui.showToast("Excel 解析库加载失败，请改用 CSV 导入。");
+          return;
+        }
+        try {
+          const wb = window.XLSX.read(await file.arrayBuffer(), {
+            type: "array",
+          });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          if (!ws) throw new Error("空工作簿");
+          const data = window.XLSX.utils.sheet_to_json(ws, {
+            header: 1,
+            defval: "",
+            raw: false,
+          });
+          const parsed = parseCsvProjects(sheetRowsToCsv(data));
+          rows = parsed.rows;
+          errors = parsed.errors;
+        } catch (err) {
+          ui.showToast(`Excel 解析失败：${err?.message || err}`);
+          return;
+        }
+      } else {
+        let text = "";
+        try {
+          text = await file.text();
+        } catch {
+          ui.showToast("读取文件失败，重试。");
+          return;
+        }
+        const parsed = parseCsvProjects(text);
+        rows = parsed.rows;
+        errors = parsed.errors;
       }
-      const { rows, errors } = parseCsvProjects(text);
       if (!rows.length) {
         const detail = errors
           .slice(0, 3)
@@ -675,19 +864,24 @@ import {
       el?.addEventListener("change", () => ui.render())
     );
     // v0.5.0：iOS segmented control 与隐藏的 statusFilter 同步
+    // v0.8.0：只绑状态筛选组，视图切换组（.view-seg）另有处理
     const syncSegControl = () => {
       const value = elements.statusFilter?.value || "all";
-      document.querySelectorAll(".seg-btn").forEach((b) =>
-        b.classList.toggle("active", b.dataset.value === value)
-      );
+      document
+        .querySelectorAll('.seg-control[aria-label="按状态筛选"] .seg-btn')
+        .forEach((b) =>
+          b.classList.toggle("active", b.dataset.value === value)
+        );
     };
-    document.querySelectorAll(".seg-btn").forEach((btn) =>
-      btn.addEventListener("click", () => {
-        if (elements.statusFilter) elements.statusFilter.value = btn.dataset.value;
-        syncSegControl();
-        ui.render();
-      })
-    );
+    document
+      .querySelectorAll('.seg-control[aria-label="按状态筛选"] .seg-btn')
+      .forEach((btn) =>
+        btn.addEventListener("click", () => {
+          if (elements.statusFilter) elements.statusFilter.value = btn.dataset.value;
+          syncSegControl();
+          ui.render();
+        })
+      );
     state.syncSegControl = syncSegControl;
 
     elements.upcomingList?.addEventListener("click", (event) => {
@@ -832,6 +1026,8 @@ import {
 
     // v0.6.0：批量选择模式
     elements.selectModeBtn?.addEventListener("click", () => {
+      // v0.8.0：日历视图下先切回列表，避免选择模式与日历叠加
+      if (state.viewMode === "calendar") setViewMode("list");
       if (state.selectMode) exitSelectMode();
       else enterSelectMode();
     });
@@ -1099,7 +1295,8 @@ import {
     });
 
     // v0.4.0：保证金退还提醒横幅 — 标记已退回
-    elements.refundTip?.addEventListener("click", async (event) => {
+    // v0.8.0：同一处理复用到保证金待退还清单（不要另写一套更新路径）
+    const handleMarkRefunded = async (event) => {
       const button = event.target.closest(
         'button[data-action="mark-refunded"]'
       );
@@ -1108,7 +1305,9 @@ import {
         guaranteeStatus: "已退回",
       });
       if (ok) ui.showToast("已标记为已退回。");
-    });
+    };
+    elements.refundTip?.addEventListener("click", handleMarkRefunded);
+    elements.guaranteeList?.addEventListener("click", handleMarkRefunded);
 
     elements.toggleTrashBtn?.addEventListener("click", async () => {
       trashVisible = !trashVisible;
@@ -1157,6 +1356,35 @@ import {
         ui.toggleMobileMenu(false);
       }
     });
+    // v0.7.0：Esc 关闭菜单；在菜单内点任何按钮后收起菜单
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") ui.toggleMobileMenu(false);
+    });
+    document.getElementById("headerMenu")?.addEventListener("click", (e) => {
+      if (e.target.closest("button")) ui.toggleMobileMenu(false);
+    });
+    // v0.7.0：header 新增项目主按钮
+    elements.addProjectBtn?.addEventListener("click", () => revealForm());
+    // v0.7.0：统计卡片可点击筛选（前 4 张；保证金卡片保持静态）
+    const applyStatFilter = (value) => {
+      if (elements.search) elements.search.value = "";
+      if (elements.statusFilter) elements.statusFilter.value = value;
+      if (typeof state.syncSegControl === "function") state.syncSegControl();
+      ui.render();
+      elements.list
+        ?.closest("section")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    document.querySelectorAll(".stat-card[data-stat-filter]").forEach((card) => {
+      card.addEventListener("click", () =>
+        applyStatFilter(card.dataset.statFilter)
+      );
+      card.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter" && e.key !== " ") return;
+        e.preventDefault();
+        applyStatFilter(card.dataset.statFilter);
+      });
+    });
     elements.backToTop?.addEventListener("click", () =>
       scrollTo({ top: 0, behavior: "smooth" })
     );
@@ -1180,6 +1408,18 @@ import {
     bindEvents();
     ui.updateScrollUi();
     loadAiConfigToForm(elements);
+
+    // v0.8.0：PWA Service Worker（仅 https/localhost，注册失败静默，不影响正常使用）
+    try {
+      if (
+        "serviceWorker" in navigator &&
+        (location.protocol === "https:" || location.hostname === "localhost")
+      ) {
+        navigator.serviceWorker.register("./sw.js").catch(() => {});
+      }
+    } catch {
+      // 忽略
+    }
 
     if (!configured || !window.supabase) {
       elements.authMessage.textContent =

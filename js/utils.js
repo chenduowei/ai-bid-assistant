@@ -579,6 +579,21 @@ const escapeCsvCell = (v) => {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
+/**
+ * v0.8.0：Excel 导入 —— 把 sheet 二维数组序列化为 CSV 文本，再走 parseCsvProjects。
+ * 这样 Excel 与 CSV 共用同一套表头映射与校验逻辑（行号与表格行号 1:1 对应）。
+ */
+export function sheetRowsToCsv(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  return list
+    .map((row) =>
+      (Array.isArray(row) ? row : [])
+        .map((cell) => escapeCsvCell(cell ?? ""))
+        .join(",")
+    )
+    .join("\n");
+}
+
 /** 导入模板 CSV（含 BOM 表头 + 1 行示例） */
 export function buildImportCsvTemplate() {
   const example = [

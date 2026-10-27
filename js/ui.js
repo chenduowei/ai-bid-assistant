@@ -15,6 +15,8 @@ import {
 } from "./utils.js";
 
 export function createUi(elements, getState) {
+  // v0.7.0：统计 count-up 上次值（及进行中的 rAF id）
+  const prevStats = {};
   const showToast = (message) => {
     const toast = document.createElement("div");
     toast.className = "toast";
@@ -42,22 +44,62 @@ export function createUi(elements, getState) {
   };
 
   const renderStats = (projects) => {
-    elements.totalCount.textContent = projects.length;
-    elements.registeringCount.textContent = projects.filter(
-      (p) => p.status === "报名中"
-    ).length;
-    elements.makingCount.textContent = projects.filter(
-      (p) => p.status === "制作中"
-    ).length;
-    elements.openedCount.textContent = projects.filter(
-      (p) => p.status === "已开标"
-    ).length;
+    // v0.7.0：统计值变化时 0.4s ease-out count-up（减动效时直接赋值）
+    const formatStat = (val, decimals) =>
+      decimals
+        ? val.toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })
+        : String(Math.round(val));
+    const tweenStat = (el, key, target, decimals) => {
+      if (!el) return;
+      const reduce = window.matchMedia(
+        "(prefers-reduced-motion: reduce)"
+      ).matches;
+      const from = prevStats[key] ?? 0;
+      if (reduce || from === target) {
+        el.textContent = formatStat(target, decimals);
+        prevStats[key] = target;
+        return;
+      }
+      cancelAnimationFrame(prevStats[key + "_raf"]);
+      const start = performance.now();
+      const dur = 400;
+      const step = (now) => {
+        const t = Math.min((now - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = formatStat(from + (target - from) * eased, decimals);
+        if (t < 1) {
+          prevStats[key + "_raf"] = requestAnimationFrame(step);
+        } else {
+          prevStats[key] = target;
+        }
+      };
+      prevStats[key + "_raf"] = requestAnimationFrame(step);
+    };
+    tweenStat(elements.totalCount, "total", projects.length, 0);
+    tweenStat(
+      elements.registeringCount,
+      "registering",
+      projects.filter((p) => p.status === "报名中").length,
+      0
+    );
+    tweenStat(
+      elements.makingCount,
+      "making",
+      projects.filter((p) => p.status === "制作中").length,
+      0
+    );
+    tweenStat(
+      elements.openedCount,
+      "opened",
+      projects.filter((p) => p.status === "已开标").length,
+      0
+    );
     if (elements.inTransitGuarantee) {
       const { inTransit } = getGuaranteeTotals(projects);
-      elements.inTransitGuarantee.textContent = inTransit.toLocaleString(
-        "en-US",
-        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
-      );
+      tweenStat(elements.inTransitGuarantee, "guarantee", inTransit, 2);
     }
     // v0.5.0：页头副标题 —— 有用的数据一句话
     if (elements.headerSubtitle) {
@@ -440,6 +482,109 @@ export function createUi(elements, getState) {
   const getCurrentFilteredProjects = () =>
     getFilteredProjects(getState().projects, getCurrentFilters());
 
+  /** v0.8.0：开标日历 —— 月历网格（周一起始）+ 当天项目。只响应状态筛选，忽略搜索关键词。 */
+  const CAL_WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+  const toDateStr = (d) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const renderCalendar = (projects, filters) => {
+    const grid = elements.calendarGrid;
+    const dayList = elements.calendarDayList;
+    const title = elements.calendarTitle;
+    if (!grid || !dayList) return;
+    const st = getState();
+    const now = new Date();
+    const year = Number.isInteger(st.calYear) ? st.calYear : now.getFullYear();
+    const month = Number.isInteger(st.calMonth) ? st.calMonth : now.getMonth();
+    const selected = st.calSelected || toDateStr(now);
+    const todayStr = toDateStr(now);
+    const status = filters?.status || "all";
+    // 状态筛选后的未删除项目（state.projects 本身已排除回收站）
+    const visible = (Array.isArray(projects) ? projects : []).filter(
+      (p) => status === "all" || p.status === status
+    );
+    const byDate = new Map();
+    visible.forEach((p) => {
+      const d = String(p.date || "").slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return;
+      if (!byDate.has(d)) byDate.set(d, []);
+      byDate.get(d).push(p);
+    });
+    if (title) title.textContent = `${year}年${month + 1}月`;
+    // 圆点颜色：取当天最紧急的项目（红 > 橙 > 蓝）
+    const dotClassFor = (list) => {
+      let rank = 0;
+      list.forEach((p) => {
+        const cls = countdownCell(p).cls;
+        const r = cls === "cd-urgent" || cls === "cd-overdue" ? 3 : cls === "cd-warn" ? 2 : 1;
+        if (r > rank) rank = r;
+      });
+      return rank === 3 ? "dot-red" : rank === 2 ? "dot-orange" : "dot-blue";
+    };
+    const first = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const leadBlanks = (first.getDay() + 6) % 7; // 周一起始
+    let cells = CAL_WEEKDAYS.map(
+      (w) => `<div class="cal-weekday">${w}</div>`
+    ).join("");
+    for (let i = 0; i < leadBlanks; i++) cells += `<span class="cal-blank"></span>`;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const list = byDate.get(ds) || [];
+      const classes = ["cal-day"];
+      if (ds === todayStr) classes.push("is-today");
+      if (ds === selected) classes.push("is-selected");
+      if (!list.length) classes.push("is-empty");
+      const dot = list.length
+        ? `<span class="cal-dot ${dotClassFor(list)}" aria-hidden="true"></span>`
+        : "";
+      cells += `<button type="button" class="${classes.join(" ")}" data-cal-date="${ds}" aria-label="${ds}${list.length ? `，${list.length} 个项目` : ""}"><span class="cal-num">${d}</span>${dot}</button>`;
+    }
+    grid.innerHTML = cells;
+    // 当天项目：紧凑行，点击回到列表定位（复用 focusProjectInList）
+    const dayProjects = (byDate.get(selected) || []).slice().sort((a, b) =>
+      String(a.name || "").localeCompare(String(b.name || ""), "zh-CN")
+    );
+    const dayTitle = elements.calendarDayTitle;
+    if (dayTitle)
+      dayTitle.textContent = `${formatDateDisplay(selected)} · ${dayProjects.length} 个项目`;
+    if (!dayProjects.length) {
+      dayList.innerHTML = `<div class="cal-day-empty">当天没有开标项目，点击其他日期查看。</div>`;
+      return;
+    }
+    dayList.innerHTML =
+      `<div class="cal-day-hint">点击项目回到列表查看详情</div>` +
+      dayProjects
+        .map((p) => {
+          const cd = countdownCell(p);
+          return `<button type="button" class="cal-day-row" data-cal-project-id="${escapeHtml(p.id)}"><span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><span class="cal-day-main"><span class="cal-day-name">${escapeHtml(p.name)}</span><span class="cal-day-sub">${escapeHtml(p.type)} · ${escapeHtml(p.biddingCompany || "-")}</span></span><span class="countdown cd-pill ${cd.cls}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></button>`;
+        })
+        .join("");
+  };
+
+  /** v0.8.0：保证金待退还清单 —— 已开标 + 已缴纳（未标记退还），按开标日升序 */
+  const renderGuaranteeList = (projects) => {
+    const el = elements.guaranteeList;
+    if (!el) return;
+    const list = (Array.isArray(projects) ? projects : [])
+      .filter((p) => p.status === "已开标" && p.guaranteeStatus === "已缴纳")
+      .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
+    const countEl = elements.guaranteeCount;
+    if (countEl) countEl.textContent = list.length ? `（${list.length} 项待退还）` : "";
+    if (!list.length) {
+      el.innerHTML = `<div class="guarantee-empty">暂无待退还保证金 🎉</div>`;
+      return;
+    }
+    el.innerHTML = list
+      .map((p) => {
+        const amount =
+          p.guaranteeAmount !== null && p.guaranteeAmount !== undefined
+            ? formatMoney(p.guaranteeAmount, p.guaranteeUnit)
+            : "未填";
+        return `<div class="guarantee-row"><div class="guarantee-main"><div class="guarantee-name">${escapeHtml(p.name)}</div><div class="guarantee-sub">${escapeHtml(formatDateDisplay(p.date))}开标 · 保证金 ${escapeHtml(amount)}</div></div><button class="btn secondary" type="button" data-action="mark-refunded" data-id="${escapeHtml(p.id)}">标记已退还</button></div>`;
+      })
+      .join("");
+  };
+
   const render = () => {
     const state = getState();
     const filters = getCurrentFilters();
@@ -448,6 +593,8 @@ export function createUi(elements, getState) {
     renderDeadlineTip(state.projects);
     renderRefundReminder(state.projects);
     renderList(state.projects, filters);
+    renderGuaranteeList(state.projects);
+    renderCalendar(state.projects, filters);
   };
 
   const highlightFormPanel = () => {

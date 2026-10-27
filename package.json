@@ -1,7 +1,7 @@
 {
   "name": "ai-bid-assistant",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.8.0",
   "description": "工程建设行业智能投标工作台",
   "scripts": {
     "build": "node scripts/generate-config.mjs",

@@ -434,6 +434,24 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const project = state.projects.find((p) => p.id === id);
     if (!project) return false;
     if (!confirm(`将「${project.name}」移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`)) return false;
+    // v0.7.0：删除退出动画——confirm 通过后先淡出收拢（约 0.3s），再执行删除刷新；
+    // 若中途触发了 render（筛选切换等），该行已被替换，动画静默跳过，以最终 render 为准
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+    const row = document.querySelector(
+      `.project-item[data-id="${CSS.escape(String(id))}"]`
+    );
+    if (row && !reduceMotion) {
+      row.style.height = `${row.offsetHeight}px`;
+      row.style.overflow = "hidden";
+      row.classList.add("leaving");
+      await new Promise((r) =>
+        requestAnimationFrame(() => requestAnimationFrame(r))
+      );
+      row.style.height = "0px";
+      await new Promise((r) => setTimeout(r, 300));
+    }
     const { error } = await client
       .from("projects")
       .update({ deleted_at: new Date().toISOString() })
@@ -659,6 +677,72 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     ui.showToast(`已导出 ${rows.length} 个项目为 CSV 文件。`);
   };
 
+  /**
+   * v0.8.0：一键备份 —— 直接从 Supabase 拉当前用户全部 projects（含回收站的已删除数据，
+   * 不只内存里的 state：PDF 文本是按需加载的，内存可能不全），下载 JSON 文件。
+   * 只带 user_id 条件，绝不无条件拉取。
+   */
+  const exportBackup = async () => {
+    const client = getClient();
+    const state = getState();
+    const uid = state.user?.id;
+    if (!uid) {
+      ui.showToast("未登录，无法备份。");
+      return false;
+    }
+    try {
+      const PAGE_SIZE = 500;
+      const MAX_ROWS = 10000;
+      const allRows = [];
+      let from = 0;
+      while (from < MAX_ROWS) {
+        const { data, error } = await client
+          .from("projects")
+          .select("*")
+          .eq("user_id", uid)
+          .order("created_at", { ascending: true })
+          .range(from, from + PAGE_SIZE - 1);
+        if (error) throw error;
+        if (!data || !data.length) break;
+        allRows.push(...data);
+        if (data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
+      }
+      const now = new Date();
+      const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const payload = {
+        app: "ai-bid-assistant",
+        version: "0.8.0",
+        exportedAt: now.toISOString(),
+        count: allRows.length,
+        projects: allRows,
+      };
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(payload, null, 2)], {
+          type: "application/json;charset=utf-8",
+        })
+      );
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ai-bid-backup-${stamp}.json`;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      try {
+        localStorage.setItem("lastBackupAt", now.toISOString());
+      } catch {
+        // 隐私模式等写失败不影响备份本身
+      }
+      ui.showToast(`备份已下载，共 ${allRows.length} 条（含回收站）。`);
+      return true;
+    } catch (err) {
+      ui.showToast(`备份失败：${err?.message || err}`);
+      return false;
+    }
+  };
+
   return {
     loadProjects,
     loadDeletedProjects,
@@ -675,6 +759,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     restoreProject,
     permanentlyDeleteProject,
     exportCsv,
+    exportBackup,
     toUiProject,
     validate,
   };

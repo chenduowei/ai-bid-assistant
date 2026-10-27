@@ -17,6 +17,7 @@ import {
   parseCsvProjects,
   buildImportCsvTemplate,
   getGuaranteeRefundReminders,
+  sheetRowsToCsv,
 } from "../js/utils.js";
 
 test("getMissedBidProjects：只返回最近 7 天内过期且未开标的项目", () => {
@@ -350,4 +351,32 @@ test("getGuaranteeRefundReminders：只返回已缴纳+已开标+已过开标日
     ["应提醒-早", "应提醒-今天"]
   );
   assert.deepEqual(getGuaranteeRefundReminders([], now), []);
+});
+
+test("sheetRowsToCsv：二维数组转 CSV，含逗号/引号/换行时正确转义", () => {
+  assert.equal(
+    sheetRowsToCsv([
+      ["项目名称", "备注"],
+      ["A 项目", "含,逗号"],
+      ["B 项目", '含"引号"'],
+      ["C 项目", "含\n换行"],
+      ["D 项目", null],
+    ]),
+    '项目名称,备注\nA 项目,"含,逗号"\nB 项目,"含""引号"""\nC 项目,"含\n换行"\nD 项目,'
+  );
+  assert.equal(sheetRowsToCsv([]), "");
+  assert.equal(sheetRowsToCsv(null), "");
+});
+
+test("sheetRowsToCsv + parseCsvProjects：Excel 表格行可直接走 CSV 导入校验", () => {
+  const csv = sheetRowsToCsv([
+    ["开标时间", "项目名称", "项目类型", "投标公司", "联系人"],
+    ["2026-12-01", "X 项目", "房建工程", "X 公司", "张三"],
+    ["", "", "", "", ""],
+  ]);
+  const { rows, errors } = parseCsvProjects(csv);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].name, "X 项目");
+  assert.equal(rows[0].bid_date, "2026-12-01");
+  assert.equal(errors.length, 0);
 });

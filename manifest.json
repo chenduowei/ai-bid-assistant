@@ -1,0 +1,29 @@
+{
+  "background_color": "#FFFFFF",
+  "description": "工程建设行业智能投标工作台 · AI Bid Assistant",
+  "display": "standalone",
+  "icons": [
+    {
+      "sizes": "192x192",
+      "src": "./icons/icon-192.png",
+      "type": "image/png"
+    },
+    {
+      "purpose": "any maskable",
+      "sizes": "512x512",
+      "src": "./icons/icon-512.png",
+      "type": "image/png"
+    },
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "name": "投标工作台",
+  "scope": "./",
+  "short_name": "投标工作台",
+  "start_url": "./index.html",
+  "theme_color": "#F2F2F7"
+}
