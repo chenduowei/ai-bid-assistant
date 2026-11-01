@@ -8,7 +8,6 @@ import {
   getReminderDays,
   formatMoney,
   getGuaranteeTotals,
-  getNextDeadline,
   getUpcomingDeadlines,
   getChecklistProgress,
   getGuaranteeRefundReminders,
@@ -173,41 +172,6 @@ export function createUi(elements, getState) {
       .join("");
   };
 
-  const renderStructList = (title, items) => {
-    if (!Array.isArray(items) || !items.length) return "";
-    const lis = items
-      .map((item) => `<li>${escapeHtml(typeof item === "string" ? item : item.text || "")}</li>`)
-      .join("");
-    return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}</div><ul class="struct-list">${lis}</ul></div>`;
-  };
-
-  // 风险等级只允许白名单值，防模型/脏数据注入 class / HTML。
-  const sanitizeLevel = (level) =>
-    ["high", "medium", "low"].includes(level) ? level : "medium";
-
-  const renderRiskCard = (p) => {
-    const hasRisk =
-      p.riskSummary || (p.riskPoints && p.riskPoints.length);
-    const hasStruct =
-      (p.qualification && p.qualification.length) ||
-      (p.invalidBidClauses && p.invalidBidClauses.length);
-    if (!hasRisk && !hasStruct) return "";
-    const points = Array.isArray(p.riskPoints) ? p.riskPoints : [];
-    const pointsHtml = points.length
-      ? `<ul class="risk-points">${points
-          .map(
-            (pt) =>
-              `<li><span class="risk-level ${sanitizeLevel(pt.level)}">${escapeHtml(pt.level || "注意")}</span>${escapeHtml(pt.text || pt)}</li>`
-          )
-          .join("")}</ul>`
-      : "";
-    return `<div class="risk-report"><div class="risk-title">⚠️ 风险与条款</div>${
-      p.riskSummary
-        ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
-        : ""
-    }${renderStructList("资格要求", p.qualification)}${renderStructList("废标条款", p.invalidBidClauses)}${pointsHtml}</div>`;
-  };
-
   const matchesKeyword = (p, keyword) => {
     if (!keyword) return true;
     const qualText = Array.isArray(p.qualification)
@@ -312,63 +276,19 @@ export function createUi(elements, getState) {
   const renderProjectItem = (p, i) => {
     const expandedIds = getState().expandedIds;
     const expanded = expandedIds && expandedIds.has(p.id);
-    // 金额：新字段优先，旧文本兜底
-    const amountDisplay =
-      p.amountValue !== null && p.amountValue !== undefined
-        ? formatMoney(p.amountValue, p.amountUnit)
-        : p.amount || "-";
-    // 保证金：新字段优先（金额 + 状态），旧文本兜底；
-    // 旧文本存在且与结构化不同时，以“要求原文”小字显示
-    const guaranteeDisplay =
-      p.guaranteeAmount !== null && p.guaranteeAmount !== undefined
-        ? `${formatMoney(p.guaranteeAmount, p.guaranteeUnit)}（${escapeHtml(p.guaranteeStatus || "未缴纳")}）`
-        : escapeHtml(p.guarantee || "-");
-    const guaranteeExtra =
-      p.guaranteeAmount !== null &&
-      p.guaranteeAmount !== undefined &&
-      p.guarantee
-        ? `<span>保证金要求原文：${escapeHtml(p.guarantee)}</span>`
-        : "";
-    const next = getNextDeadline(p);
-    const deadlineHtml = next
-      ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
-      : "";
-    // 4 个截止时间（选填，有则显示）
-    // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
-    const pdfHtml =
-      p.pdfFilename || p.pdfParsedAt
-        ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
-        : "";
+    // v0.13.0（修订）：展开详情只保留 4 项——状态、联系人、备注、废标检查清单。
+    // 类型与公司仍在折叠副行里，金额 / 保证金 / 截止时间在编辑表单里；
+    // 风险卡与"查看已保存文本"入口随之移出详情区（见提交说明）。
     // v0.5.0：iOS 定义列表 —— label 左、value 右、hairline 分隔
     const kv = (label, valueHtml) =>
       `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value">${valueHtml}</span></div>`;
-    const deadlineRows = [
-      ["报名截止", p.registrationDeadline],
-      ["质疑截止", p.inquiryDeadline],
-      ["澄清截止", p.clarificationDeadline],
-      ["保证金缴纳截止", p.guaranteeDeadline],
-    ]
-      .filter(([, d]) => d)
-      .map(
-        ([label, d]) => kv(label, escapeHtml(formatDateDisplay(d)))
-      )
-      .join("");
     const detailsHtml =
       `<div class="kv-list">` +
       kv("状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
-      kv("项目类型", escapeHtml(p.type)) +
-      kv("招标单位", escapeHtml(p.tenderer || "-")) +
-      kv("联系人", escapeHtml(p.contact)) +
-      kv("项目金额", escapeHtml(amountDisplay)) +
-      kv("保证金", guaranteeDisplay) +
-      deadlineRows +
+      kv("联系人", escapeHtml(p.contact || "-")) +
       `</div>` +
-      (guaranteeExtra ? `<div class="kv-note">${guaranteeExtra}</div>` : "") +
-      (p.notes ? `<div class="kv-note">备注：${escapeHtml(p.notes)}</div>` : "") +
-      deadlineHtml +
-      renderRiskCard(p) +
-      renderChecklist(p) +
-      pdfHtml;
+      `<div class="kv-note">备注：${p.notes ? escapeHtml(p.notes) : "—"}</div>` +
+      renderChecklist(p);
     const cd = countdownCell(p);
     const dateShort = shortDateDisplay(p.date);
     const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;

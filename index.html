@@ -61,8 +61,11 @@
     <header class="header">
       <div class="header-top">
         <div class="header-title">
-          <h1>项目管理工作台</h1>
-          <p id="headerSubtitle">管理开标时间、项目类型、保证金、联系人与状态，支持招标文件 AI 解析。</p>
+          <span class="brand-mark" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5a2 2 0 0 1 6 0"/><path d="M8.8 12.6 11 14.8l4.2-4.6"/></svg></span>
+          <div class="brand-text">
+            <h1>项目管理工作台</h1>
+            <p id="headerSubtitle">让每一次投标，都心里有数。</p>
+          </div>
         </div>
         <div class="header-top-actions">
           <button id="addProjectBtn" class="btn primary" type="button">＋ 新增项目</button>
@@ -171,7 +174,7 @@
       <div class="panel-title">
         <div>
           <h2>即将开标项目</h2>
-          <p id="upcomingDesc">按开标时间升序显示未来 7 天内的项目。</p>
+          <p id="upcomingDesc">未来 7 天内开标，按时间排序。</p>
         </div>
       </div>
       <div id="upcomingList" class="upcoming-list"></div>
@@ -315,7 +318,7 @@
       <div class="panel-title">
         <div>
           <h2>项目列表</h2>
-          <p>支持搜索、筛选、排序；删除进回收站（30 天内可恢复）；倒计时每分钟更新。点击项目头部展开 / 收起详情。</p>
+          <p>搜索、筛选、排序都支持；删除进回收站，30 天内可恢复；点项目头部展开详情。</p>
         </div>
       </div>
 
@@ -403,7 +406,7 @@
         </div>
       </section>
       <section class="card panel">
-        <div class="panel-title"><div><h2>解析文本与 AI 分析</h2><p>可查看、复制原文，或调用 AI 抽取关键信息、生成风险报告。</p></div></div>
+        <div class="panel-title"><div><h2>解析文本与 AI 分析</h2><p>查看、复制原文，或让 AI 抽取关键信息并生成风险报告。</p></div></div>
         <div class="parser-actions">
           <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
           <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
@@ -420,7 +423,7 @@
         <div id="aiResultPanel" class="ai-result-wrap"></div>
       </section>
     </section>
-    <footer class="app-footer">投标工作台 v0.12.0 · 数据云端同步 · API Key 仅存本机</footer>
+    <footer class="app-footer">投标工作台 v0.13.0 · 数据云端同步 · API Key 仅存本机</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
@@ -429,7 +432,12 @@
       <button type="button" data-tab="menu" class="bottom-tab"><span class="bottom-tab-icon">☰</span><span>菜单</span></button>
     </nav>
   </div>
-  <button id="backToTop" class="back-to-top" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
+  <!-- v0.13.0：悬浮导航组——首页 / 返回 / 回顶部（返回按层级：菜单→抽屉→设置→解析页→日历→顶部） -->
+  <nav class="fab-stack" aria-label="快捷导航">
+    <button id="homeBtn" class="fab-btn" type="button" aria-label="回到首页" title="回到首页">⌂</button>
+    <button id="backBtn" class="fab-btn" type="button" aria-label="返回" title="返回">←</button>
+    <button id="backToTop" class="fab-btn back-to-top" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
+  </nav>
 
   <!-- v0.9.0：回收站抽屉 —— 从主界面移入菜单，点菜单按钮打开，不再占用主界面空间 -->
   <div id="trashSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="trashSheetTitle">

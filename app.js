@@ -121,6 +121,8 @@ import { createDataIo } from "./js/data-io.js";
     deadlineTip: document.getElementById("deadlineTip"),
     refundTip: document.getElementById("refundTip"),
     backToTop: document.getElementById("backToTop"),
+    homeBtn: document.getElementById("homeBtn"),
+    backBtn: document.getElementById("backBtn"),
     scrollProgress: document.getElementById("scrollProgress"),
     toastWrap: document.getElementById("toastWrap"),
     totalCount: document.getElementById("totalCount"),
@@ -129,6 +131,7 @@ import { createDataIo } from "./js/data-io.js";
     openedCount: document.getElementById("openedCount"),
     inTransitGuarantee: document.getElementById("inTransitGuarantee"),
     menuToggle: document.getElementById("menuToggle"),
+    headerMenu: document.getElementById("headerMenu"),
     addProjectBtn: document.getElementById("addProjectBtn"),
     form: {
       date: document.getElementById("date"),
@@ -493,7 +496,7 @@ import { createDataIo } from "./js/data-io.js";
     if (!missed.length) return;
     const names = missed.slice(0, 3).map((p) => `「${p.name}」`).join("、");
     const more = missed.length > 3 ? `等共 ${missed.length} 个` : "";
-    ui.showToast(`${names}${more}已过开标时间，状态不是“已开标”，请核对（页面关闭时不提醒）。`);
+    ui.showToast(`${names}${more}已过开标时间，状态仍不是“已开标”，请核对（仅页面打开时提醒）。`);
   }
 
   async function refreshTrashList() {
@@ -1044,11 +1047,7 @@ import { createDataIo } from "./js/data-io.js";
         if (optionalFilled) setOptionalExpanded(true);
         aiExtract.renderAiResultPanel(elements.aiResultPanel, result);
         pdfParser.setParseProgress(100, "AI 分析完成。");
-        ui.showToast(
-          optionalFilled
-            ? "AI 分析完成，结果已回填表单（含选填信息），核对后保存。"
-            : "AI 分析完成，结果已回填表单，核对后保存。"
-        );
+        ui.showToast("AI 分析完成，已回填表单，请核对后保存。");
         showDashboard();
         revealForm();
       } catch (err) {
@@ -1201,6 +1200,8 @@ import { createDataIo } from "./js/data-io.js";
         const ok = await projectsApi.deleteProject(id);
         if (ok && state.editingId === id) resetForm();
       }
+      // v0.13.0（修订）：详情区不再渲染"查看已保存文本"按钮，此分支暂无入口，
+      // 功能本身保留——若需要可改到行内操作区或解析页再接回。
       if (button.dataset.action === "view-pdf") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
@@ -1476,6 +1477,41 @@ import { createDataIo } from "./js/data-io.js";
     elements.backToTop?.addEventListener("click", () =>
       scrollTo({ top: 0, behavior: "smooth" })
     );
+    // v0.13.0：悬浮导航——首页直达主界面列表顶；返回按层级逐层退，
+    // 不用记自己在哪：菜单 → 回收站抽屉 → 设置面板 → 解析页 → 日历 → 顶部。
+    const closeTopLayer = () => {
+      if (elements.headerMenu?.classList.contains("open")) {
+        ui.toggleMobileMenu(false);
+        return true;
+      }
+      if (trashSheetOpen) {
+        closeTrashSheet();
+        return true;
+      }
+      if (!elements.aiSettingsPanel?.classList.contains("hidden")) {
+        elements.aiSettingsPanel.classList.add("hidden");
+        return true;
+      }
+      return false;
+    };
+    elements.homeBtn?.addEventListener("click", () => {
+      closeTopLayer();
+      showDashboard();
+      setViewMode("list");
+      scrollTo({ top: 0, behavior: "smooth" });
+    });
+    elements.backBtn?.addEventListener("click", () => {
+      if (closeTopLayer()) return;
+      if (!elements.parserView?.classList.contains("hidden")) {
+        showDashboard();
+        return;
+      }
+      if (state.viewMode === "calendar") {
+        setViewMode("list");
+        return;
+      }
+      scrollTo({ top: 0, behavior: "smooth" });
+    });
     // v0.4.3：scroll 高频触发，rAF 节流后再更新进度条 / 回顶按钮
     let scrollRaf = 0;
     addEventListener(
