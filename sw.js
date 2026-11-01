@@ -1,11 +1,11 @@
-/* AI Bid Assistant — PWA Service Worker（v0.11.0）
+/* AI Bid Assistant — PWA Service Worker（v0.12.0）
  * 缓存应用壳（不含 supabase-config.js：该文件只存在于用户本地部署，
  * 缓存它会在全新部署上导致 addAll 整体失败）。离线时返回缓存页面。
  * 铁律：每次发版必须同步改 CACHE_NAME，否则旧缓存钉住新版、
  * 用户刷新也看不到新功能（v0.8.1 教训：只改了页面没改 sw.js，
  * 缓存名不变导致新版按钮一直不出现）。发版前跑 npm run check:version 校验。
  */
-const CACHE_NAME = "bid-assistant-v0.11.0";
+const CACHE_NAME = "bid-assistant-v0.12.0";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -15,6 +15,7 @@ const APP_SHELL = [
   "./js/ui.js",
   "./js/projects.js",
   "./js/auth.js",
+  "./js/data-io.js",
   "./js/pdf-parser.js",
   "./js/ai-extract.js",
   "./favicon.svg",

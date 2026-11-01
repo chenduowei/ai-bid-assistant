@@ -12,6 +12,8 @@ import {
   getUpcomingDeadlines,
   getChecklistProgress,
   getGuaranteeRefundReminders,
+  paginateItems,
+  expandLimitForIndex,
 } from "./utils.js";
 
 export function createUi(elements, getState) {
@@ -407,9 +409,11 @@ export function createUi(elements, getState) {
     }
     // v0.11.0：列表分页——只渲染前 listLimit 条，剩余的用"加载更多"续取；
     // 全部加载完才显示结尾文案，避免长列表一次生成几百个卡片节点。
-    const limit = (getState() && getState().listLimit) || 50;
-    const visible = filtered.slice(0, limit);
-    const remaining = filtered.length - visible.length;
+    // v0.12.0：切片逻辑收进 utils.paginateItems（可单测），此处只负责拼 HTML。
+    const { visible, remaining } = paginateItems(
+      filtered,
+      (getState() && getState().listLimit) || 50
+    );
     elements.list.innerHTML =
       visible.map((p, i) => renderProjectItem(p, i)).join("") +
       (remaining > 0
@@ -437,10 +441,11 @@ export function createUi(elements, getState) {
       s.expandedIds.add(projectId);
     }
     // v0.11.0：分页下目标可能在"加载更多"后面——先把页数扩到含目标的那一页再 render
+    // v0.12.0：扩页算术收进 utils.expandLimitForIndex（可单测）
     const filtered = getFilteredProjects(s.projects, getCurrentFilters());
     const targetIndex = filtered.findIndex((p) => p.id === projectId);
-    if (targetIndex >= 0 && s.listLimit && targetIndex >= s.listLimit) {
-      s.listLimit = Math.ceil((targetIndex + 1) / 50) * 50;
+    if (targetIndex >= 0) {
+      s.listLimit = expandLimitForIndex(s.listLimit, targetIndex);
     }
     render();
     const item = elements.list?.querySelector(
@@ -601,6 +606,7 @@ export function createUi(elements, getState) {
   const render = () => {
     const state = getState();
     const filters = getCurrentFilters();
+    renderOfflineBanner(state);
     renderStats(state.projects);
     renderUpcomingList(state.projects);
     renderDeadlineTip(state.projects);
@@ -608,6 +614,21 @@ export function createUi(elements, getState) {
     renderList(state.projects, filters);
     renderGuaranteeList(state.projects);
     renderCalendar(state.projects, filters);
+  };
+
+  // v0.12.0：离线快照横幅——快照模式下常驻提示（含快照保存时间），联网恢复后消失
+  const renderOfflineBanner = (state) => {
+    const el = elements.offlineBanner;
+    if (!el) return;
+    if (state.offlineSnapshot) {
+      const when = state.snapshotSavedAt
+        ? new Date(state.snapshotSavedAt).toLocaleString()
+        : "";
+      el.textContent = `当前为离线快照${when ? `（${when} 保存）` : ""}，仅可查看，联网后自动恢复。`;
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
   };
 
   const highlightFormPanel = () => {

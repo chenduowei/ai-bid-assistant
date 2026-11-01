@@ -671,3 +671,47 @@ export function splitRestoreRows(rows, existingIds) {
   }
   return { insert, update };
 }
+
+// v0.12.0：列表分页纯函数（ui.js 调用，tests/pagination.test.js 覆盖）
+// limit 非法时回落 50；visible 恒为前 limit 条，remaining 为剩余条数。
+export const PAGE_SIZE = 50;
+export function paginateItems(items, limit) {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : PAGE_SIZE;
+  const visible = items.slice(0, safeLimit);
+  return { visible, remaining: items.length - visible.length };
+}
+
+// v0.12.0：定位扩页——目标下标超出当前 limit 时，把 limit 扩到含目标的那一页
+export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : PAGE_SIZE;
+  if (index < 0 || index < safeLimit) return safeLimit;
+  return Math.ceil((index + 1) / pageSize) * pageSize;
+}
+
+// v0.12.0：离线快照——只读缓存。保存时剥离 pdfText（全文可能很大，localStorage
+// 只有约 5MB），其余字段原样；读写全程 try/catch，配额或脏数据静默失败，
+// 绝不因为快照问题影响正常同步。storage 传 localStorage，测试传 Map 替身。
+export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
+export function saveProjectsSnapshot(storage, projects) {
+  try {
+    const slim = (projects || []).map(({ pdfText, ...rest }) => rest);
+    storage.setItem(
+      SNAPSHOT_KEY,
+      JSON.stringify({ savedAt: Date.now(), projects: slim })
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+export function loadProjectsSnapshot(storage) {
+  try {
+    const raw = storage.getItem(SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.projects)) return null;
+    return { projects: parsed.projects, savedAt: parsed.savedAt || 0 };
+  } catch {
+    return null;
+  }
+}

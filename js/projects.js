@@ -7,6 +7,8 @@ import {
   normalizeChecklist,
   parseBackupPayload,
   splitRestoreRows,
+  saveProjectsSnapshot,
+  loadProjectsSnapshot,
 } from "./utils.js";
 
 /** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
@@ -138,6 +140,21 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       }
       if (error) {
         ui.setSyncStatus("同步失败", true);
+        // v0.12.0：同步失败时回落离线快照——但只在本会话从未成功同步过时回落
+        // （登录时离线）；会话内已有 live 数据时保持现状 + 报错，避免一次瞬断
+        // 把刚保存的数据刷回旧快照。快照模式下的写操作由各 API 入口守卫拦截。
+        const snapshot =
+          !getState().liveLoadedOnce && loadProjectsSnapshot(localStorage);
+        if (snapshot) {
+          setState({
+            projects: snapshot.projects,
+            offlineSnapshot: true,
+            snapshotSavedAt: snapshot.savedAt,
+          });
+          ui.setSyncStatus("离线快照", true);
+          ui.render();
+          return true;
+        }
         ui.showToast(`同步失败：${error.message}`);
         return false;
       }
@@ -148,7 +165,15 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const visible = useDeletedFilter
       ? allRows
       : allRows.filter((row) => !row.deleted_at);
-    setState({ projects: visible.map(toUiProject) });
+    const uiProjects = visible.map(toUiProject);
+    setState({
+      projects: uiProjects,
+      offlineSnapshot: false,
+      snapshotSavedAt: null,
+      liveLoadedOnce: true,
+    });
+    // v0.12.0：每次同步成功刷新快照（已剥离 pdfText，见 utils.saveProjectsSnapshot）
+    saveProjectsSnapshot(localStorage, uiProjects);
     ui.render();
     return true;
   }
@@ -335,6 +360,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function saveProject(project, editingId) {
     const client = getClient();
     const state = getState();
+    // v0.12.0：离线快照下拦截一切写操作——快照只是旧数据，写了也同步不上去，
+    // 与其静默丢数据，不如明说。调用方按 false 走失败分支（按钮文案恢复、不清空表单）。
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能保存。");
+      return false;
+    }
     const errorText = validate(project);
     if (errorText) {
       ui.showToast(errorText);
@@ -433,6 +464,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function deleteProject(id) {
     const client = getClient();
     const state = getState();
+    // v0.12.0：离线快照下拦截删除（同 saveProject）
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能删除。");
+      return false;
+    }
     const project = state.projects.find((p) => p.id === id);
     if (!project) return false;
     if (
@@ -481,6 +517,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function deleteProjects(ids) {
     const client = getClient();
     const state = getState();
+    // v0.12.0：离线快照下拦截批量删除（同 saveProject）
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能删除。");
+      return false;
+    }
     const list = [...new Set(ids || [])];
     if (!list.length) return false;
     if (
@@ -555,6 +596,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function importProjects(rows) {
     const client = getClient();
     const state = getState();
+    // v0.12.0：离线快照下拦截导入（同 saveProject）
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能导入。");
+      return { imported: 0, failed: 0 };
+    }
     const list = Array.isArray(rows) ? rows : [];
     if (!list.length) return { imported: 0, failed: 0 };
     let imported = 0;

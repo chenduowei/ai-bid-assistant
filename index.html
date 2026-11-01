@@ -89,6 +89,9 @@
       </div>
     </header>
 
+    <!-- v0.12.0：离线快照横幅（仅快照模式下显示，见 ui.renderOfflineBanner） -->
+    <div id="offlineBanner" class="offline-banner hidden" role="status"></div>
+
     <section id="aiSettingsPanel" class="card panel hidden">
       <div class="panel-title">
         <div>
@@ -417,7 +420,7 @@
         <div id="aiResultPanel" class="ai-result-wrap"></div>
       </section>
     </section>
-    <footer class="app-footer">投标工作台 v0.11.0 · 数据云端同步 · API Key 仅存本机</footer>
+    <footer class="app-footer">投标工作台 v0.12.0 · 数据云端同步 · API Key 仅存本机</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>

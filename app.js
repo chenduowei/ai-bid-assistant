@@ -9,6 +9,7 @@ import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getD
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
+import { createDataIo } from "./js/data-io.js";
 
 (() => {
   const config = window.SUPABASE_CONFIG || {};
@@ -51,6 +52,7 @@ import { createAuth } from "./js/auth.js";
     signOutBtn: document.getElementById("signOutBtn"),
     userEmail: document.getElementById("userEmail"),
     syncStatus: document.getElementById("syncStatus"),
+    offlineBanner: document.getElementById("offlineBanner"),
     dashboardView: document.getElementById("dashboardView"),
     parserView: document.getElementById("parserView"),
     openParserBtn: document.getElementById("openParserBtn"),
@@ -185,6 +187,10 @@ import { createAuth } from "./js/auth.js";
     calSelected: null,
     /** v0.11.0：列表分页——首屏只渲染 50 条，点"加载更多"再续 50 条 */
     listLimit: 50,
+    /** v0.12.0：离线快照状态（liveLoadedOnce：本会话是否成功同步过一次） */
+    offlineSnapshot: false,
+    snapshotSavedAt: null,
+    liveLoadedOnce: false,
   };
 
   const getState = () => state;
@@ -364,6 +370,15 @@ import { createAuth } from "./js/auth.js";
     }
     return sheetJsLoading;
   };
+
+  // v0.12.0：数据进出模块实例（绑定在 bindEvents 内调用 dataIo.bindDataIo()）
+  const dataIo = createDataIo({
+    elements,
+    getState,
+    ui,
+    projectsApi,
+    loadSheetJS,
+  });
 
   const resetForm = () => {
     Object.values(elements.form).forEach((input) => {
@@ -564,14 +579,16 @@ import { createAuth } from "./js/auth.js";
     requestNotificationPermission();
     ui.showListSkeleton();
     projectsApi.loadProjects().then((loaded) => {
-      if (loaded) {
-        refreshPdfProjectOptions();
-        showMissedReminders();
-        sendBidNotifications();
-        maybeShowBackupTip(); // v0.8.0：登录后检查 30 天备份提醒
-        projectsApi.purgeExpiredTrash();
-        return projectsApi.migrateLocalProjects();
-      }
+      if (!loaded) return;
+      refreshPdfProjectOptions();
+      // v0.12.0：离线快照下只刷新解析下拉框，不做任何写操作
+      // （过期回收站清理、本地迁移都会写库；提醒也以 live 数据为准）
+      if (state.offlineSnapshot) return;
+      showMissedReminders();
+      sendBidNotifications();
+      maybeShowBackupTip(); // v0.8.0：登录后检查 30 天备份提醒
+      projectsApi.purgeExpiredTrash();
+      return projectsApi.migrateLocalProjects();
     });
     projectsApi.subscribeToProjects(() => {
       projectsApi.loadProjects().then(() => {
@@ -706,47 +723,14 @@ import { createAuth } from "./js/auth.js";
       localStorage.setItem(THEME_KEY, state.darkMode ? "dark" : "light");
       ui.applyTheme(state.darkMode);
     });
-    elements.exportBtn?.addEventListener("click", () =>
-      // 导出当前筛选结果，与列表看到的一致，而非全量。
-      projectsApi.exportCsv(ui.getCurrentFilteredProjects?.() ?? state.projects)
-    );
-
-    // v0.8.0：一键备份（直接拉 Supabase 全量，含回收站）+ 30 天备份提醒
-    const runBackup = async () => {
-      const ok = await projectsApi.exportBackup();
-      if (ok) elements.backupTip?.classList.add("hidden");
-    };
-    elements.backupBtn?.addEventListener("click", runBackup);
-    elements.backupNowBtn?.addEventListener("click", runBackup);
-    elements.backupTipClose?.addEventListener("click", () =>
-      elements.backupTip?.classList.add("hidden")
-    );
-
-    // v0.8.1：从备份恢复 —— 无重叠直接补齐；有重叠时一次确认：
-    // 确定 = 用备份覆盖已有，取消 = 只补新增；库里有、备份里没有的一律不动
-    elements.restoreBtn?.addEventListener("click", () =>
-      elements.restoreFileInput?.click()
-    );
-    elements.restoreFileInput?.addEventListener("change", async (event) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file) return;
-      let text = "";
-      try {
-        text = await file.text();
-      } catch {
-        ui.showToast("读取文件失败，重试。");
-        return;
+    // v0.12.0：联网后自动从快照恢复为 live 数据（loadProjects 成功即清横幅）
+    window.addEventListener("online", () => {
+      if (state.offlineSnapshot) {
+        projectsApi.loadProjects().then(() => refreshPdfProjectOptions());
       }
-      await projectsApi.restoreBackup(text, ({ overlap, fresh }) =>
-        ui.confirmDialog({
-          title: "恢复方式",
-          message: `备份中有 ${overlap} 条已存在于当前数据库。点「覆盖已有」用备份覆盖它们，点「只补新增」只补新增的 ${fresh} 条。数据库里有、备份里没有的项目不会被删除。`,
-          confirmText: "覆盖已有",
-          cancelText: "只补新增",
-        })
-      );
     });
+    // v0.12.0：数据进出绑定（导出 / 备份 / 恢复 / 导入 / 模板，见 js/data-io.js）
+    dataIo.bindDataIo();
 
     // v0.8.0：列表 / 日历视图切换（日历模式下退出选择模式，避免两者叠加）
     const setViewMode = (mode) => {
@@ -890,89 +874,6 @@ import { createAuth } from "./js/auth.js";
     });
 
     // v0.4.0：CSV 导入（只做 CSV）+ 下载导入模板
-    elements.importBtn?.addEventListener("click", () =>
-      elements.importFileInput?.click()
-    );
-    elements.downloadTemplateBtn?.addEventListener("click", () => {
-      const csv = buildImportCsvTemplate();
-      const url = URL.createObjectURL(
-        new Blob([csv], { type: "text/csv;charset=utf-8" })
-      );
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "项目导入模板.csv";
-      a.style.display = "none";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      ui.showToast("导入模板已下载。");
-    });
-    elements.importFileInput?.addEventListener("change", async (event) => {
-      const file = event.target.files?.[0];
-      event.target.value = "";
-      if (!file) return;
-      let rows = [];
-      let errors = [];
-      if (/\.xlsx$/i.test(file.name)) {
-        // v0.8.0：Excel 导入 —— 第一张表转 CSV 文本，复用 parseCsvProjects 的表头映射与校验
-        if (!window.XLSX) {
-          const loaded = await loadSheetJS();
-          if (!loaded) {
-            ui.showToast("Excel 解析库加载失败，请改用 CSV 导入。");
-            return;
-          }
-        }
-        try {
-          const wb = window.XLSX.read(await file.arrayBuffer(), {
-            type: "array",
-          });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          if (!ws) throw new Error("空工作簿");
-          const data = window.XLSX.utils.sheet_to_json(ws, {
-            header: 1,
-            defval: "",
-            raw: false,
-          });
-          const parsed = parseCsvProjects(sheetRowsToCsv(data));
-          rows = parsed.rows;
-          errors = parsed.errors;
-        } catch (err) {
-          ui.showToast(`Excel 解析失败：${err?.message || err}`);
-          return;
-        }
-      } else {
-        let text = "";
-        try {
-          text = await file.text();
-        } catch {
-          ui.showToast("读取文件失败，重试。");
-          return;
-        }
-        const parsed = parseCsvProjects(text);
-        rows = parsed.rows;
-        errors = parsed.errors;
-      }
-      if (!rows.length) {
-        const detail = errors
-          .slice(0, 3)
-          .map((e) => `第${e.line}行：${e.reason}`)
-          .join("；");
-        ui.showToast(`没有可导入的行。${detail || ""}`);
-        return;
-      }
-      const { imported, failed } = await projectsApi.importProjects(rows);
-      const skipped = errors.length + failed;
-      const detail = errors
-        .slice(0, 2)
-        .map((e) => `第${e.line}行：${e.reason}`)
-        .join("；");
-      ui.showToast(
-        `成功导入 ${imported} 条${skipped ? `，跳过 ${skipped} 条${detail ? `：${detail}` : ""}` : "。"}` +
-          (errors.length > 2 ? "（更多错误见控制台）" : "")
-      );
-      if (errors.length > 2) console.warn("CSV 导入跳过的行：", errors);
-    });
     elements.submitBtn?.addEventListener("click", async () => {
       const btn = elements.submitBtn;
       const originalText = btn.textContent;
