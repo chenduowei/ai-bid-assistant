@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="工程建设行业智能投标工作台 · AI Bid Assistant" />
   <title>项目管理工作台</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
@@ -414,7 +414,7 @@
         <div id="aiResultPanel" class="ai-result-wrap"></div>
       </section>
     </section>
-    <footer class="app-footer">投标工作台 v0.9.0 · 数据云端同步 · API Key 仅存本机</footer>
+    <footer class="app-footer">投标工作台 v0.10.0 · 数据云端同步 · API Key 仅存本机</footer>
   </div>
   <button id="backToTop" class="back-to-top" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
 
@@ -430,6 +430,19 @@
         <button id="trashSheetClose" class="btn secondary" type="button" aria-label="关闭回收站">✕</button>
       </div>
       <div id="trashList" class="project-list"></div>
+    </div>
+  </div>
+
+  <!-- v0.10.0：自定义确认框 —— 替代原生 confirm()，与抽屉同款动效；Promise<boolean> -->
+  <div id="confirmDialog" class="sheet hidden" role="alertdialog" aria-modal="true" aria-labelledby="confirmDialogTitle" aria-describedby="confirmDialogMessage">
+    <div class="sheet-backdrop" data-action="cancel-confirm"></div>
+    <div class="sheet-panel confirm-panel card">
+      <h2 id="confirmDialogTitle"></h2>
+      <p id="confirmDialogMessage"></p>
+      <div class="confirm-actions">
+        <button id="confirmDialogCancel" class="btn secondary" type="button">取消</button>
+        <button id="confirmDialogOk" class="btn primary" type="button">确定</button>
+      </div>
     </div>
   </div>
 

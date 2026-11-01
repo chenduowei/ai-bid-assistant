@@ -111,6 +111,11 @@ import {
     trashMenuBtn: document.getElementById("trashMenuBtn"),
     trashSheet: document.getElementById("trashSheet"),
     trashSheetClose: document.getElementById("trashSheetClose"),
+    confirmDialog: document.getElementById("confirmDialog"),
+    confirmDialogTitle: document.getElementById("confirmDialogTitle"),
+    confirmDialogMessage: document.getElementById("confirmDialogMessage"),
+    confirmDialogCancel: document.getElementById("confirmDialogCancel"),
+    confirmDialogOk: document.getElementById("confirmDialogOk"),
     formBody: document.getElementById("formBody"),
     formSubtitle: document.getElementById("formSubtitle"),
     upcomingList: document.getElementById("upcomingList"),
@@ -511,6 +516,7 @@ import {
     elements.authView.classList.add("hidden");
     elements.appView.classList.remove("hidden");
     requestNotificationPermission();
+    ui.showListSkeleton();
     projectsApi.loadProjects().then((loaded) => {
       if (loaded) {
         refreshPdfProjectOptions();
@@ -676,9 +682,12 @@ import {
         return;
       }
       await projectsApi.restoreBackup(text, ({ overlap, fresh }) =>
-        confirm(
-          `备份中有 ${overlap} 条已存在于当前数据库，点「确定」用备份覆盖它们，点「取消」只补新增的 ${fresh} 条。\n（数据库里有、备份里没有的项目不会被删除。）`
-        )
+        ui.confirmDialog({
+          title: "恢复方式",
+          message: `备份中有 ${overlap} 条已存在于当前数据库。点「覆盖已有」用备份覆盖它们，点「只补新增」只补新增的 ${fresh} 条。数据库里有、备份里没有的项目不会被删除。`,
+          confirmText: "覆盖已有",
+          cancelText: "只补新增",
+        })
       );
     });
 
@@ -903,8 +912,15 @@ import {
       if (errors.length > 2) console.warn("CSV 导入跳过的行：", errors);
     });
     elements.submitBtn?.addEventListener("click", async () => {
+      const btn = elements.submitBtn;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "保存中…";
       const ok = await projectsApi.saveProject(formData(), state.editingId);
+      btn.disabled = false;
+      // 成功时 resetForm() 会把按钮文案设回“新增项目”；失败才恢复原文字
       if (ok) resetForm();
+      else btn.textContent = originalText;
     });
     elements.cancelBtn?.addEventListener("click", resetForm);
     // v0.4.0：搜索框 input 防抖 200ms；筛选 / 排序 change 立即渲染。
@@ -1364,6 +1380,7 @@ import {
       trashSheetOpen = true;
       elements.trashSheet?.classList.remove("hidden");
       document.body.classList.add("sheet-open");
+      ui.showTrashSkeleton();
       await refreshTrashList();
       elements.trashSheetClose?.focus();
     };

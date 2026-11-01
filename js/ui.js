@@ -635,6 +635,78 @@ export function createUi(elements, getState) {
     btn?.setAttribute("aria-expanded", open ? "true" : "false");
   };
 
+  // v0.10.0：自定义确认框 —— 替代原生 confirm()；返回 Promise<boolean>。
+  // 默认焦点在取消按钮上，避免回车误触；新调用到来时旧调用按取消处理。
+  // 监听全部用属性赋值（每次覆盖），不叠加、不误关新框。
+  let pendingConfirmCancel = null;
+  const confirmDialog = ({
+    title = "请确认",
+    message = "",
+    confirmText = "确定",
+    cancelText = "取消",
+    danger = false,
+  } = {}) => {
+    const dialog = elements.confirmDialog;
+    if (!dialog) return Promise.resolve(window.confirm(message));
+    if (pendingConfirmCancel) {
+      const cancelPrevious = pendingConfirmCancel;
+      pendingConfirmCancel = null;
+      cancelPrevious();
+    }
+    return new Promise((resolve) => {
+      if (elements.confirmDialogTitle) elements.confirmDialogTitle.textContent = title;
+      if (elements.confirmDialogMessage) elements.confirmDialogMessage.textContent = message;
+      if (elements.confirmDialogCancel) elements.confirmDialogCancel.textContent = cancelText;
+      const okBtn = elements.confirmDialogOk;
+      if (okBtn) {
+        okBtn.textContent = confirmText;
+        okBtn.className = danger ? "btn danger-solid" : "btn primary";
+      }
+      const cleanup = () => {
+        pendingConfirmCancel = null;
+        dialog.classList.add("hidden");
+        document.body.classList.remove("sheet-open");
+        dialog.onclick = null;
+        if (okBtn) okBtn.onclick = null;
+        if (elements.confirmDialogCancel) elements.confirmDialogCancel.onclick = null;
+        document.removeEventListener("keydown", onKeyDown);
+      };
+      const finish = (value) => {
+        cleanup();
+        resolve(value);
+      };
+      const onKeyDown = (event) => {
+        if (event.key === "Escape") finish(false);
+      };
+      pendingConfirmCancel = () => finish(false);
+      dialog.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+      dialog.onclick = (event) => {
+        if (event.target.closest("[data-action='cancel-confirm']")) finish(false);
+      };
+      if (okBtn) okBtn.onclick = () => finish(true);
+      if (elements.confirmDialogCancel) {
+        elements.confirmDialogCancel.onclick = () => finish(false);
+        elements.confirmDialogCancel.focus();
+      }
+      document.addEventListener("keydown", onKeyDown);
+    });
+  };
+
+  // v0.10.0：骨架屏 —— 列表首屏与回收站抽屉加载时先占位，数据到了再替换
+  const skeletonRows = (count) =>
+    `<div class="skeleton-list" aria-hidden="true">${Array.from(
+      { length: count },
+      () =>
+        `<div class="skeleton-row"><div class="skeleton-line skeleton-title"></div><div class="skeleton-line skeleton-sub"></div></div>`
+    ).join("")}</div>`;
+  const showListSkeleton = () => {
+    if (elements.list) elements.list.innerHTML = skeletonRows(4);
+  };
+  const showTrashSkeleton = () => {
+    if (elements.trashList) elements.trashList.innerHTML = skeletonRows(3);
+  };
+
   return {
     showToast,
     setSyncStatus,
@@ -648,5 +720,8 @@ export function createUi(elements, getState) {
     updateScrollUi,
     addRipple,
     toggleMobileMenu,
+    confirmDialog,
+    showListSkeleton,
+    showTrashSkeleton,
   };
 }

@@ -435,7 +435,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const state = getState();
     const project = state.projects.find((p) => p.id === id);
     if (!project) return false;
-    if (!confirm(`将「${project.name}」移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`)) return false;
+    if (
+      !(await ui.confirmDialog({
+        title: "移入回收站",
+        message: `将「${project.name}」移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`,
+        confirmText: "移入回收站",
+      }))
+    )
+      return false;
     // v0.7.0：删除退出动画——confirm 通过后先淡出收拢（约 0.3s），再执行删除刷新；
     // 若中途触发了 render（筛选切换等），该行已被替换，动画静默跳过，以最终 render 为准
     const reduceMotion = window.matchMedia(
@@ -477,9 +484,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const list = [...new Set(ids || [])];
     if (!list.length) return false;
     if (
-      !confirm(
-        `将 ${list.length} 个项目移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`
-      )
+      !(await ui.confirmDialog({
+        title: "移入回收站",
+        message: `将 ${list.length} 个项目移入回收站吗？${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`,
+        confirmText: "全部移入回收站",
+      }))
     )
       return false;
     const { error } = await client
@@ -516,7 +525,15 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function permanentlyDeleteProject(id, name) {
     const client = getClient();
     const state = getState();
-    if (!confirm(`彻底删除「${name || "该项目"}」吗？删除后无法恢复。`)) return false;
+    if (
+      !(await ui.confirmDialog({
+        title: "彻底删除",
+        message: `彻底删除「${name || "该项目"}」吗？删除后无法恢复。`,
+        confirmText: "彻底删除",
+        danger: true,
+      }))
+    )
+      return false;
     const { error } = await client
       .from("projects")
       .delete()
@@ -566,7 +583,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const state = getState();
     const project = state.projects.find((p) => p.id === id);
     if (!project) return false;
-    if (!confirm(`复制「${project.name}」为新项目吗？`)) return false;
+    if (
+      !(await ui.confirmDialog({
+        title: "复制项目",
+        message: `复制「${project.name}」为新项目吗？`,
+        confirmText: "复制",
+      }))
+    )
+      return false;
     const payload = {
       user_id: state.user.id,
       bid_date: project.date,
