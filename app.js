@@ -30,6 +30,8 @@ import {
     authSubmit: document.getElementById("authSubmit"),
     authMessage: document.getElementById("authMessage"),
     authTabs: document.querySelectorAll(".auth-tab"),
+    authTabsWrap: document.getElementById("authTabs"),
+    togglePasswordBtn: document.getElementById("togglePasswordBtn"),
     forgotPasswordBtn: document.getElementById("forgotPasswordBtn"),
     resendVerificationBtn: document.getElementById("resendVerificationBtn"),
     resetPasswordPanel: document.getElementById("resetPasswordPanel"),
@@ -106,7 +108,9 @@ import {
     toggleGuaranteeBtn: document.getElementById("toggleGuaranteeBtn"),
     guaranteeStatCard: document.getElementById("guaranteeStatCard"),
     trashList: document.getElementById("trashList"),
-    toggleTrashBtn: document.getElementById("toggleTrashBtn"),
+    trashMenuBtn: document.getElementById("trashMenuBtn"),
+    trashSheet: document.getElementById("trashSheet"),
+    trashSheetClose: document.getElementById("trashSheetClose"),
     formBody: document.getElementById("formBody"),
     formSubtitle: document.getElementById("formSubtitle"),
     upcomingList: document.getElementById("upcomingList"),
@@ -149,7 +153,7 @@ import {
   let lastAiResult = null;
   /** 错过提醒每个会话只提示一次，避免 Realtime 刷新时反复刷屏 */
   let missedReminderShown = false;
-  let trashVisible = false;
+  let trashSheetOpen = false;
   /** 密码重置流程中：为 true 时 showApp 不切回工作台，停留在重置面板 */
   let passwordRecoveryActive = false;
   /** v0.4.0：搜索防抖 200ms（筛选/排序仍立即渲染） */
@@ -427,7 +431,7 @@ import {
   }
 
   async function refreshTrashList() {
-    if (!trashVisible) return;
+    if (!trashSheetOpen) return;
     const deleted = await projectsApi.loadDeletedProjects();
     ui.renderTrashList(deleted);
   }
@@ -583,6 +587,11 @@ import {
         elements.authTabs.forEach((item) =>
           item.classList.toggle("active", item === tab)
         );
+        // v0.9.0：滑块跟随当前 tab（CSS transform 弹簧滑动）
+        elements.authTabsWrap?.classList.toggle(
+          "mode-signup",
+          state.authMode === "signup"
+        );
         elements.authSubmit.textContent =
           state.authMode === "signup" ? "注册账号" : "登录";
         elements.authPassword.autocomplete =
@@ -591,6 +600,21 @@ import {
         elements.authMessage.style.color = "var(--danger)";
       })
     );
+
+    // v0.9.0：密码可见性切换（不改密码值，只改输入框类型）
+    elements.togglePasswordBtn?.addEventListener("click", () => {
+      const input = elements.authPassword;
+      if (!input) return;
+      const show = input.type === "password";
+      input.type = show ? "text" : "password";
+      elements.togglePasswordBtn.textContent = show ? "🙈" : "👁️";
+      elements.togglePasswordBtn.setAttribute(
+        "aria-label",
+        show ? "隐藏密码" : "显示密码"
+      );
+      elements.togglePasswordBtn.title = show ? "隐藏密码" : "显示密码";
+      input.focus();
+    });
 
     elements.authForm.addEventListener("submit", async (event) => {
       elements.authMessage.textContent = "";
@@ -1334,12 +1358,28 @@ import {
     elements.refundTip?.addEventListener("click", handleMarkRefunded);
     elements.guaranteeList?.addEventListener("click", handleMarkRefunded);
 
-    elements.toggleTrashBtn?.addEventListener("click", async () => {
-      trashVisible = !trashVisible;
-      elements.trashList?.classList.toggle("hidden", !trashVisible);
-      elements.toggleTrashBtn.textContent = trashVisible ? "收起回收站" : "查看回收站";
-      elements.toggleTrashBtn.setAttribute("aria-expanded", trashVisible ? "true" : "false");
-      if (trashVisible) await refreshTrashList();
+    // v0.9.0：回收站抽屉 —— 菜单按钮打开，关闭按钮 / 遮罩 / Esc 关闭；
+    // 打开时刷新列表，关闭后焦点回到菜单按钮
+    const openTrashSheet = async () => {
+      trashSheetOpen = true;
+      elements.trashSheet?.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+      await refreshTrashList();
+      elements.trashSheetClose?.focus();
+    };
+    const closeTrashSheet = () => {
+      trashSheetOpen = false;
+      elements.trashSheet?.classList.add("hidden");
+      document.body.classList.remove("sheet-open");
+      elements.trashMenuBtn?.focus();
+    };
+    elements.trashMenuBtn?.addEventListener("click", openTrashSheet);
+    elements.trashSheetClose?.addEventListener("click", closeTrashSheet);
+    elements.trashSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-trash']")) closeTrashSheet();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && trashSheetOpen) closeTrashSheet();
     });
 
     // v0.4.3：新增 / 编辑表单标题点击展开 / 收起（键盘 Enter / Space 同理）

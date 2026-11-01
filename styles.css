@@ -1433,3 +1433,135 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
   .cal-day { height: 48px; }
   .cal-nav { gap: 6px; }
 }
+
+/* ========== v0.9.0 ========== */
+
+/* —— 登录注册：入场 + 滑块 + 输入框/按钮微交互 —— */
+@keyframes auth-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+.auth-shell { min-height: 100dvh; }
+.auth-split { animation: auth-in 0.6s var(--ease-out) both; }
+@media (min-width: 901px) {
+  .auth-split { min-height: min(660px, calc(100dvh - 48px)); }
+}
+.auth-poster-overlay > * { animation: auth-in 0.6s var(--ease-out) both; }
+.auth-poster-overlay > *:nth-child(2) { animation-delay: 0.06s; }
+.auth-poster-overlay > *:nth-child(3) { animation-delay: 0.12s; }
+.auth-poster-overlay > *:nth-child(4) { animation-delay: 0.18s; }
+.auth-tabs { position: relative; }
+.auth-tab-indicator {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 3px);
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+  transition: transform var(--dur-med) var(--ease-spring);
+}
+.auth-tabs.mode-signup .auth-tab-indicator { transform: translateX(calc(100% + 2px)); }
+.auth-tab { position: relative; z-index: 1; }
+.auth-tab.active { background: transparent; box-shadow: none; font-weight: 600; }
+.auth-form .field input {
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.auth-form .btn.primary:active { transform: scale(0.98); }
+.password-wrap { position: relative; }
+.auth-form .password-wrap input { padding-right: 44px; }
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  padding: 6px;
+}
+.password-toggle:active { transform: translateY(-50%) scale(0.9); }
+
+/* —— 项目名称：最多换行两行，超长仍以省略号收尾，行高不失控 —— */
+.project-head { align-items: flex-start; }
+.project-head .project-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow: hidden;
+}
+.trash-head { align-items: flex-start; }
+.trash-head .project-name {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  overflow: hidden;
+}
+
+/* —— 回收站抽屉：移动端底部上滑，桌面端居中弹窗 —— */
+body.sheet-open { overflow: hidden; }
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.sheet.hidden { display: none; }
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: sheet-fade var(--dur-fast) var(--ease-out) both;
+}
+.sheet-panel {
+  position: relative;
+  width: min(680px, 100%);
+  max-height: 86dvh;
+  overflow-y: auto;
+  border-radius: 20px 20px 0 0;
+  padding: 20px;
+  animation: sheet-up var(--dur-med) var(--ease-spring) both;
+}
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.sheet-head h2 { margin: 0; font-size: 20px; font-weight: 800; }
+.sheet-head p { margin: 4px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.sheet-head .btn { flex: none; }
+@keyframes sheet-up {
+  from { transform: translateY(28px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes sheet-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (min-width: 681px) {
+  .sheet { align-items: center; padding: 24px; }
+  .sheet-panel { border-radius: 20px; max-height: 80vh; }
+}
+/* toast 永远在最上层：抽屉内操作（恢复/彻底删除）的提示不能被遮罩盖住 */
+.toast-wrap { z-index: 50; }
+
+/* —— 页脚版本号：以后报问题先对版本号 —— */
+.app-footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 24px 12px 8px;
+}

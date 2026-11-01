@@ -30,13 +30,14 @@
       </aside>
       <section class="auth-card card">
         <p>登录后项目保存到云端，多设备自动同步。</p>
-      <div class="auth-tabs">
+      <div class="auth-tabs" id="authTabs">
+        <span class="auth-tab-indicator" aria-hidden="true"></span>
         <button class="btn secondary auth-tab active" type="button" data-mode="login">登录</button>
         <button class="btn secondary auth-tab" type="button" data-mode="signup">注册</button>
       </div>
       <form id="authForm" class="auth-form">
         <div class="field"><label for="authEmail">邮箱</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com" required /></div>
-        <div class="field"><label for="authPassword">密码</label><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /></div>
+        <div class="field"><label for="authPassword">密码</label><div class="password-wrap"><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" title="显示密码">👁️</button></div></div>
         <button id="authSubmit" class="btn primary" type="submit">登录</button>
         <div id="authMessage" class="auth-message" role="alert"></div>
         <div class="auth-links">
@@ -76,6 +77,7 @@
         <button id="exportBtn" class="btn secondary" type="button">📤 导出</button>
         <button id="backupBtn" class="btn secondary" type="button">💾 导出备份</button>
         <button id="restoreBtn" class="btn secondary" type="button">♻️ 从备份恢复</button>
+        <button id="trashMenuBtn" class="btn secondary" type="button">🗑️ 回收站</button>
         <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
         <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
         <button id="downloadTemplateBtn" class="btn secondary" type="button">下载导入模板</button>
@@ -292,17 +294,6 @@
       </div></div>
     </section>
 
-    <section class="card panel">
-      <div class="panel-title">
-        <div>
-          <h2>回收站</h2>
-          <p>删除的项目保留 30 天，过期自动彻底删除。</p>
-        </div>
-        <button id="toggleTrashBtn" class="btn secondary" type="button" aria-expanded="false">查看回收站</button>
-      </div>
-      <div id="trashList" class="project-list hidden"></div>
-    </section>
-
     <section class="card panel" id="guaranteePanel">
       <div class="panel-title">
         <div>
@@ -423,8 +414,24 @@
         <div id="aiResultPanel" class="ai-result-wrap"></div>
       </section>
     </section>
+    <footer class="app-footer">投标工作台 v0.9.0 · 数据云端同步 · API Key 仅存本机</footer>
   </div>
   <button id="backToTop" class="back-to-top" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
+
+  <!-- v0.9.0：回收站抽屉 —— 从主界面移入菜单，点菜单按钮打开，不再占用主界面空间 -->
+  <div id="trashSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="trashSheetTitle">
+    <div class="sheet-backdrop" data-action="close-trash"></div>
+    <div class="sheet-panel card">
+      <div class="sheet-head">
+        <div>
+          <h2 id="trashSheetTitle">回收站</h2>
+          <p>删除的项目保留 30 天，过期自动彻底删除。</p>
+        </div>
+        <button id="trashSheetClose" class="btn secondary" type="button" aria-label="关闭回收站">✕</button>
+      </div>
+      <div id="trashList" class="project-list"></div>
+    </div>
+  </div>
 
   <!-- v0.8.0：SheetJS（Excel 导入）—— 固定版本 + SRI，加载失败时导入流程 toast 提示改用 CSV -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
