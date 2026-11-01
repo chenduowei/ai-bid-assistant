@@ -623,7 +623,6 @@ export function createUi(elements, getState) {
     if (elements.scrollProgress) {
       elements.scrollProgress.style.width = `${percent}%`;
     }
-    elements.backToTop?.classList.toggle("visible", scrollY > 360);
   };
 
   const addRipple = (event) => {

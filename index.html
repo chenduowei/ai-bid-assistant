@@ -61,7 +61,7 @@
     <header class="header">
       <div class="header-top">
         <div class="header-title">
-          <span class="brand-mark" aria-hidden="true"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5a2 2 0 0 1 6 0"/><path d="M8.8 12.6 11 14.8l4.2-4.6"/></svg></span>
+          <button id="brandHomeBtn" class="brand-mark" type="button" aria-label="回到首页" title="回到首页"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5a2 2 0 0 1 6 0"/><path d="M8.8 12.6 11 14.8l4.2-4.6"/></svg></button>
           <div class="brand-text">
             <h1>投标工作台</h1>
             <p id="headerSubtitle">让每一次投标，都心里有数。</p>
@@ -83,6 +83,7 @@
         <button id="backupBtn" class="btn secondary" type="button">💾 导出备份</button>
         <button id="restoreBtn" class="btn secondary" type="button">♻️ 从备份恢复</button>
         <button id="trashMenuBtn" class="btn secondary" type="button">🗑️ 回收站</button>
+        <button id="guaranteeMenuBtn" class="btn secondary" type="button">💰 保证金待退还</button>
         <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
         <input id="importFileInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
         <span class="menu-label">系统</span>
@@ -303,17 +304,6 @@
       </div></div>
     </section>
 
-    <section class="card panel" id="guaranteePanel">
-      <div class="panel-title">
-        <div>
-          <h2>保证金待退还清单</h2>
-          <p>已开标且保证金已缴纳的项目，标记后从清单消失。<span id="guaranteeCount"></span></p>
-        </div>
-        <button id="toggleGuaranteeBtn" class="btn secondary" type="button" aria-expanded="false">查看清单</button>
-      </div>
-      <div id="guaranteeList" class="guarantee-list hidden"></div>
-    </section>
-
     <section class="card panel">
       <div class="panel-title">
         <div>
@@ -423,7 +413,7 @@
         <div id="aiResultPanel" class="ai-result-wrap"></div>
       </section>
     </section>
-    <footer class="app-footer">投标工作台 v0.13.3 · 数据云端同步 · API Key 仅存本机</footer>
+    <footer class="app-footer">投标工作台 v0.14.0</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
@@ -432,13 +422,6 @@
       <button type="button" data-tab="menu" class="bottom-tab"><span class="bottom-tab-icon">☰</span><span>菜单</span></button>
     </nav>
   </div>
-  <!-- v0.13.0：悬浮导航组——首页 / 返回 / 回顶部（返回按层级：菜单→抽屉→设置→解析页→日历→顶部） -->
-  <nav class="fab-stack" aria-label="快捷导航">
-    <button id="homeBtn" class="fab-btn" type="button" aria-label="回到首页" title="回到首页">⌂</button>
-    <button id="backBtn" class="fab-btn" type="button" aria-label="返回" title="返回">←</button>
-    <button id="backToTop" class="fab-btn back-to-top" type="button" aria-label="返回顶部" title="返回顶部">↑</button>
-  </nav>
-
   <!-- v0.9.0：回收站抽屉 —— 从主界面移入菜单，点菜单按钮打开，不再占用主界面空间 -->
   <div id="trashSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="trashSheetTitle">
     <div class="sheet-backdrop" data-action="close-trash"></div>
@@ -451,6 +434,21 @@
         <button id="trashSheetClose" class="btn secondary" type="button" aria-label="关闭回收站">✕</button>
       </div>
       <div id="trashList" class="project-list"></div>
+    </div>
+  </div>
+
+  <!-- v0.14.0：保证金清单抽屉 —— 从主界面移入菜单，点菜单入口打开，不再占用主界面空间 -->
+  <div id="guaranteeSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="guaranteeSheetTitle">
+    <div class="sheet-backdrop" data-action="close-guarantee"></div>
+    <div class="sheet-panel card">
+      <div class="sheet-head">
+        <div>
+          <h2 id="guaranteeSheetTitle">保证金待退还清单</h2>
+          <p>已开标且保证金已缴纳的项目，标记后从清单消失。<span id="guaranteeCount"></span></p>
+        </div>
+        <button id="guaranteeSheetClose" class="btn secondary" type="button" aria-label="关闭保证金清单">✕</button>
+      </div>
+      <div id="guaranteeList" class="guarantee-list"></div>
     </div>
   </div>
 

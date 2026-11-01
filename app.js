@@ -101,11 +101,12 @@ import { createDataIo } from "./js/data-io.js";
     calendarTitle: document.getElementById("calendarTitle"),
     calendarDayTitle: document.getElementById("calendarDayTitle"),
     calendarDayList: document.getElementById("calendarDayList"),
-    guaranteePanel: document.getElementById("guaranteePanel"),
     guaranteeList: document.getElementById("guaranteeList"),
     guaranteeCount: document.getElementById("guaranteeCount"),
-    toggleGuaranteeBtn: document.getElementById("toggleGuaranteeBtn"),
     guaranteeStatCard: document.getElementById("guaranteeStatCard"),
+    guaranteeMenuBtn: document.getElementById("guaranteeMenuBtn"),
+    guaranteeSheet: document.getElementById("guaranteeSheet"),
+    guaranteeSheetClose: document.getElementById("guaranteeSheetClose"),
     trashList: document.getElementById("trashList"),
     trashMenuBtn: document.getElementById("trashMenuBtn"),
     trashSheet: document.getElementById("trashSheet"),
@@ -120,9 +121,7 @@ import { createDataIo } from "./js/data-io.js";
     upcomingList: document.getElementById("upcomingList"),
     deadlineTip: document.getElementById("deadlineTip"),
     refundTip: document.getElementById("refundTip"),
-    backToTop: document.getElementById("backToTop"),
-    homeBtn: document.getElementById("homeBtn"),
-    backBtn: document.getElementById("backBtn"),
+    brandHomeBtn: document.getElementById("brandHomeBtn"),
     scrollProgress: document.getElementById("scrollProgress"),
     toastWrap: document.getElementById("toastWrap"),
     totalCount: document.getElementById("totalCount"),
@@ -161,6 +160,7 @@ import { createDataIo } from "./js/data-io.js";
   /** 错过提醒每个会话只提示一次，避免 Realtime 刷新时反复刷屏 */
   let missedReminderShown = false;
   let trashSheetOpen = false;
+  let guaranteeSheetOpen = false;
   /** 密码重置流程中：为 true 时 showApp 不切回工作台，停留在重置面板 */
   let passwordRecoveryActive = false;
   /** v0.4.0：搜索防抖 200ms（筛选/排序仍立即渲染） */
@@ -799,36 +799,33 @@ import { createDataIo } from "./js/data-io.js";
       }
     });
 
-    // v0.8.0：保证金清单折叠 + 在途保证金统计卡片联动（点卡片展开清单并滚动定位）
-    let guaranteeVisible = false;
-    const setGuaranteeVisible = (visible) => {
-      guaranteeVisible = visible;
-      elements.guaranteeList?.classList.toggle("hidden", !visible);
-      if (elements.toggleGuaranteeBtn) {
-        elements.toggleGuaranteeBtn.textContent = visible
-          ? "收起清单"
-          : "查看清单";
-        elements.toggleGuaranteeBtn.setAttribute(
-          "aria-expanded",
-          String(visible)
-        );
-      }
+    // v0.14.0：保证金清单抽屉 —— 菜单入口 / 统计卡片打开，关闭按钮 / 遮罩 / Esc 关闭；
+    // 列表与计数沿用 ui.renderGuaranteeList（#guaranteeList 随抽屉搬家，渲染逻辑不动）
+    const openGuaranteeSheet = () => {
+      guaranteeSheetOpen = true;
+      elements.guaranteeSheet?.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+      elements.guaranteeSheetClose?.focus();
     };
-    elements.toggleGuaranteeBtn?.addEventListener("click", () =>
-      setGuaranteeVisible(!guaranteeVisible)
-    );
-    const scrollToGuarantee = () => {
-      if (!guaranteeVisible) setGuaranteeVisible(true);
-      elements.guaranteePanel?.scrollIntoView({
-        behavior: "smooth",
-        block: "start",
-      });
+    const closeGuaranteeSheet = () => {
+      guaranteeSheetOpen = false;
+      elements.guaranteeSheet?.classList.add("hidden");
+      document.body.classList.remove("sheet-open");
+      elements.guaranteeMenuBtn?.focus();
     };
-    elements.guaranteeStatCard?.addEventListener("click", scrollToGuarantee);
+    elements.guaranteeMenuBtn?.addEventListener("click", openGuaranteeSheet);
+    elements.guaranteeSheetClose?.addEventListener("click", closeGuaranteeSheet);
+    elements.guaranteeSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-guarantee']")) closeGuaranteeSheet();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && guaranteeSheetOpen) closeGuaranteeSheet();
+    });
+    elements.guaranteeStatCard?.addEventListener("click", openGuaranteeSheet);
     elements.guaranteeStatCard?.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
-      scrollToGuarantee();
+      openGuaranteeSheet();
     });
 
     // v0.4.0：忘记密码 / 重发验证邮件
@@ -1472,11 +1469,9 @@ import { createDataIo } from "./js/data-io.js";
         applyStatFilter(card.dataset.statFilter);
       });
     });
-    elements.backToTop?.addEventListener("click", () =>
-      scrollTo({ top: 0, behavior: "smooth" })
-    );
-    // v0.13.0：悬浮导航——首页直达主界面列表顶；返回按层级逐层退，
-    // 不用记自己在哪：菜单 → 回收站抽屉 → 设置面板 → 解析页 → 日历 → 顶部。
+    // v0.14.0：品牌图标即首页——关浮层 + 回主界面列表 + 回顶；
+    // 悬浮组已拿掉，返回靠各层自带关闭（菜单 / 抽屉 / 设置 / 底部 Tab），
+    // 回顶部靠底部“项目”Tab（showDashboard 自带回顶）。
     const closeTopLayer = () => {
       if (elements.headerMenu?.classList.contains("open")) {
         ui.toggleMobileMenu(false);
@@ -1486,31 +1481,23 @@ import { createDataIo } from "./js/data-io.js";
         closeTrashSheet();
         return true;
       }
+      if (guaranteeSheetOpen) {
+        closeGuaranteeSheet();
+        return true;
+      }
       if (!elements.aiSettingsPanel?.classList.contains("hidden")) {
         elements.aiSettingsPanel.classList.add("hidden");
         return true;
       }
       return false;
     };
-    elements.homeBtn?.addEventListener("click", () => {
+    elements.brandHomeBtn?.addEventListener("click", () => {
       closeTopLayer();
       showDashboard();
       setViewMode("list");
       scrollTo({ top: 0, behavior: "smooth" });
     });
-    elements.backBtn?.addEventListener("click", () => {
-      if (closeTopLayer()) return;
-      if (!elements.parserView?.classList.contains("hidden")) {
-        showDashboard();
-        return;
-      }
-      if (state.viewMode === "calendar") {
-        setViewMode("list");
-        return;
-      }
-      scrollTo({ top: 0, behavior: "smooth" });
-    });
-    // v0.4.3：scroll 高频触发，rAF 节流后再更新进度条 / 回顶按钮
+    // v0.4.3：scroll 高频触发，rAF 节流后再更新进度条
     let scrollRaf = 0;
     addEventListener(
       "scroll",

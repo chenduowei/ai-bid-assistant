@@ -153,6 +153,17 @@ html { scroll-behavior: smooth; }
   box-shadow: 0 6px 16px rgba(0, 122, 255, 0.35);
 }
 .brand-mark svg { display: block; }
+/* v0.14.0：品牌角标即首页按钮——去默认按钮样式，保留原尺寸与触摸区 */
+button.brand-mark {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out);
+}
+button.brand-mark:hover { filter: brightness(1.06); }
+button.brand-mark:active { transform: scale(0.94); }
+button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .brand-text { min-width: 0; }
 .header-title h1 {
   margin: 0 0 var(--sp-1);
@@ -194,7 +205,7 @@ html { scroll-behavior: smooth; }
 .header-actions.open { display: flex; }
 .header-actions .btn {
   border-radius: var(--radius-md);
-  padding: 10px 14px;
+  padding: 12px 14px;
   font-size: var(--fs-md);
   font-weight: 600;
   background: transparent;
@@ -242,11 +253,11 @@ html { scroll-behavior: smooth; }
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  padding: var(--sp-4) 18px;
+  padding: var(--sp-4);
 }
 .stat-card + .stat-card { border-left: 1px solid var(--border); }
-.stat-card .label { font-size: var(--fs-xs); color: var(--muted); margin-bottom: 6px; }
-.stat-card .value { font-size: var(--fs-3xl); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stat-card .label { font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--sp-2); }
+.stat-card .value { font-size: var(--fs-3xl); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
 /* v0.7.0：前 4 张统计卡片可点击筛选 */
 .stat-card[role="button"] {
   cursor: pointer;
@@ -1098,33 +1109,6 @@ body.dark .sort-select {
   background: var(--accent);
   transition: width 0.1s linear;
 }
-/* v0.13.0：悬浮导航组——首页 / 返回常驻，↑ 仍按滚动出现；容器定位置，按钮只管样子 */
-.fab-stack {
-  position: fixed;
-  right: 24px;
-  bottom: calc(14px + env(safe-area-inset-bottom));
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.fab-btn {
-  width: 46px;
-  height: 46px;
-  border: 0;
-  border-radius: 50%;
-  color: #fff;
-  font-size: var(--fs-xl);
-  background: rgba(120, 120, 128, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
-  cursor: pointer;
-  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-med) var(--ease-spring);
-}
-.fab-btn:not(.back-to-top):active { transform: scale(0.94); }
-.back-to-top { opacity: 0; transform: translateY(16px); pointer-events: none; }
-.back-to-top.visible { opacity: 1; transform: translateY(0); pointer-events: auto; }
 .project-item.project-highlight { background: var(--accent-soft); animation: project-pulse 2.2s var(--ease-out); }
 .form-panel.form-highlight { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
 .ripple {
@@ -1200,7 +1184,6 @@ body.dark .sort-select {
   .trash-head { flex-wrap: wrap; }
   .trash-actions { width: 100%; }
   .trash-actions .btn { flex: 1; }
-  .fab-stack { right: 14px; bottom: calc(76px + env(safe-area-inset-bottom)); }
   .toast-wrap { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .checklist-add .checklist-new-input { flex-basis: 100%; }
 }
@@ -1575,7 +1558,7 @@ body.sheet-open { overflow: hidden; }
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-3);
-  margin-bottom: var(--sp-1);
+  margin-bottom: var(--sp-3);
 }
 .sheet-head h2 { margin: 0; font-size: var(--fs-2xl); font-weight: 800; }
 .sheet-head p { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
@@ -1709,7 +1692,7 @@ body.sheet-open { overflow: hidden; }
 @media (max-width: 680px) {
   .header-top { flex-wrap: wrap; }
   .header-title h1 { font-size: 22px; }
-  .brand-mark { width: 38px; height: 38px; border-radius: 12px; }
+  .brand-mark { width: 44px; height: 44px; border-radius: 12px; }
   .brand-mark svg { width: 22px; height: 22px; }
 }
 
