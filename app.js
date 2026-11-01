@@ -1200,8 +1200,6 @@ import { createDataIo } from "./js/data-io.js";
         const ok = await projectsApi.deleteProject(id);
         if (ok && state.editingId === id) resetForm();
       }
-      // v0.13.0（修订）：详情区不再渲染"查看已保存文本"按钮，此分支暂无入口，
-      // 功能本身保留——若需要可改到行内操作区或解析页再接回。
       if (button.dataset.action === "view-pdf") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;

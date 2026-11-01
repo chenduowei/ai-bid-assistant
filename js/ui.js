@@ -8,6 +8,7 @@ import {
   getReminderDays,
   formatMoney,
   getGuaranteeTotals,
+  getNextDeadline,
   getUpcomingDeadlines,
   getChecklistProgress,
   getGuaranteeRefundReminders,
@@ -102,15 +103,9 @@ export function createUi(elements, getState) {
       const { inTransit } = getGuaranteeTotals(projects);
       tweenStat(elements.inTransitGuarantee, "guarantee", inTransit, 2);
     }
-    // v0.5.0：页头副标题 —— 有用的数据一句话
-    if (elements.headerSubtitle) {
-      const active = projects.filter((p) => p.status !== "已开标").length;
-      const upcomingCount = getUpcomingDeadlines(projects, getReminderDays()).length;
-      elements.headerSubtitle.textContent =
-        active === 0 && upcomingCount === 0
-          ? "还没有进行中的项目，新增一个开始吧。"
-          : `${active} 个进行中 · ${upcomingCount} 个截止事项临近`;
-    }
+    // v0.13.1：页头副标题固定为口号，不再被统计句覆盖。
+    // 此前 renderStats 每次渲染都把副标题重写成"X 个进行中 · Y 个临近"，
+    // 导致 HTML 里写的口号从未真正显示过；统计数本来就在统计卡片里。
   };
 
   const renderDeadlineTip = (projects) => {
@@ -170,6 +165,40 @@ export function createUi(elements, getState) {
         return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="up-date"><span class="up-day">${escapeHtml(String(Number(d) || ""))}</span><span class="up-month">${escapeHtml(String(Number(m) || ""))}月</span></div><div class="up-main"><div class="up-name">${escapeHtml(project.name)}</div><div class="up-label">${escapeHtml(label)} · ${escapeHtml(formatDateDisplay(date))}</div></div><span class="up-pill">${escapeHtml(labelText)}</span></div>`;
       })
       .join("");
+  };
+
+  const renderStructList = (title, items) => {
+    if (!Array.isArray(items) || !items.length) return "";
+    const lis = items
+      .map((item) => `<li>${escapeHtml(typeof item === "string" ? item : item.text || "")}</li>`)
+      .join("");
+    return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}</div><ul class="struct-list">${lis}</ul></div>`;
+  };
+
+  const sanitizeLevel = (level) =>
+    ["high", "medium", "low"].includes(level) ? level : "medium";
+
+  const renderRiskCard = (p) => {
+    const hasRisk =
+      p.riskSummary || (p.riskPoints && p.riskPoints.length);
+    const hasStruct =
+      (p.qualification && p.qualification.length) ||
+      (p.invalidBidClauses && p.invalidBidClauses.length);
+    if (!hasRisk && !hasStruct) return "";
+    const points = Array.isArray(p.riskPoints) ? p.riskPoints : [];
+    const pointsHtml = points.length
+      ? `<ul class="risk-points">${points
+          .map(
+            (pt) =>
+              `<li><span class="risk-level ${sanitizeLevel(pt.level)}">${escapeHtml(pt.level || "注意")}</span>${escapeHtml(pt.text || pt)}</li>`
+          )
+          .join("")}</ul>`
+      : "";
+    return `<div class="risk-report"><div class="risk-title">⚠️ 风险与条款</div>${
+      p.riskSummary
+        ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
+        : ""
+    }${renderStructList("资格要求", p.qualification)}${renderStructList("废标条款", p.invalidBidClauses)}${pointsHtml}</div>`;
   };
 
   const matchesKeyword = (p, keyword) => {
@@ -276,19 +305,48 @@ export function createUi(elements, getState) {
   const renderProjectItem = (p, i) => {
     const expandedIds = getState().expandedIds;
     const expanded = expandedIds && expandedIds.has(p.id);
-    // v0.13.0（修订）：展开详情只保留 4 项——状态、联系人、备注、废标检查清单。
-    // 类型与公司仍在折叠副行里，金额 / 保证金 / 截止时间在编辑表单里；
-    // 风险卡与"查看已保存文本"入口随之移出详情区（见提交说明）。
+    const next = getNextDeadline(p);
+    const deadlineHtml = next
+      ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
+      : "";
+    // 4 个截止时间（选填，有则显示）
+    // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
+    const pdfHtml =
+      p.pdfFilename || p.pdfParsedAt
+        ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+        : "";
     // v0.5.0：iOS 定义列表 —— label 左、value 右、hairline 分隔
     const kv = (label, valueHtml) =>
       `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value">${valueHtml}</span></div>`;
+    const deadlineRows = [
+      ["报名截止", p.registrationDeadline],
+      ["质疑截止", p.inquiryDeadline],
+      ["澄清截止", p.clarificationDeadline],
+      ["保证金缴纳截止", p.guaranteeDeadline],
+    ]
+      .filter(([, d]) => d)
+      .map(
+        ([label, d]) => kv(label, escapeHtml(formatDateDisplay(d)))
+      )
+      .join("");
+    // v0.13.1：展开详情恢复旧版内容，前 7 项按指定顺序排列；
+    // 后面只留截止时间、最近截止、风险卡、清单、已保存文件
+    // （招标单位 / 金额 / 保证金已删，截止全空时不渲染空列表）。
     const detailsHtml =
       `<div class="kv-list">` +
-      kv("状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
+      kv("项目状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
+      kv("开标时间", p.date ? escapeHtml(formatDateDisplay(p.date)) : "未设置开标时间") +
+      kv("项目类型", escapeHtml(p.type)) +
+      kv("项目名称", escapeHtml(p.name)) +
+      kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
       kv("联系人", escapeHtml(p.contact || "-")) +
       `</div>` +
       `<div class="kv-note">备注：${p.notes ? escapeHtml(p.notes) : "—"}</div>` +
-      renderChecklist(p);
+      (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
+      deadlineHtml +
+      renderRiskCard(p) +
+      renderChecklist(p) +
+      pdfHtml;
     const cd = countdownCell(p);
     const dateShort = shortDateDisplay(p.date);
     const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;
