@@ -1,4 +1,4 @@
--- 项目管理工作台：Supabase 数据库初始化脚本
+-- 投标工作台：Supabase 数据库初始化脚本
 -- 在 Supabase Dashboard → SQL Editor 中一次性执行。
 -- 若已有旧表，可再执行文末「增量迁移」段落。
 
