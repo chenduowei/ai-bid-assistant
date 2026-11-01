@@ -1,17 +1,14 @@
 /**
  * AI Bid Assistant — 入口
- * 模块：js/utils.js · auth.js · projects.js · pdf-parser.js · ai-extract.js · ui.js
+ * 模块：js/utils.js · auth.js · projects.js · ui.js
+ * 解析模块（js/pdf-parser.js · js/ai-extract.js）v0.11.0 起懒加载：
+ * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
+ * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
 import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
-import { createPdfParser } from "./js/pdf-parser.js";
-import {
-  createAiExtract,
-  saveAiConfig,
-  loadAiConfigToForm,
-} from "./js/ai-extract.js";
 
 (() => {
   const config = window.SUPABASE_CONFIG || {};
@@ -186,6 +183,8 @@ import {
     calYear: new Date().getFullYear(),
     calMonth: new Date().getMonth(),
     calSelected: null,
+    /** v0.11.0：列表分页——首屏只渲染 50 条，点"加载更多"再续 50 条 */
+    listLimit: 50,
   };
 
   const getState = () => state;
@@ -316,8 +315,55 @@ import {
 
   const ui = createUi(elements, getState);
   const projectsApi = createProjectsApi({ getClient, getState, setState, ui });
-  const pdfParser = createPdfParser({ elements, ui });
-  const aiExtract = createAiExtract({ ui });
+
+  // v0.11.0：解析模块懒加载——首次需要时才 import，之后复用同一实例。
+  // AI 配置本身存在 localStorage，分析时直接读存储；表单回填只在打开设置时做，
+  // 因此 init 不再预加载（旧行为：启动即调 loadAiConfigToForm）。
+  let pdfParser = null;
+  let aiExtract = null;
+  let saveAiConfig = null;
+  let loadAiConfigToForm = null;
+  let parserModulesLoading = null;
+  const ensureParserModules = async () => {
+    if (pdfParser && aiExtract) return;
+    if (!parserModulesLoading) {
+      parserModulesLoading = (async () => {
+        const [pdfModule, aiModule] = await Promise.all([
+          import("./js/pdf-parser.js"),
+          import("./js/ai-extract.js"),
+        ]);
+        pdfParser = pdfModule.createPdfParser({ elements, ui });
+        aiExtract = aiModule.createAiExtract({ ui });
+        saveAiConfig = aiModule.saveAiConfig;
+        loadAiConfigToForm = aiModule.loadAiConfigToForm;
+      })();
+    }
+    return parserModulesLoading;
+  };
+
+  // v0.11.0：SheetJS 懒加载——只在用户第一次导入 .xlsx 时才拉 CDN 库（带 SRI），
+  // 首屏不再背这个解析库；失败则回落提示改用 CSV。
+  let sheetJsLoading = null;
+  const loadSheetJS = () => {
+    if (window.XLSX) return Promise.resolve(true);
+    if (!sheetJsLoading) {
+      sheetJsLoading = new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src =
+          "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+        script.integrity =
+          "sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw";
+        script.crossOrigin = "anonymous";
+        script.onload = () => resolve(true);
+        script.onerror = () => {
+          sheetJsLoading = null;
+          resolve(false);
+        };
+        document.head.appendChild(script);
+      });
+    }
+    return sheetJsLoading;
+  };
 
   const resetForm = () => {
     Object.values(elements.form).forEach((input) => {
@@ -558,11 +604,21 @@ import {
     onPasswordRecovery: showResetPasswordPanel,
   });
 
+  // v0.11.0：底部 Tab 高亮（模块级，供 showParser/showDashboard/setViewMode 共用）
+  function setActiveTab(name) {
+    document.querySelectorAll(".bottom-tab").forEach((b) =>
+      b.classList.toggle("active", b.dataset.tab === name)
+    );
+  }
+
   const showParser = () => {
+    // v0.11.0：进解析页时顺手预加载解析模块（不阻塞切页），首次解析无需再等
+    ensureParserModules().catch(() => {});
     refreshPdfProjectOptions();
     elements.dashboardView.classList.add("hidden");
     elements.parserView.classList.remove("hidden");
     playViewEnter(elements.parserView);
+    setActiveTab("parser");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -570,6 +626,7 @@ import {
     elements.parserView.classList.add("hidden");
     elements.dashboardView.classList.remove("hidden");
     playViewEnter(elements.dashboardView);
+    setActiveTab("projects");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -698,6 +755,8 @@ import {
       document.querySelectorAll(".view-btn").forEach((b) =>
         b.classList.toggle("active", b.dataset.view === mode)
       );
+      // v0.11.0：视图切换同步底部 Tab 高亮（桌面端无此元素，调用无害）
+      setActiveTab(mode === "calendar" ? "calendar" : "projects");
       elements.calendarView?.classList.toggle("hidden", mode !== "calendar");
       elements.list?.classList.toggle("hidden", mode !== "list");
       if (mode === "calendar" && state.selectMode) {
@@ -858,8 +917,11 @@ import {
       if (/\.xlsx$/i.test(file.name)) {
         // v0.8.0：Excel 导入 —— 第一张表转 CSV 文本，复用 parseCsvProjects 的表头映射与校验
         if (!window.XLSX) {
-          ui.showToast("Excel 解析库加载失败，请改用 CSV 导入。");
-          return;
+          const loaded = await loadSheetJS();
+          if (!loaded) {
+            ui.showToast("Excel 解析库加载失败，请改用 CSV 导入。");
+            return;
+          }
         }
         try {
           const wb = window.XLSX.read(await file.arrayBuffer(), {
@@ -924,9 +986,16 @@ import {
     });
     elements.cancelBtn?.addEventListener("click", resetForm);
     // v0.4.0：搜索框 input 防抖 200ms；筛选 / 排序 change 立即渲染。
-    elements.search?.addEventListener("input", () => debouncedRender());
+    // v0.11.0：换筛选条件即回到第一页（listLimit 复位），避免"加载更多"后的旧页数残留
+    elements.search?.addEventListener("input", () => {
+      state.listLimit = 50;
+      debouncedRender();
+    });
     [elements.statusFilter, elements.sortBy].forEach((el) =>
-      el?.addEventListener("change", () => ui.render())
+      el?.addEventListener("change", () => {
+        state.listLimit = 50;
+        ui.render();
+      })
     );
     // v0.5.0：iOS segmented control 与隐藏的 statusFilter 同步
     // v0.8.0：只绑状态筛选组，视图切换组（.view-seg）另有处理
@@ -944,6 +1013,7 @@ import {
         btn.addEventListener("click", () => {
           if (elements.statusFilter) elements.statusFilter.value = btn.dataset.value;
           syncSegControl();
+          state.listLimit = 50;
           ui.render();
         })
       );
@@ -962,6 +1032,28 @@ import {
       ui.focusProjectInList(item.dataset.id);
     });
 
+    // v0.11.0：移动端底部 Tab —— 复用现有视图切换，不新增视图状态；
+    // 项目/日历走 setViewMode，解析走 showParser，菜单走现有菜单开关。
+    document.querySelectorAll(".bottom-tab").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const tab = btn.dataset.tab;
+        if (tab === "projects") {
+          showDashboard();
+          setViewMode("list");
+          elements.list
+            ?.closest("section")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else if (tab === "calendar") {
+          showDashboard();
+          setViewMode("calendar");
+        } else if (tab === "parser") {
+          showParser();
+          setActiveTab("parser");
+        } else if (tab === "menu") {
+          ui.toggleMobileMenu();
+        }
+      })
+    );
     elements.openParserBtn?.addEventListener("click", showParser);
     elements.closeParserBtn?.addEventListener("click", showDashboard);
     elements.dropZone?.addEventListener("click", () =>
@@ -973,9 +1065,10 @@ import {
         elements.pdfInput.click();
       }
     });
-    elements.pdfInput?.addEventListener("change", (event) =>
-      pdfParser.parsePdf(event.target.files?.[0])
-    );
+    elements.pdfInput?.addEventListener("change", async (event) => {
+      await ensureParserModules();
+      pdfParser.parsePdf(event.target.files?.[0]);
+    });
     ["dragenter", "dragover"].forEach((eventName) =>
       elements.dropZone?.addEventListener(eventName, (event) => {
         event.preventDefault();
@@ -988,18 +1081,20 @@ import {
         elements.dropZone.classList.remove("dragover");
       })
     );
-    elements.dropZone?.addEventListener("drop", (event) =>
-      pdfParser.parsePdf(event.dataTransfer.files?.[0])
-    );
+    elements.dropZone?.addEventListener("drop", async (event) => {
+      await ensureParserModules();
+      pdfParser.parsePdf(event.dataTransfer.files?.[0]);
+    });
     elements.toggleTextBtn?.addEventListener("click", () => {
       const hidden = elements.parsedText.classList.toggle("hidden");
       elements.toggleTextBtn.textContent = hidden
         ? "查看原始文本"
         : "隐藏原始文本";
     });
-    elements.copyTextBtn?.addEventListener("click", () =>
-      pdfParser.copyParsedText()
-    );
+    elements.copyTextBtn?.addEventListener("click", async () => {
+      await ensureParserModules();
+      pdfParser.copyParsedText();
+    });
 
     // 解析页：把当前解析文本保存到所选项目（pdf_text / pdf_filename / pdf_parsed_at）
     elements.savePdfTextBtn?.addEventListener("click", async () => {
@@ -1029,6 +1124,7 @@ import {
         ui.showToast("先完成 PDF 解析。");
         return;
       }
+      await ensureParserModules();
       elements.aiAnalyzeBtn.disabled = true;
       try {
         const result = await aiExtract.analyzeTenderText(text, (msg) =>
@@ -1062,14 +1158,16 @@ import {
       }
     });
 
-    elements.aiSettingsBtn?.addEventListener("click", () => {
+    elements.aiSettingsBtn?.addEventListener("click", async () => {
       elements.aiSettingsPanel?.classList.toggle("hidden");
+      await ensureParserModules();
       loadAiConfigToForm(elements);
       if (elements.reminderDays) {
         elements.reminderDays.value = String(getReminderDays());
       }
     });
-    elements.aiSaveSettings?.addEventListener("click", () => {
+    elements.aiSaveSettings?.addEventListener("click", async () => {
+      await ensureParserModules();
       saveAiConfig({
         apiKey: elements.aiApiKey?.value,
         baseUrl: elements.aiBaseUrl?.value,
@@ -1182,6 +1280,12 @@ import {
         return;
       }
       const id = button.dataset.id;
+      // v0.11.0：列表分页——续 50 条后重渲染（筛选变化时 listLimit 已复位）
+      if (button.dataset.action === "load-more") {
+        state.listLimit = (state.listLimit || 50) + 50;
+        ui.render();
+        return;
+      }
       // v0.6.0：选择模式复选框
       if (button.dataset.action === "toggle-select") {
         toggleSelectOne(id);
@@ -1452,6 +1556,7 @@ import {
       if (elements.search) elements.search.value = "";
       if (elements.statusFilter) elements.statusFilter.value = value;
       if (typeof state.syncSegControl === "function") state.syncSegControl();
+      state.listLimit = 50;
       ui.render();
       elements.list
         ?.closest("section")
@@ -1489,7 +1594,7 @@ import {
     ui.applyTheme(state.darkMode);
     bindEvents();
     ui.updateScrollUi();
-    loadAiConfigToForm(elements);
+    // v0.11.0：AI 配置表单不再启动时回填，打开设置面板时才回填（见 aiSettingsBtn）
 
     // v0.8.0：PWA Service Worker（仅 https/localhost，注册失败静默，不影响正常使用）
     try {

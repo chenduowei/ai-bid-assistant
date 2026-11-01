@@ -405,14 +405,21 @@ export function createUi(elements, getState) {
         '<div class="empty-state"><div class="empty-icon">＋</div><div class="empty-title">还没有项目</div><div class="empty-sub">新增第一个项目，开始管理投标进度</div><button class="btn primary" type="button" data-action="empty-add">新增第一个项目</button></div>';
       return;
     }
+    // v0.11.0：列表分页——只渲染前 listLimit 条，剩余的用"加载更多"续取；
+    // 全部加载完才显示结尾文案，避免长列表一次生成几百个卡片节点。
+    const limit = (getState() && getState().listLimit) || 50;
+    const visible = filtered.slice(0, limit);
+    const remaining = filtered.length - visible.length;
     elements.list.innerHTML =
-      filtered.map((p, i) => renderProjectItem(p, i)).join("") +
-      `<div class="list-end">—— ${escapeHtml(
-        END_QUOTES[filtered.length % END_QUOTES.length].replace(
-          "{n}",
-          String(filtered.length)
-        )
-      )} ——</div>`;
+      visible.map((p, i) => renderProjectItem(p, i)).join("") +
+      (remaining > 0
+        ? `<button class="btn secondary load-more-btn" type="button" data-action="load-more">加载更多（剩余 ${remaining} 条，已显示 ${visible.length} / 共 ${filtered.length} 条）</button>`
+        : `<div class="list-end">—— ${escapeHtml(
+            END_QUOTES[filtered.length % END_QUOTES.length].replace(
+              "{n}",
+              String(filtered.length)
+            )
+          )} ——</div>`);
   };
 
   /** 定位到项目列表中的某一项并高亮（v0.4.1：自动展开该项目） */
@@ -428,6 +435,12 @@ export function createUi(elements, getState) {
     const s = getState();
     if (s.expandedIds && !s.expandedIds.has(projectId)) {
       s.expandedIds.add(projectId);
+    }
+    // v0.11.0：分页下目标可能在"加载更多"后面——先把页数扩到含目标的那一页再 render
+    const filtered = getFilteredProjects(s.projects, getCurrentFilters());
+    const targetIndex = filtered.findIndex((p) => p.id === projectId);
+    if (targetIndex >= 0 && s.listLimit && targetIndex >= s.listLimit) {
+      s.listLimit = Math.ceil((targetIndex + 1) / 50) * 50;
     }
     render();
     const item = elements.list?.querySelector(
