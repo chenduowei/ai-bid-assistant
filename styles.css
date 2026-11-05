@@ -2,6 +2,8 @@
    AI Bid Assistant v0.5.0 — iOS 设计语言
    配色：systemGroupedBackground 体系 · 字阶：32/20/15/13
    圆角：卡片 16px / 按钮 12px · 动效：--ease-spring
+   v0.21.0 呼吸感：只动间距 —— 行内操作、标题栏、定义列表、
+   分区标题、搜索与工具栏、窄屏页边距各放宽一档，不动布局与颜色。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -131,7 +133,7 @@ html { scroll-behavior: smooth; }
   box-shadow: none;
   border-radius: 0;
   padding: var(--sp-4) var(--sp-1) 0;
-  margin-bottom: var(--sp-4);
+  margin-bottom: var(--sp-5);
   position: relative;
 }
 .header-top {
@@ -183,7 +185,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   flex: none;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-3);
 }
 /* v0.7.0：header 收纳——次要功能全部收进下拉菜单 */
 .header-actions {
@@ -335,7 +337,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .seg-btn.active { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14); }
 
 /* ---------- iOS 搜索框 ---------- */
-.search-box { position: relative; margin-bottom: var(--sp-3); }
+.search-box { position: relative; margin-bottom: var(--sp-4); }
 /* v0.5.1：放大镜改用内联 SVG（::before 的 data-URI 渲染发虚） */
 .search-input-wrap { position: relative; }
 .search-input-wrap .search-icon {
@@ -362,7 +364,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .filter-result-count { margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--muted); }
 
 /* ---------- 工具栏 ---------- */
-.list-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: var(--sp-4); }
+.list-tools { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-4); }
 /* v0.7.0：工具栏 sticky 毛玻璃，滚动时跟手 */
 .list-tools {
   position: sticky;
@@ -372,7 +374,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: color-mix(in srgb, var(--surface) 88%, transparent);
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
-  padding: 10px var(--sp-3);
+  padding: 12px var(--sp-3);
   margin: 0 -12px var(--sp-4);
   border-radius: var(--radius-md);
 }
@@ -399,7 +401,7 @@ body.dark .sort-select {
 /* ---------- iOS 分组表单 ---------- */
 .form-grid { display: block; }
 .form-section-title {
-  margin: var(--sp-4) var(--sp-1) 6px;
+  margin: var(--sp-5) var(--sp-1) 8px;
   font-size: var(--fs-sm);
   font-weight: 400;
   color: var(--muted);
@@ -436,7 +438,7 @@ body.dark .sort-select {
 }
 .form-group > .field:focus-within { background: var(--accent-soft); }
 .form-group > .field > textarea { min-height: 76px; }
-.form-actions { margin-top: var(--sp-5); display: grid; gap: 10px; }
+.form-actions { margin-top: var(--sp-5); display: grid; gap: var(--sp-3); }
 .settings-hint .field-hint { font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; }
 
 /* 经典字段样式（登录 / 设置 / 解析页用） */
@@ -464,7 +466,7 @@ body.dark .sort-select {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .field.full-width { grid-column: 1 / -1; }
-.action-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: 18px; }
+.action-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-5); }
 
 /* ---------- 通用折叠（grid 高度动画） ---------- */
 .collapse {
@@ -518,7 +520,7 @@ body.dark .sort-select {
   gap: var(--sp-3);
   cursor: pointer;
   border-radius: 0;
-  padding: var(--sp-3) var(--sp-4);
+  padding: 14px var(--sp-4);
   margin: 0;
   min-width: 0;
   transition: background var(--dur-fast) var(--ease-out);
@@ -544,7 +546,7 @@ body.dark .sort-select {
   text-overflow: ellipsis;
 }
 .project-sub {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   font-size: var(--fs-sm);
   line-height: 1.35;
   color: var(--muted);
@@ -591,10 +593,10 @@ body.dark .sort-select {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: 6px;
 }
-.project-head-top { display: flex; align-items: center; gap: 6px; }
-.project-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
+.project-head-top { display: flex; align-items: center; gap: var(--sp-2); }
+.project-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .row-btn {
   border: 0;
   background: transparent;
@@ -603,7 +605,7 @@ body.dark .sort-select {
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--accent);
-  padding: 3px 7px;
+  padding: 6px 10px;
   border-radius: 8px;
   transition: background var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
@@ -620,14 +622,14 @@ body.dark .sort-select {
 .project-details.collapse.expanded > .collapse-inner {
   border-top: 1px solid var(--border);
   margin: 2px var(--sp-4) 0;
-  padding: 10px 0 18px;
+  padding: 12px 0 20px;
 }
 .kv-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: var(--sp-4);
-  padding: 7px var(--sp-3);
+  padding: 10px var(--sp-3);
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-base);
 }
@@ -1002,7 +1004,7 @@ body.dark .sort-select {
   background: var(--surface-soft);
   font: 14px/1.75 Consolas, "Microsoft YaHei", monospace;
 }
-.parser-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.parser-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
 .pdf-save-field { flex: 1; min-width: 200px; }
 
 /* ---------- 废标检查清单 ---------- */
@@ -1169,7 +1171,7 @@ body.dark .sort-select {
   .user-menu { flex-wrap: wrap; padding: var(--sp-1); }
 }
 @media (max-width: 680px) {
-  .page { padding: var(--sp-3) var(--sp-3) var(--sp-12); }
+  .page { padding: var(--sp-3) var(--sp-4) var(--sp-12); }
   .header-title h1 { font-size: var(--fs-3xl); }
   .panel { padding: var(--sp-4); }
   .panel-title h2 { font-size: var(--fs-xl); }
