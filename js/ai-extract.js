@@ -214,8 +214,31 @@ export function createAiExtract({ ui }) {
   // v0.16.0：AI 结果面板折叠态（内存，同一轮分析内重渲染保持；换一份新结果时恢复展开）。
   let aiPanelCollapsed = false;
   let lastPanelResult = null;
+  // v0.17.0：分析取消 —— 用户点“终止分析”时 abort 当前请求与后续分块。
+  // 每次分析新建一个 controller；分析中再点分析先拦下，避免两路并发。
+  let analysisController = null;
+  const CANCELLED_MESSAGE = "已终止分析。";
 
-  async function callChat(messages, onProgress) {
+  function cancelAnalysis() {
+    analysisController?.abort();
+  }
+
+  // 合并多个 AbortSignal（超时 + 用户取消）：任一 abort 即 abort 合成信号。
+  // 不用 AbortSignal.any（旧浏览器/Safari 低版本无此 API）。
+  function combineSignals(...signals) {
+    const ctrl = new AbortController();
+    for (const s of signals) {
+      if (!s) continue;
+      if (s.aborted) {
+        ctrl.abort(s.reason);
+        return ctrl.signal;
+      }
+      s.addEventListener("abort", () => ctrl.abort(s.reason), { once: true });
+    }
+    return ctrl.signal;
+  }
+
+  async function callChat(messages, onProgress, cancelSignal) {
     const cfg = getAiConfig();
     if (!cfg.apiKey) {
       throw new Error("请先在「AI 设置」中填写 API Key。");
@@ -228,6 +251,7 @@ export function createAiExtract({ ui }) {
     };
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+    const signal = combineSignals(controller.signal, cancelSignal);
     let res;
     try {
       res = await fetch(`${cfg.baseUrl}/chat/completions`, {
@@ -237,9 +261,13 @@ export function createAiExtract({ ui }) {
           Authorization: `Bearer ${cfg.apiKey}`,
         },
         body: JSON.stringify(body),
-        signal: controller.signal,
+        signal,
       });
     } catch (err) {
+      // 用户取消优先于超时：两者都表现为 AbortError。
+      if (cancelSignal?.aborted) {
+        throw new Error(CANCELLED_MESSAGE);
+      }
       if (err?.name === "AbortError") {
         throw new Error("模型请求超时（120 秒），请检查网络或稍后重试。");
       }
@@ -259,11 +287,15 @@ export function createAiExtract({ ui }) {
     return content;
   }
 
-  async function summarizeChunks(chunks, onProgress) {
+  // v0.17.0：onProgress 第二个参数是真实百分比 —— 摘要按块算 10→80，
+  // 最终调用 85，解析结果 95；app.js 收到后直接画进度条，不再钉死 90%。
+  async function summarizeChunks(chunks, onProgress, cancelSignal) {
     const summaries = [];
     for (let i = 0; i < chunks.length; i++) {
+      if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
       onProgress?.(
-        `长文档分块摘要中（${i + 1}/${chunks.length}）…`
+        `长文档分块摘要中（${i + 1}/${chunks.length}）…`,
+        10 + Math.round((i / chunks.length) * 70)
       );
       // v0.15.0：分块带页码区间进提示词，摘要才留得住出处。
       const chunk = chunks[i];
@@ -284,15 +316,17 @@ export function createAiExtract({ ui }) {
             content: `${label}\n\n${chunk.text}`,
           },
         ],
-        onProgress
+        onProgress,
+        cancelSignal
       );
       summaries.push(`【片段 ${i + 1} 摘要${range ? ` · ${range}` : ""}】\n${content.trim()}`);
     }
     return summaries.join("\n\n");
   }
 
-  async function analyzeOnce(textForModel, onProgress) {
-    onProgress?.("正在调用大模型分析…");
+  async function analyzeOnce(textForModel, onProgress, cancelSignal) {
+    if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
+    onProgress?.("正在调用大模型分析…", 85);
     const content = await callChat(
       [
         { role: "system", content: SYSTEM_PROMPT },
@@ -301,9 +335,10 @@ export function createAiExtract({ ui }) {
           content: `请分析以下招标文件文本并按要求输出 JSON：\n\n${textForModel}`,
         },
       ],
-      onProgress
+      onProgress,
+      cancelSignal
     );
-    onProgress?.("正在解析结构化结果…");
+    onProgress?.("正在解析结构化结果…", 95);
     const parsed = parseJsonLoose(content);
     const err = validateExtracted(parsed);
     if (err) throw new Error(err);
@@ -314,30 +349,47 @@ export function createAiExtract({ ui }) {
     if (!fullText || !String(fullText).trim()) {
       throw new Error("没有可分析的文本。");
     }
-    const text = String(fullText);
-    const chunks = splitIntoChunks(text, CHUNK_CHARS);
-    let textForModel = text;
-
-    if (chunks.length > 1) {
-      onProgress?.(`文档较长（约 ${Math.round(text.length / 1000)}k 字），将分 ${chunks.length} 块摘要后汇总…`);
-      textForModel = await summarizeChunks(chunks, onProgress);
-      textForModel =
-        textForModel +
-        "\n\n[以上为分块摘要汇总，请基于这些摘要完成最终 JSON 抽取。]";
+    if (analysisController) {
+      throw new Error("已有分析在进行中，请先终止当前分析。");
     }
+    const controller = new AbortController();
+    analysisController = controller;
+    const cancelSignal = controller.signal;
+    try {
+      onProgress?.("正在准备分析…", 5);
+      const text = String(fullText);
+      const chunks = splitIntoChunks(text, CHUNK_CHARS);
+      let textForModel = text;
 
-    let lastError = null;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        if (attempt > 0) onProgress?.(`结果校验失败，正在重试（${attempt}/${MAX_RETRIES}）…`);
-        return await analyzeOnce(textForModel, onProgress);
-      } catch (err) {
-        lastError = err;
-        // 网络/HTTP 错误也允许重试一次
-        if (attempt >= MAX_RETRIES) break;
+      if (chunks.length > 1) {
+        onProgress?.(
+          `文档较长（约 ${Math.round(text.length / 1000)}k 字），将分 ${chunks.length} 块摘要后汇总…`,
+          10
+        );
+        textForModel = await summarizeChunks(chunks, onProgress, cancelSignal);
+        textForModel =
+          textForModel +
+          "\n\n[以上为分块摘要汇总，请基于这些摘要完成最终 JSON 抽取。]";
       }
+
+      let lastError = null;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 0)
+            onProgress?.(`结果校验失败，正在重试（${attempt}/${MAX_RETRIES}）…`, 85);
+          return await analyzeOnce(textForModel, onProgress, cancelSignal);
+        } catch (err) {
+          // 取消不重试：直接把“已终止分析”抛出去，别让重试把它盖掉。
+          if (err?.message === CANCELLED_MESSAGE) throw err;
+          lastError = err;
+          // 网络/HTTP 错误也允许重试一次
+          if (attempt >= MAX_RETRIES) break;
+        }
+      }
+      throw lastError || new Error("AI 分析失败");
+    } finally {
+      if (analysisController === controller) analysisController = null;
     }
-    throw lastError || new Error("AI 分析失败");
   }
 
   function normalizeResult(raw) {
@@ -506,6 +558,7 @@ export function createAiExtract({ ui }) {
 
   return {
     analyzeTenderText,
+    cancelAnalysis,
     applyToForm,
     renderAiResultPanel,
     getAiConfig,

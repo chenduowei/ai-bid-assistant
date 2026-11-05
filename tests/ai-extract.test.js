@@ -107,3 +107,101 @@ test("splitIntoChunks：无页码时按字符切，短文本单块", () => {
   assert.equal(chunks[0].startPage, null);
   assert.equal(splitIntoChunks("abc").length, 1);
 });
+
+/* v0.17.0：分析进度与取消 —— 用桩 localStorage/fetch 测真逻辑 */
+
+const AI_JSON = JSON.stringify({ project_name: "测试项目", bid_date: "2026-08-10" });
+
+function stubLocalStorage() {
+  const orig = globalThis.localStorage;
+  globalThis.localStorage = {
+    getItem: () => "test-key",
+    setItem: () => {},
+    removeItem: () => {},
+  };
+  return () => {
+    if (orig === undefined) delete globalThis.localStorage;
+    else globalThis.localStorage = orig;
+  };
+}
+
+function stubFetchOk() {
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async () => ({
+    ok: true,
+    text: async () => "",
+    json: async () => ({ choices: [{ message: { content: AI_JSON } }] }),
+  });
+  return () => {
+    globalThis.fetch = origFetch;
+  };
+}
+
+function stubFetchHang() {
+  const origFetch = globalThis.fetch;
+  const abortErr = () =>
+    Object.assign(new Error("aborted"), { name: "AbortError" });
+  globalThis.fetch = (url, opts) =>
+    new Promise((_, reject) => {
+      const signal = opts?.signal;
+      if (signal?.aborted) return reject(abortErr());
+      signal?.addEventListener("abort", () => reject(abortErr()), { once: true });
+    });
+  return () => {
+    globalThis.fetch = origFetch;
+  };
+}
+
+test("analyzeTenderText：长文档进度百分比单调递增且小于 100", async () => {
+  const restoreStorage = stubLocalStorage();
+  const restoreFetch = stubFetchOk();
+  try {
+    const ai = createAiExtract({ ui: {} });
+    const percents = [];
+    const result = await ai.analyzeTenderText("x".repeat(50000), (msg, pct) => {
+      if (typeof pct === "number") percents.push(pct);
+    });
+    assert.equal(result.name, "测试项目");
+    assert.ok(percents.length >= 5, `应至少上报 5 次进度，实际 ${percents.length}`);
+    for (const p of percents) {
+      assert.ok(p > 0 && p < 100, `百分比应在 (0,100) 内，实际 ${p}`);
+    }
+    for (let i = 1; i < percents.length; i++) {
+      assert.ok(percents[i] >= percents[i - 1], "百分比应单调不减");
+    }
+    assert.ok(percents.includes(85), "最终调用应在 85%");
+  } finally {
+    restoreFetch();
+    restoreStorage();
+  }
+});
+
+test("analyzeTenderText：终止分析抛“已终止分析。”且不重试", async () => {
+  const restoreStorage = stubLocalStorage();
+  const restoreFetch = stubFetchHang();
+  try {
+    const ai = createAiExtract({ ui: {} });
+    const p = ai.analyzeTenderText("短文本", () => {});
+    await new Promise((r) => setTimeout(r, 10));
+    ai.cancelAnalysis();
+    await assert.rejects(p, /已终止分析/);
+  } finally {
+    restoreFetch();
+    restoreStorage();
+  }
+});
+
+test("analyzeTenderText：分析进行中再调直接拒绝", async () => {
+  const restoreStorage = stubLocalStorage();
+  const restoreFetch = stubFetchHang();
+  try {
+    const ai = createAiExtract({ ui: {} });
+    const first = ai.analyzeTenderText("短文本", () => {});
+    await assert.rejects(ai.analyzeTenderText("短文本", () => {}), /已有分析在进行中/);
+    ai.cancelAnalysis();
+    await assert.rejects(first, /已终止分析/);
+  } finally {
+    restoreFetch();
+    restoreStorage();
+  }
+});

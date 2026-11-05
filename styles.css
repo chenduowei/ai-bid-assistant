@@ -181,6 +181,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .header-top-actions {
   display: flex;
   flex: none;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-2);
 }
@@ -1731,6 +1732,8 @@ body.sheet-open { overflow: hidden; }
 .risk-body, .checklist-body, .ai-result-body { margin-top: 10px; }
 .risk-report.collapsed .risk-body, .checklist.collapsed .checklist-body, .ai-result-card.collapsed .ai-result-body { display: none; }
 .section-collapse-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; }
+/* v0.17.0：分区头的按钮组（清空 + 收起），并排不挤占标题 */
+.risk-head .head-actions, .checklist-head .head-actions { display: flex; flex: none; gap: 8px; }
 .ai-result-head h3 { margin: 0; }
 /* —— 结论单条删除（小 × 按钮，复用清单删除的手感） —— */
 .evidence-del { flex: none; padding: 2px 8px; font-size: var(--fs-sm); border-radius: 999px; }

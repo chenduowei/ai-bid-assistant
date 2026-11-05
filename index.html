@@ -69,13 +69,13 @@
         </div>
         <div class="header-top-actions">
           <button id="addProjectBtn" class="btn primary" type="button">＋ 新增项目</button>
+          <button id="openParserBtn" class="btn secondary" type="button">📄 解析招标文件</button>
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
       <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span></div>
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">内容</span>
-        <button id="openParserBtn" class="btn secondary" type="button">📄 招标文件解析</button>
         <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
         <button id="downloadTemplateBtn" class="btn secondary" type="button">下载导入模板</button>
         <button id="exportBtn" class="btn secondary" type="button">📤 导出</button>
@@ -401,6 +401,7 @@
           <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
           <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
           <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析并回填</button>
+          <button id="aiCancelBtn" class="btn tint-red hidden" type="button">⏹ 终止分析</button>
           <button id="clearParserBtn" class="btn secondary" type="button" disabled>清空解析结果</button>
         </div>
         <div class="pdf-save-row">
@@ -414,7 +415,7 @@
         <div id="aiResultPanel" class="ai-result-wrap"></div>
       </section>
     </section>
-    <footer class="app-footer">投标工作台 v0.16.0</footer>
+    <footer class="app-footer">投标工作台 v0.17.0</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>

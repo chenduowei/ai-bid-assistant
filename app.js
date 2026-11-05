@@ -70,6 +70,7 @@ import { createDataIo } from "./js/data-io.js";
     toggleTextBtn: document.getElementById("toggleTextBtn"),
     copyTextBtn: document.getElementById("copyTextBtn"),
     aiAnalyzeBtn: document.getElementById("aiAnalyzeBtn"),
+    aiCancelBtn: document.getElementById("aiCancelBtn"),
     clearParserBtn: document.getElementById("clearParserBtn"),
     aiResultPanel: document.getElementById("aiResultPanel"),
     aiSettingsBtn: document.getElementById("aiSettingsBtn"),
@@ -975,6 +976,7 @@ import { createDataIo } from "./js/data-io.js";
     elements.pdfInput?.addEventListener("change", async (event) => {
       await ensureParserModules();
       clearStaleAiResult();
+      setSavePdfTextState(false);
       pdfParser.parsePdf(event.target.files?.[0]);
     });
     ["dragenter", "dragover"].forEach((eventName) =>
@@ -992,6 +994,7 @@ import { createDataIo } from "./js/data-io.js";
     elements.dropZone?.addEventListener("drop", async (event) => {
       await ensureParserModules();
       clearStaleAiResult();
+      setSavePdfTextState(false);
       pdfParser.parsePdf(event.dataTransfer.files?.[0]);
     });
     // v0.16.0：清掉上一份解析的 AI 结果 —— 新文件解析前、查看已保存文本时、
@@ -999,6 +1002,15 @@ import { createDataIo } from "./js/data-io.js";
     const clearStaleAiResult = () => {
       lastAiResult = null;
       if (elements.aiResultPanel) elements.aiResultPanel.innerHTML = "";
+    };
+    // v0.17.0：保存文本按钮的标签即状态 —— "保存文本到该项目"（未存）/
+    // "保存中…"（进行中）/ "已保存 ✓"（已存）。新解析或清空时复位；查看已保存
+    // 文本时直接标已保存，避免用户对着已存文本再点一次慢保存。
+    const setSavePdfTextState = (saved) => {
+      if (!elements.savePdfTextBtn) return;
+      elements.savePdfTextBtn.textContent = saved
+        ? "已保存 ✓"
+        : "保存文本到该项目";
     };
 
     elements.toggleTextBtn?.addEventListener("click", () => {
@@ -1027,6 +1039,7 @@ import { createDataIo } from "./js/data-io.js";
       elements.copyTextBtn.disabled = true;
       elements.aiAnalyzeBtn.disabled = true;
       elements.clearParserBtn.disabled = true;
+      setSavePdfTextState(false);
       ui.showToast("已清空解析结果。");
     });
 
@@ -1056,8 +1069,10 @@ import { createDataIo } from "./js/data-io.js";
           ui.showToast("所选项目不存在。");
           return;
         }
-        // 先按该项目进编辑态（表单填回该项目的值），再把刚出的新分析盖上去。
+        // v0.17.0：先回工作台再展开表单 —— v0.16.0 漏了 showDashboard，
+        // 用户停在解析页时表单在藏着的视图里展开，点了跟没点一样。
         const freshAi = lastAiResult;
+        showDashboard();
         enterEditMode(p);
         if (freshAi) {
           lastAiResult = freshAi;
@@ -1067,6 +1082,8 @@ import { createDataIo } from "./js/data-io.js";
     });
 
     // 解析页：把当前解析文本保存到所选项目（pdf_text / pdf_filename / pdf_parsed_at）
+    // v0.17.0：保存是两次往返（写 14 万字文本 + 全量刷新列表），此前按钮无任何
+    // 反馈、看着像卡死 —— 保存中禁用并显示"保存中…"，成功后标"已保存 ✓"。
     elements.savePdfTextBtn?.addEventListener("click", async () => {
       const projectId = elements.pdfProjectSelect?.value || "";
       if (!projectId) {
@@ -1080,12 +1097,26 @@ import { createDataIo } from "./js/data-io.js";
       }
       const project = state.projects.find((p) => p.id === projectId);
       const filename = getCurrentPdfFilename(project?.pdfFilename);
-      const ok = await projectsApi.updateProjectFields(projectId, {
-        pdfText: text,
-        pdfFilename: filename,
-        pdfParsedAt: new Date().toISOString(),
-      });
-      if (ok) ui.showToast(`已保存到项目「${project?.name || ""}」。`);
+      const btn = elements.savePdfTextBtn;
+      btn.disabled = true;
+      btn.textContent = "保存中…";
+      try {
+        const ok = await projectsApi.updateProjectFields(projectId, {
+          pdfText: text,
+          pdfFilename: filename,
+          pdfParsedAt: new Date().toISOString(),
+        });
+        if (ok) {
+          ui.showToast(`已保存到项目「${project?.name || ""}」。`);
+          setSavePdfTextState(true);
+        } else {
+          setSavePdfTextState(false);
+        }
+      } catch {
+        setSavePdfTextState(false);
+      } finally {
+        btn.disabled = false;
+      }
     });
 
     elements.aiAnalyzeBtn?.addEventListener("click", async () => {
@@ -1096,9 +1127,13 @@ import { createDataIo } from "./js/data-io.js";
       }
       await ensureParserModules();
       elements.aiAnalyzeBtn.disabled = true;
+      // v0.17.0：分析中显示“终止分析”，点按后 ai-extract 取消当前请求与后续分块。
+      elements.aiCancelBtn?.classList.remove("hidden");
       try {
-        const result = await aiExtract.analyzeTenderText(text, (msg) =>
-          pdfParser.setParseProgress(90, msg)
+        // v0.17.0：进度回调带真实百分比（摘要 10→80、最终调用 85、解析结果 95），
+        // 不再全程钉死 90%。
+        const result = await aiExtract.analyzeTenderText(text, (msg, pct) =>
+          pdfParser.setParseProgress(pct ?? 90, msg)
         );
         lastAiResult = result;
         // v0.6.0：AI 回填到选填字段时自动展开选填区
@@ -1116,11 +1151,21 @@ import { createDataIo } from "./js/data-io.js";
         ui.showToast("AI 分析完成，已回填表单，请在下方选择保存方式。");
         // v0.16.0：分析完不再自动跳表单 —— 留在解析页核对结果，保存方式由面板上的按钮决定。
       } catch (err) {
-        ui.showToast(err?.message || "AI 分析失败");
-        pdfParser.setParseProgress(0, "AI 分析失败");
+        const msg = err?.message || "AI 分析失败";
+        ui.showToast(msg);
+        pdfParser.setParseProgress(
+          0,
+          msg === "已终止分析。" ? "已终止分析。" : "AI 分析失败"
+        );
       } finally {
         elements.aiAnalyzeBtn.disabled = false;
+        elements.aiCancelBtn?.classList.add("hidden");
       }
+    });
+
+    // v0.17.0：终止分析 —— 只发取消信号，提示与进度复位由分析回调的 catch 接手。
+    elements.aiCancelBtn?.addEventListener("click", () => {
+      aiExtract?.cancelAnalysis?.();
     });
 
     elements.aiSettingsBtn?.addEventListener("click", async () => {
@@ -1343,6 +1388,8 @@ import { createDataIo } from "./js/data-io.js";
         elements.copyTextBtn.disabled = false;
         elements.aiAnalyzeBtn.disabled = false;
         elements.clearParserBtn.disabled = false;
+        // 这份文本本就是从该项目存里取出来的，直接标已保存。
+        setSavePdfTextState(true);
         showParser();
       }
       if (button.dataset.action === "clone") {
@@ -1428,6 +1475,56 @@ import { createDataIo } from "./js/data-io.js";
           [field]: items,
         });
         if (ok) ui.showToast("已删除该条结论。");
+      }
+      // v0.17.0：风险与条款一键清空 —— 摘要 + 三列结论一起清（risk_summary
+      // 需进 updateProjectFields 白名单）；空内容时不弹确认，直接提示。
+      if (button.dataset.action === "clear-risk") {
+        const p = state.projects.find((project) => project.id === id);
+        if (!p) return;
+        const hasAny =
+          p.riskSummary ||
+          (p.riskPoints && p.riskPoints.length) ||
+          (p.qualification && p.qualification.length) ||
+          (p.invalidBidClauses && p.invalidBidClauses.length);
+        if (!hasAny) {
+          ui.showToast("风险与条款已经是空的。");
+          return;
+        }
+        const okConfirm = await ui.confirmDialog({
+          title: "清空风险与条款",
+          message:
+            "确定清空该项目的全部风险与条款吗？包括风险摘要、资格要求、废标条款与风险点，清空后无法直接恢复。",
+          confirmText: "清空",
+          danger: true,
+        });
+        if (!okConfirm) return;
+        const ok = await projectsApi.updateProjectFields(id, {
+          riskSummary: null,
+          riskPoints: [],
+          qualification: [],
+          invalidBidClauses: [],
+        });
+        if (ok) ui.showToast("已清空风险与条款。");
+      }
+      // v0.17.0：废标检查清单一键清空 —— 整列回写为空数组。
+      if (button.dataset.action === "clear-checklist") {
+        const p = state.projects.find((project) => project.id === id);
+        if (!p) return;
+        if (!(p.checklist || []).length) {
+          ui.showToast("检查清单已经是空的。");
+          return;
+        }
+        const okConfirm = await ui.confirmDialog({
+          title: "清空检查清单",
+          message: "确定清空该项目的全部检查项吗？清空后无法直接恢复。",
+          confirmText: "清空",
+          danger: true,
+        });
+        if (!okConfirm) return;
+        const ok = await projectsApi.updateProjectFields(id, {
+          checklist: [],
+        });
+        if (ok) ui.showToast("已清空检查清单。");
       }
       if (button.dataset.action === "checklist-delete") {
         const p = state.projects.find((project) => project.id === id);

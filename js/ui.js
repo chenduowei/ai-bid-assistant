@@ -222,7 +222,7 @@ export function createUi(elements, getState) {
           )
           .join("")}</ul>`
       : "";
-    return `<div class="risk-report${collapsed ? " collapsed" : ""}"><div class="risk-head"><div class="risk-title">⚠️ 风险与条款</div><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></div><div class="risk-body">${
+    return `<div class="risk-report${collapsed ? " collapsed" : ""}"><div class="risk-head"><div class="risk-title">⚠️ 风险与条款</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-risk" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></span></div><div class="risk-body">${
       p.riskSummary
         ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
         : ""
@@ -312,7 +312,7 @@ export function createUi(elements, getState) {
           )
           .join("")
       : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
-    return `<div class="checklist${collapsed ? " collapsed" : ""}"><div class="checklist-head"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></div><div class="checklist-body"><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div></div>`;
+    return `<div class="checklist${collapsed ? " collapsed" : ""}"><div class="checklist-head"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-checklist" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></span></div><div class="checklist-body"><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div></div>`;
   };
 
   /** v0.4.5：列表 cell 右侧倒计时 pill —— 短文案 + 紧急度 class（60s 刷新只更新文字） */

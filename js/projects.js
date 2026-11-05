@@ -427,6 +427,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       riskPoints: "risk_points",
       qualification: "qualification",
       invalidBidClauses: "invalid_bid_clauses",
+      // v0.17.0：一键清空风险与条款时，风险摘要也走此通道回写 null
+      riskSummary: "risk_summary",
       amountValue: "amount_value",
       amountUnit: "amount_unit",
       guaranteeAmount: "guarantee_amount",
