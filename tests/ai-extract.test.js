@@ -206,7 +206,8 @@ test("analyzeTenderText：分析进行中再调直接拒绝", async () => {
   }
 });
 
-/* v0.18.0：AI 面板按模式出按钮 —— 假容器（只要 innerHTML 与 querySelector）即可测 */
+/* v0.19.0：AI 面板底部只剩「回填到表单」—— 绑定与全局同一套，不再分
+   新建/更新/直存/编辑四种按钮，也不再有「选择保存方式」与下拉框提示 */
 
 function fakePanelContainer() {
   return { innerHTML: "", querySelector: () => null };
@@ -219,27 +220,19 @@ const PANEL_RESULT = {
   riskPoints: [],
 };
 
-test("renderAiResultPanel：未绑定时出新建/更新按钮", () => {
+test("renderAiResultPanel：面板底部只有一个「回填到表单」，不分模式", () => {
   const ai = createAiExtract({ ui: {} });
   const c = fakePanelContainer();
   ai.renderAiResultPanel(c, PANEL_RESULT);
-  assert.ok(c.innerHTML.includes('data-action="ai-save-new"'));
-  assert.ok(c.innerHTML.includes('data-action="ai-save-update"'));
-  assert.ok(!c.innerHTML.includes('data-action="ai-save-attach"'));
-  assert.ok(!c.innerHTML.includes('data-action="ai-save-edit"'));
-});
-
-test("renderAiResultPanel：绑定项目时出直存/编辑按钮并显示项目名", () => {
-  const ai = createAiExtract({ ui: {} });
-  const c = fakePanelContainer();
-  ai.renderAiResultPanel(c, PANEL_RESULT, {
-    target: { id: "1", name: "测试项目" },
-  });
-  assert.ok(c.innerHTML.includes('data-action="ai-save-attach"'));
-  assert.ok(c.innerHTML.includes('data-action="ai-save-edit"'));
-  assert.ok(c.innerHTML.includes("测试项目"));
+  assert.ok(c.innerHTML.includes('data-action="ai-apply-form"'));
+  assert.ok(c.innerHTML.includes("回填到表单"));
+  assert.ok(c.innerHTML.includes("分析完成，请核对结果。"));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-new"'));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-update"'));
+  assert.ok(!c.innerHTML.includes('data-action="ai-save-attach"'));
+  assert.ok(!c.innerHTML.includes('data-action="ai-save-edit"'));
+  assert.ok(!c.innerHTML.includes("选择保存方式"));
+  assert.ok(!c.innerHTML.includes("已回填表单"));
 });
 
 /* ============ v0.18.2：分块放大 + 流式 SSE 解析 ============ */

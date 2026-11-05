@@ -375,7 +375,7 @@
     </section>
     </div>
 
-    <footer class="app-footer">投标工作台 v0.18.2</footer>
+    <footer class="app-footer">投标工作台 v0.19.0</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
@@ -441,17 +441,20 @@
           <div class="parser-actions">
             <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
             <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
-            <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析并回填</button>
+            <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析</button>
+            <button id="saveToProjectBtn" class="btn secondary" type="button">💾 保存到项目</button>
             <button id="aiCancelBtn" class="btn tint-red hidden" type="button">⏹ 终止分析</button>
             <button id="clearParserBtn" class="btn secondary" type="button" disabled>清空解析结果</button>
           </div>
-          <div class="pdf-save-row">
+          <!-- v0.19.0：目标选择器 —— 平时藏起，只在未绑定时点「保存到项目」或
+            「回填到表单」才出现，就地选一次；绑定模式目标已知，永远不出现。 -->
+          <div id="parserTargetRow" class="pdf-save-row hidden">
             <div class="field pdf-save-field">
-              <label for="pdfProjectSelect">保存到项目</label>
+              <label for="pdfProjectSelect" id="parserTargetLabel">保存到项目</label>
               <select id="pdfProjectSelect"><option value="">请选择项目</option></select>
-              <span id="pdfProjectName" class="pdf-target-label hidden"></span>
             </div>
-            <button id="savePdfTextBtn" class="btn secondary" type="button">保存文本到该项目</button>
+            <button id="parserTargetConfirmBtn" class="btn primary" type="button">确定</button>
+            <button id="parserTargetCancelBtn" class="btn secondary" type="button">取消</button>
           </div>
           <textarea id="parsedText" class="parser-text hidden" readonly placeholder="完成解析后，全文将在这里显示。"></textarea>
           <div id="aiResultPanel" class="ai-result-wrap"></div>

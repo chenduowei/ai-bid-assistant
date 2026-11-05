@@ -61,8 +61,11 @@ import { createDataIo } from "./js/data-io.js";
     closeParserBtn: document.getElementById("closeParserBtn"),
     pdfInput: document.getElementById("pdfInput"),
     pdfProjectSelect: document.getElementById("pdfProjectSelect"),
-    pdfProjectName: document.getElementById("pdfProjectName"),
-    savePdfTextBtn: document.getElementById("savePdfTextBtn"),
+    saveToProjectBtn: document.getElementById("saveToProjectBtn"),
+    parserTargetRow: document.getElementById("parserTargetRow"),
+    parserTargetLabel: document.getElementById("parserTargetLabel"),
+    parserTargetConfirmBtn: document.getElementById("parserTargetConfirmBtn"),
+    parserTargetCancelBtn: document.getElementById("parserTargetCancelBtn"),
     dropZone: document.getElementById("dropZone"),
     parserStatus: document.getElementById("parserStatus"),
     parseProgress: document.getElementById("parseProgress"),
@@ -516,7 +519,7 @@ import { createDataIo } from "./js/data-io.js";
     ui.renderTrashList(deleted);
   }
 
-  /** 解析页“保存到项目”下拉：列当前所有项目（名称 + 开标日期） */
+  /** 目标选择器的下拉：列当前所有项目（名称 + 开标日期），供保存与回填时就地选目标 */
   function refreshPdfProjectOptions() {
     const select = elements.pdfProjectSelect;
     if (!select) return;
@@ -662,6 +665,7 @@ import { createDataIo } from "./js/data-io.js";
   const closeParserSheet = () => {
     if (!parserSheetOpen) return;
     parserSheetOpen = false;
+    closeParserTargetPicker();
     elements.parserSheet?.classList.add("hidden");
     document.body.classList.remove("sheet-open");
     setActiveTab(state.viewMode === "calendar" ? "calendar" : "projects");
@@ -671,23 +675,16 @@ import { createDataIo } from "./js/data-io.js";
 
   // v0.18.0：解析目标 —— 抽屉绑定到某个项目时，解析文本/AI 结果都归属它；
   // 换目标时清掉上一份解析态，避免旧文本配新项目；同目标重开则保留。
+  // v0.19.0：绑定目标不再用下拉框/固定标签表示 —— 保存与回填的目标在
+  // 做决定那一步就地选（见 openParserTargetPicker），绑定时根本不出现。
   const setParseTarget = (targetId) => {
     const nextId = targetId || null;
     if (nextId === parseTargetId) return;
     parseTargetId = nextId;
     resetParserState();
-    // 保存行：绑定时下拉框换成固定项目名，未绑定时恢复下拉框。
     const p = nextId
       ? state.projects.find((project) => project.id === nextId)
       : null;
-    if (elements.pdfProjectSelect) {
-      elements.pdfProjectSelect.classList.toggle("hidden", !!nextId);
-      if (nextId) elements.pdfProjectSelect.value = nextId;
-    }
-    if (elements.pdfProjectName) {
-      elements.pdfProjectName.classList.toggle("hidden", !nextId);
-      elements.pdfProjectName.textContent = p ? p.name : "";
-    }
     if (elements.parserSheetSubtitle) {
       elements.parserSheetSubtitle.textContent = p
         ? `正在为「${p.name}」解析招标文件，分析结果可直接保存到该项目。`
@@ -714,7 +711,8 @@ import { createDataIo } from "./js/data-io.js";
     elements.copyTextBtn.disabled = true;
     elements.aiAnalyzeBtn.disabled = true;
     elements.clearParserBtn.disabled = true;
-    setSavePdfTextState(false);
+    closeParserTargetPicker();
+    setSaveToProjectState(false);
   };
 
   const showParser = (targetId = null, opener = null) =>
@@ -1066,7 +1064,7 @@ import { createDataIo } from "./js/data-io.js";
     elements.pdfInput?.addEventListener("change", async (event) => {
       await ensureParserModules();
       clearStaleAiResult();
-      setSavePdfTextState(false);
+      setSaveToProjectState(false);
       pdfParser.parsePdf(event.target.files?.[0]);
     });
     ["dragenter", "dragover"].forEach((eventName) =>
@@ -1084,7 +1082,7 @@ import { createDataIo } from "./js/data-io.js";
     elements.dropZone?.addEventListener("drop", async (event) => {
       await ensureParserModules();
       clearStaleAiResult();
-      setSavePdfTextState(false);
+      setSaveToProjectState(false);
       pdfParser.parsePdf(event.dataTransfer.files?.[0]);
     });
     // v0.16.0：清掉上一份解析的 AI 结果 —— 新文件解析前、查看已保存文本时、
@@ -1093,14 +1091,48 @@ import { createDataIo } from "./js/data-io.js";
       lastAiResult = null;
       if (elements.aiResultPanel) elements.aiResultPanel.innerHTML = "";
     };
-    // v0.17.0：保存文本按钮的标签即状态 —— "保存文本到该项目"（未存）/
+    // v0.17.0：保存按钮的标签即状态 —— "💾 保存到项目"（未存）/
     // "保存中…"（进行中）/ "已保存 ✓"（已存）。新解析或清空时复位；查看已保存
     // 文本时直接标已保存，避免用户对着已存文本再点一次慢保存。
-    const setSavePdfTextState = (saved) => {
-      if (!elements.savePdfTextBtn) return;
-      elements.savePdfTextBtn.textContent = saved
+    const setSaveToProjectState = (saved) => {
+      if (!elements.saveToProjectBtn) return;
+      elements.saveToProjectBtn.textContent = saved
         ? "已保存 ✓"
-        : "保存文本到该项目";
+        : "💾 保存到项目";
+    };
+
+    // v0.19.0：目标选择器 —— 未绑定时，保存与回填的目标都不提前选，只在
+    // 点下按钮那一刻就地选一次。pendingAction 记住这次是保存还是回填。
+    // 回填默认"新建项目"，也可挑已有项目更新；保存只能挑已有项目。
+    let parserPendingAction = null;
+    const openParserTargetPicker = (action) => {
+      parserPendingAction = action;
+      refreshPdfProjectOptions();
+      const select = elements.pdfProjectSelect;
+      if (!select) return;
+      if (action === "apply") {
+        const opt = document.createElement("option");
+        opt.value = "__new";
+        opt.textContent = "新建项目";
+        select.insertBefore(opt, select.options[1] || null);
+        select.value = "__new";
+        if (elements.parserTargetLabel)
+          elements.parserTargetLabel.textContent = "回填到";
+        if (elements.parserTargetConfirmBtn)
+          elements.parserTargetConfirmBtn.textContent = "回填";
+      } else {
+        select.value = "";
+        if (elements.parserTargetLabel)
+          elements.parserTargetLabel.textContent = "保存到项目";
+        if (elements.parserTargetConfirmBtn)
+          elements.parserTargetConfirmBtn.textContent = "保存";
+      }
+      elements.parserTargetRow?.classList.remove("hidden");
+      select.focus();
+    };
+    const closeParserTargetPicker = () => {
+      parserPendingAction = null;
+      elements.parserTargetRow?.classList.add("hidden");
     };
 
     elements.toggleTextBtn?.addEventListener("click", () => {
@@ -1115,20 +1147,27 @@ import { createDataIo } from "./js/data-io.js";
     });
 
     // v0.16.0：清空解析结果 —— 只清解析区（文本 + AI 面板 + 内存旧结果），不动表单。
-    // v0.18.0：绑定模式下目标不变，只清解析内容；未绑定时选框也复位。
+    // v0.19.0：绑定目标本身不在这里动（换目标由 setParseTarget 管）；选择器
+    // 由 resetParserState 一并收起。
     elements.clearParserBtn?.addEventListener("click", () => {
       resetParserState();
-      if (!parseTargetId && elements.pdfProjectSelect)
-        elements.pdfProjectSelect.value = "";
       ui.showToast("已清空解析结果。");
     });
 
-    // v0.16.0：AI 面板下一步 —— 保存方式由用户点按决定，不再分析完自动跳表单。
-    // v0.18.0：绑定模式多两个动作（直存本项目 / 打开表单编辑），直存要调接口故监听改为 async。
-    elements.aiResultPanel?.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-      if (button.dataset.action === "ai-save-new") {
+    // v0.19.0：把分析结果回填到表单 —— 面板底部只剩这一个动作。保存方式
+    // 不在这里选：回填后表单自己的保存按钮即定新建/更新（editingId 决定）。
+    // 绑定时直接进该项目的表单；未绑定时就地选一次（默认新建项目）。
+    const applyAiResultToForm = (targetId) => {
+      const freshAi = lastAiResult;
+      if (!freshAi) {
+        ui.showToast("没有可回填的分析结果，先做 AI 分析。");
+        return;
+      }
+      // v0.6.0：回填到选填字段时自动展开选填区 —— 先记下回填前的值再填。
+      const beforeOptional = OPTIONAL_FIELDS.map(
+        (k) => elements.form[k]?.value ?? ""
+      );
+      if (!targetId) {
         state.editingId = null;
         elements.submitBtn.textContent = "新增项目";
         elements.cancelBtn.classList.add("hidden");
@@ -1138,105 +1177,117 @@ import { createDataIo } from "./js/data-io.js";
             "必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。";
         showDashboard();
         revealForm();
-      }
-      if (button.dataset.action === "ai-save-update") {
-        const targetId = elements.pdfProjectSelect?.value || "";
-        if (!targetId) {
-          ui.showToast("先在「保存到项目」里选择要更新的项目。");
-          return;
-        }
+      } else {
         const p = state.projects.find((project) => project.id === targetId);
         if (!p) {
           ui.showToast("所选项目不存在。");
           return;
         }
-        // v0.17.0：先回工作台再展开表单 —— v0.16.0 漏了 showDashboard，
-        // 用户停在解析页时表单在藏着的视图里展开，点了跟没点一样。
-        const freshAi = lastAiResult;
+        // v0.17.0：先回工作台再展开表单 —— 表单在藏着的视图里展开，
+        // 点了跟没点一样（v0.16.0 的教训）。
         showDashboard();
         enterEditMode(p);
-        if (freshAi) {
-          lastAiResult = freshAi;
-          aiExtract.applyToForm(elements, freshAi);
-        }
       }
-      if (button.dataset.action === "ai-save-attach") {
-        // 绑定模式：分析结果直写该项目（风险 + 资格 + 废标 + 摘要），不用过表单；
-        // 项目名称、开标时间等字段不动，想改走「打开表单编辑」。
-        const p = parseTargetId
-          ? state.projects.find((project) => project.id === parseTargetId)
-          : null;
-        if (!p || !lastAiResult) {
-          ui.showToast("没有可保存的分析结果。");
+      lastAiResult = freshAi;
+      aiExtract.applyToForm(elements, freshAi);
+      const optionalFilled = OPTIONAL_FIELDS.some((k, i) => {
+        const v = elements.form[k]?.value ?? "";
+        return v !== beforeOptional[i] && String(v).trim() !== "";
+      });
+      if (optionalFilled) setOptionalExpanded(true);
+    };
+
+    elements.aiResultPanel?.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      if (button.dataset.action === "ai-apply-form") {
+        if (parseTargetId) {
+          applyAiResultToForm(parseTargetId);
           return;
         }
-        const ok = await projectsApi.updateProjectFields(parseTargetId, {
-          riskPoints: lastAiResult.riskPoints || [],
-          qualification: lastAiResult.qualification || [],
-          invalidBidClauses: lastAiResult.invalidBidClauses || [],
-          riskSummary: lastAiResult.riskSummary || null,
-        });
-        if (ok) {
-          ui.showToast(`分析结果已保存到项目「${p.name}」。`);
-          showDashboard();
-          ui.focusProjectInList(parseTargetId);
-        }
-      }
-      if (button.dataset.action === "ai-save-edit") {
-        // 绑定模式：去表单改字段 —— 回工作台、进该项目编辑态、盖上新分析。
-        const p = parseTargetId
-          ? state.projects.find((project) => project.id === parseTargetId)
-          : null;
-        if (!p) {
-          ui.showToast("未绑定项目。");
-          return;
-        }
-        const freshAi = lastAiResult;
-        showDashboard();
-        enterEditMode(p);
-        if (freshAi) {
-          lastAiResult = freshAi;
-          aiExtract.applyToForm(elements, freshAi);
-        }
+        openParserTargetPicker("apply");
       }
     });
 
-    // 解析页：把当前解析文本保存到所选项目（pdf_text / pdf_filename / pdf_parsed_at）
-    // v0.17.0：保存是两次往返（写 14 万字文本 + 全量刷新列表），此前按钮无任何
-    // 反馈、看着像卡死 —— 保存中禁用并显示"保存中…"，成功后标"已保存 ✓"。
-    elements.savePdfTextBtn?.addEventListener("click", async () => {
-      const projectId = elements.pdfProjectSelect?.value || "";
-      if (!projectId) {
-        ui.showToast("先选择要保存到的项目。");
-        return;
+    // v0.19.0：解析文本 + 分析结果一次保存到项目（合一的保存入口）。
+    // 没做分析只存文本（pdf_text / pdf_filename / pdf_parsed_at）；做过分析
+    // 则文本与结论（风险 + 资格 + 废标 + 摘要）一起写。绑定时直接存，
+    // 未绑定时就地选一次目标。保存中禁用并显示"保存中…"，成功后标"已保存 ✓"。
+    const saveParserToProject = async (projectId) => {
+      const text = elements.parsedText?.value || "";
+      if (!text.trim()) {
+        ui.showToast("没有可保存的解析文本，先解析 PDF。");
+        return false;
       }
+      const project = state.projects.find((p) => p.id === projectId);
+      if (!project) {
+        ui.showToast("所选项目不存在。");
+        return false;
+      }
+      const filename = getCurrentPdfFilename(project?.pdfFilename);
+      const fields = {
+        pdfText: text,
+        pdfFilename: filename,
+        pdfParsedAt: new Date().toISOString(),
+      };
+      if (lastAiResult) {
+        fields.riskPoints = lastAiResult.riskPoints || [];
+        fields.qualification = lastAiResult.qualification || [];
+        fields.invalidBidClauses = lastAiResult.invalidBidClauses || [];
+        fields.riskSummary = lastAiResult.riskSummary || null;
+      }
+      const btn = elements.saveToProjectBtn;
+      btn.disabled = true;
+      btn.textContent = "保存中…";
+      try {
+        const ok = await projectsApi.updateProjectFields(projectId, fields);
+        if (ok) {
+          ui.showToast(`已保存到项目「${project.name}」。`);
+          setSaveToProjectState(true);
+        } else {
+          setSaveToProjectState(false);
+        }
+        return ok;
+      } catch {
+        setSaveToProjectState(false);
+        return false;
+      } finally {
+        btn.disabled = false;
+      }
+    };
+
+    elements.saveToProjectBtn?.addEventListener("click", async () => {
       const text = elements.parsedText?.value || "";
       if (!text.trim()) {
         ui.showToast("没有可保存的解析文本，先解析 PDF。");
         return;
       }
-      const project = state.projects.find((p) => p.id === projectId);
-      const filename = getCurrentPdfFilename(project?.pdfFilename);
-      const btn = elements.savePdfTextBtn;
-      btn.disabled = true;
-      btn.textContent = "保存中…";
-      try {
-        const ok = await projectsApi.updateProjectFields(projectId, {
-          pdfText: text,
-          pdfFilename: filename,
-          pdfParsedAt: new Date().toISOString(),
-        });
-        if (ok) {
-          ui.showToast(`已保存到项目「${project?.name || ""}」。`);
-          setSavePdfTextState(true);
-        } else {
-          setSavePdfTextState(false);
-        }
-      } catch {
-        setSavePdfTextState(false);
-      } finally {
-        btn.disabled = false;
+      if (parseTargetId) {
+        await saveParserToProject(parseTargetId);
+        return;
       }
+      openParserTargetPicker("save");
+    });
+
+    // 目标选择器的确定 / 取消 —— 确定按 pendingAction 执行保存或回填。
+    elements.parserTargetConfirmBtn?.addEventListener("click", async () => {
+      const action = parserPendingAction;
+      if (!action) return;
+      const targetId = elements.pdfProjectSelect?.value || "";
+      if (action === "save") {
+        if (!targetId) {
+          ui.showToast("先选择要保存到的项目。");
+          return;
+        }
+        closeParserTargetPicker();
+        await saveParserToProject(targetId);
+        return;
+      }
+      closeParserTargetPicker();
+      applyAiResultToForm(targetId === "__new" ? null : targetId || null);
+    });
+    elements.parserTargetCancelBtn?.addEventListener("click", () => {
+      closeParserTargetPicker();
     });
 
     elements.aiAnalyzeBtn?.addEventListener("click", async () => {
@@ -1256,35 +1307,11 @@ import { createDataIo } from "./js/data-io.js";
           pdfParser.setParseProgress(pct ?? 90, msg)
         );
         lastAiResult = result;
-        // v0.18.0：绑定模式不回填表单 —— 表单藏在工作台里，填了也看不见；
-        // 直存与编辑两条路都不依赖这次回填（编辑时现填）。
-        if (!parseTargetId) {
-          // v0.6.0：AI 回填到选填字段时自动展开选填区
-          const beforeOptional = OPTIONAL_FIELDS.map(
-            (k) => elements.form[k]?.value ?? ""
-          );
-          aiExtract.applyToForm(elements, result);
-          const optionalFilled = OPTIONAL_FIELDS.some((k, i) => {
-            const v = elements.form[k]?.value ?? "";
-            return v !== beforeOptional[i] && String(v).trim() !== "";
-          });
-          if (optionalFilled) setOptionalExpanded(true);
-        }
-        const targetProject = parseTargetId
-          ? state.projects.find((project) => project.id === parseTargetId)
-          : null;
-        aiExtract.renderAiResultPanel(elements.aiResultPanel, result, {
-          target: targetProject
-            ? { id: targetProject.id, name: targetProject.name }
-            : null,
-        });
+        // v0.19.0：分析只展示、不回填表单 —— 回填是用户在面板上点的明确动作。
+        aiExtract.renderAiResultPanel(elements.aiResultPanel, result);
         pdfParser.setParseProgress(100, "AI 分析完成。");
-        ui.showToast(
-          parseTargetId
-            ? "AI 分析完成，请在下方选择保存方式。"
-            : "AI 分析完成，已回填表单，请在下方选择保存方式。"
-        );
-        // v0.16.0：分析完不再自动跳表单 —— 留在解析页核对结果，保存方式由面板上的按钮决定。
+        ui.showToast("AI 分析完成，请核对结果。");
+        // v0.16.0：分析完不再自动跳表单 —— 留在解析页核对结果，点「回填到表单」才去表单。
       } catch (err) {
         const msg = err?.message || "AI 分析失败";
         ui.showToast(msg);
@@ -1539,7 +1566,7 @@ import { createDataIo } from "./js/data-io.js";
         elements.aiAnalyzeBtn.disabled = false;
         elements.clearParserBtn.disabled = false;
         // 这份文本本就是从该项目存里取出来的，直接标已保存。
-        setSavePdfTextState(true);
+        setSaveToProjectState(true);
       }
       if (button.dataset.action === "clone") {
         await projectsApi.cloneProject(id);

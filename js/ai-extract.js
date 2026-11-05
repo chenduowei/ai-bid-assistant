@@ -679,11 +679,11 @@ export function createAiExtract({ ui }) {
       elements.form.notes.value = result.notes;
   }
 
-  // v0.18.0：options.target 绑定项目时（{id, name}），面板底部出直存/编辑；
-  // 未绑定时出新建/更新（旧流程）。直存不走表单，编辑时才现填表单。
-  function renderAiResultPanel(container, result, options = {}) {
+  // v0.19.0：面板底部只剩一个动作 ——「回填到表单」。分析只展示、不动表单；
+  // 保存方式不在这里选：回填后表单自己的保存按钮即定新建/更新；文本与结论
+  // 的直接保存走操作区的「保存到项目」。绑定与全局模式同一套面板。
+  function renderAiResultPanel(container, result) {
     if (!container) return;
-    const target = options.target || null;
     if (lastPanelResult !== result) {
       aiPanelCollapsed = false;
       lastPanelResult = result;
@@ -740,21 +740,10 @@ export function createAiExtract({ ui }) {
         ${points ? `<div class="ai-section"><strong>风险点</strong><ul class="risk-points">${points}</ul></div>` : ""}
         </div>
         <div class="ai-next">
-          ${
-            target
-              ? `<div class="ai-next-text">分析完成。请核对后选择保存方式。</div>
+          <div class="ai-next-text">分析完成，请核对结果。</div>
           <div class="ai-next-actions">
-            <button class="btn primary" type="button" data-action="ai-save-attach">保存分析结果到本项目</button>
-            <button class="btn secondary" type="button" data-action="ai-save-edit">打开表单编辑</button>
+            <button class="btn primary" type="button" data-action="ai-apply-form">回填到表单</button>
           </div>
-          <p class="ai-next-hint">直接保存到「${escape(target.name)}」，不经过项目表单；想改项目名称、开标时间等字段时用「打开表单编辑」。</p>`
-              : `<div class="ai-next-text">分析完成，已回填表单。请核对后选择保存方式。</div>
-          <div class="ai-next-actions">
-            <button class="btn primary" type="button" data-action="ai-save-new">新建项目并填写表单</button>
-            <button class="btn secondary" type="button" data-action="ai-save-update">更新到所选项目并填写表单</button>
-          </div>
-          <p class="ai-next-hint">更新目标取上方「保存到项目」下拉框所选的项目；未选择时请先在上方选择。</p>`
-          }
         </div>
       </div>`;
     // v0.16.0：面板折叠开关（容器本身不替换，监听绑在本次渲染的按钮上即可）。
