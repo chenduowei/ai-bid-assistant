@@ -15,7 +15,7 @@ AI Bid Assistant 是一个结合 **项目管理 + 招标文件解析 + AI 风险
 
 > 把机械重复的整理工作交给工具，把时间留给更重要的判断与决策。
 
-当前版本：**v0.8.0**
+当前版本：**v0.14.1**
 
 当前阶段以 **稳定使用、真实反馈、持续优化体验** 为主，暂不盲目扩展功能。
 
@@ -75,7 +75,7 @@ AI Bid Assistant 是一个结合 **项目管理 + 招标文件解析 + AI 风险
 功能包括：
 
 - 浏览器端 PDF 文本提取
-  - 文件不会上传到本项目服务器
+  - 文件本身不会上传（浏览器内解析）；解析文字只在您点「保存文本到该项目」后存到 Supabase，AI 分析时会发给您配置的模型服务商
 - 支持 OpenAI 兼容 API
 - 自动提取：
 
@@ -97,6 +97,22 @@ AI 辅助能力：
 - 项目卡片展示风险提示
 
 > AI 负责整理信息，最终判断仍由专业人员完成。
+
+---
+
+## 🔒 隐私与产品边界
+
+数据去向（文件不上传，不等于内容完全不出本地）：
+
+- PDF 文件本身在浏览器内解析，不上传；解析后的文字只在您点「保存文本到该项目」后存到 Supabase（`pdf_text` 字段，截断到 20 万字符），列表平时不拉取全文。
+- 做 AI 分析时，解析文字会发给您配置的模型服务商（OpenAI 兼容接口）。
+- API Key 只存在本机浏览器 localStorage，不经过本项目后端；项目数据存 Supabase 并以 RLS 按用户隔离，他人看不到您的数据，但数据在云端，不是纯本地存储。
+
+使用门槛与边界：
+
+- 需自备 Supabase、API Key、API Base URL 和模型名；统一模型服务暂不提供。
+- 扫描版 / 图片 PDF 几乎没有文本层，工具会检测并提示先用 OCR 转文字，暂不内置 OCR。
+- 浏览器通知只在页面打开时生效；关页提醒需部署 Edge Function（暂不部署），.ics 日历提醒在计划中。
 
 ---
 
@@ -153,7 +169,19 @@ ai-bid-assistant
 │   ├── projects.js
 │   ├── pdf-parser.js
 │   ├── ai-extract.js
+│   ├── data-io.js
 │   └── ui.js
+
+├── tests/
+│   ├── ai-extract.test.js
+│   ├── lazy-loading.test.js
+│   ├── pagination.test.js
+│   ├── snapshot.test.js
+│   └── utils.test.js
+
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 
 ├── supabase.sql
 
@@ -161,7 +189,9 @@ ai-bid-assistant
 ├── supabase-config.js
 
 ├── scripts/
-│   └── generate-config.mjs
+│   ├── generate-config.mjs
+│   ├── check-version.mjs
+│   └── check-css.mjs
 
 └── docs/
     ├── changelog.md
@@ -172,6 +202,8 @@ ai-bid-assistant
 |---|---|
 | `index.html` / `app.js` / `styles.css` | 页面入口与基础样式 |
 | `js/*.js` | 核心业务模块 |
+| `tests/*.js` | 自动化测试（分页 / 快照 / 懒加载 / AI 抽取） |
+| `.github/workflows/ci.yml` | 每次推送自动跑测试与版本、样式校验 |
 | `supabase.sql` | 数据库结构、RLS、安全策略 |
 | `supabase-config.example.js` | 配置模板 |
 | `supabase-config.js` | 本地配置文件（勿提交） |
@@ -359,6 +391,7 @@ Authentication → URL Configuration
 - `supabase-config.js` 已加入 `.gitignore`
 - AI Key 仅存储于用户本机
 - 项目没有后端服务器，不收集用户 AI 密钥
+- 解析文字与 AI 请求的数据去向，见「隐私与产品边界」一节
 
 ---
 
