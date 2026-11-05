@@ -1722,3 +1722,20 @@ body.sheet-open { overflow: hidden; }
 .evidence-state.unsourced { color: var(--tint-orange-text); background: var(--tint-orange-bg); }
 .verify-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; }
 .verify-btn.verified { color: var(--tint-green-text); background: var(--tint-green-bg); }
+
+/* ========== v0.16.0 ========== */
+
+/* —— 分区折叠：风险卡片 / 检查清单 / AI 结果面板 —— */
+.risk-head, .checklist-head, .ai-result-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.risk-head .risk-title, .checklist-head .checklist-progress { margin-bottom: 0; }
+.risk-body, .checklist-body, .ai-result-body { margin-top: 10px; }
+.risk-report.collapsed .risk-body, .checklist.collapsed .checklist-body, .ai-result-card.collapsed .ai-result-body { display: none; }
+.section-collapse-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; }
+.ai-result-head h3 { margin: 0; }
+/* —— 结论单条删除（小 × 按钮，复用清单删除的手感） —— */
+.evidence-del { flex: none; padding: 2px 8px; font-size: var(--fs-sm); border-radius: 999px; }
+/* —— AI 面板下一步：保存方式二选一 —— */
+.ai-next { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
+.ai-next-text { font-size: var(--fs-md); font-weight: 700; }
+.ai-next-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+.ai-next-hint { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; }

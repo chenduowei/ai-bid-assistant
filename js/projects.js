@@ -381,14 +381,20 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     };
     ui.setSyncStatus("正在保存…");
     const wasEditing = Boolean(editingId);
+    // v0.16.0：保存成功返回项目 id（新建时取刚插入行的 id），供调用方定位到该卡片；
+    // 失败仍返回 false。调用方只有 app.js 的提交按钮一处。
     const query = wasEditing
       ? client
           .from("projects")
           .update(payload)
           .eq("id", editingId)
           .eq("user_id", state.user.id)
-      : client.from("projects").insert({ ...payload, user_id: state.user.id });
-    const { error } = await query;
+      : client
+          .from("projects")
+          .insert({ ...payload, user_id: state.user.id })
+          .select("id")
+          .single();
+    const { data, error } = await query;
     if (error) {
       ui.setSyncStatus("保存失败", true);
       if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
@@ -403,7 +409,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       getState().realtimeReady ? "实时同步已连接" : "云端已同步"
     );
     ui.showToast(wasEditing ? "项目已更新。" : "项目已添加到云端。");
-    return true;
+    return wasEditing ? editingId : data?.id || false;
   }
 
   /**

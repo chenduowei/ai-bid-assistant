@@ -211,6 +211,10 @@ function validateExtracted(raw) {
 }
 
 export function createAiExtract({ ui }) {
+  // v0.16.0：AI 结果面板折叠态（内存，同一轮分析内重渲染保持；换一份新结果时恢复展开）。
+  let aiPanelCollapsed = false;
+  let lastPanelResult = null;
+
   async function callChat(messages, onProgress) {
     const cfg = getAiConfig();
     if (!cfg.apiKey) {
@@ -418,6 +422,10 @@ export function createAiExtract({ ui }) {
 
   function renderAiResultPanel(container, result) {
     if (!container) return;
+    if (lastPanelResult !== result) {
+      aiPanelCollapsed = false;
+      lastPanelResult = result;
+    }
     const sanitizeLevel = (level) =>
       ["high", "medium", "low"].includes(level) ? level : "medium";
     // v0.15.0：分析结果面板只读展示证据（页码 + 原文 + 状态），核对开关在项目卡片上。
@@ -452,8 +460,9 @@ export function createAiExtract({ ui }) {
       .join(" · ");
 
     container.innerHTML = `
-      <div class="ai-result-card">
-        <h3>AI 分析结果</h3>
+      <div class="ai-result-card${aiPanelCollapsed ? " collapsed" : ""}">
+        <div class="ai-result-head"><h3>AI 分析结果</h3><button class="btn secondary section-collapse-btn" type="button" data-action="ai-panel-toggle" aria-expanded="${aiPanelCollapsed ? "false" : "true"}">${aiPanelCollapsed ? "展开" : "收起"}</button></div>
+        <div class="ai-result-body">
         ${metaBits ? `<p class="ai-meta">${metaBits}</p>` : ""}
         <p class="risk-summary">${escape(result.riskSummary || "无摘要")}</p>
         ${
@@ -467,8 +476,23 @@ export function createAiExtract({ ui }) {
             : ""
         }
         ${points ? `<div class="ai-section"><strong>风险点</strong><ul class="risk-points">${points}</ul></div>` : ""}
-        <p class="ai-hint">已尝试回填到「新增/编辑项目」表单，请核对后保存。资格要求与废标条款将结构化写入项目，保存后在卡片中展示。</p>
+        </div>
+        <div class="ai-next">
+          <div class="ai-next-text">分析完成，已回填表单。请核对后选择保存方式。</div>
+          <div class="ai-next-actions">
+            <button class="btn primary" type="button" data-action="ai-save-new">新建项目并填写表单</button>
+            <button class="btn secondary" type="button" data-action="ai-save-update">更新到所选项目并填写表单</button>
+          </div>
+          <p class="ai-next-hint">更新目标取上方「保存到项目」下拉框所选的项目；未选择时请先在上方选择。</p>
+        </div>
       </div>`;
+    // v0.16.0：面板折叠开关（容器本身不替换，监听绑在本次渲染的按钮上即可）。
+    container
+      .querySelector('[data-action="ai-panel-toggle"]')
+      ?.addEventListener("click", () => {
+        aiPanelCollapsed = !aiPanelCollapsed;
+        renderAiResultPanel(container, result);
+      });
   }
 
   function escape(s) {

@@ -184,7 +184,11 @@ export function createUi(elements, getState) {
     const toggle = project
       ? `<button class="btn verify-btn ${item.verified ? "verified" : ""}" type="button" data-action="verify-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" aria-pressed="${item.verified ? "true" : "false"}" title="${item.verified ? "取消核对" : "标记为已核对"}">${item.verified ? "✓ 已核对" : "核对"}</button>`
       : "";
-    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${toggle}</div>`;
+    // v0.16.0：结论单条删除（卡片上才有；AI 面板是只读预览，不放删除）。
+    const del = project
+      ? `<button class="btn secondary evidence-del" type="button" data-action="delete-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" title="删除这条结论">×</button>`
+      : "";
+    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${toggle}${del}</div>`;
   };
 
   const renderStructList = (title, items, project, kind) => {
@@ -208,6 +212,7 @@ export function createUi(elements, getState) {
       (p.qualification && p.qualification.length) ||
       (p.invalidBidClauses && p.invalidBidClauses.length);
     if (!hasRisk && !hasStruct) return "";
+    const collapsed = getState().collapsedSections?.has(`${p.id}:risk`);
     const points = Array.isArray(p.riskPoints) ? p.riskPoints : [];
     const pointsHtml = points.length
       ? `<ul class="risk-points">${points
@@ -217,11 +222,11 @@ export function createUi(elements, getState) {
           )
           .join("")}</ul>`
       : "";
-    return `<div class="risk-report"><div class="risk-title">⚠️ 风险与条款</div>${
+    return `<div class="risk-report${collapsed ? " collapsed" : ""}"><div class="risk-head"><div class="risk-title">⚠️ 风险与条款</div><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></div><div class="risk-body">${
       p.riskSummary
         ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
         : ""
-    }${renderStructList("资格要求", p.qualification, p, "qualification")}${renderStructList("废标条款", p.invalidBidClauses, p, "invalid")}${pointsHtml}</div>`;
+    }${renderStructList("资格要求", p.qualification, p, "qualification")}${renderStructList("废标条款", p.invalidBidClauses, p, "invalid")}${pointsHtml}</div></div>`;
   };
 
   const matchesKeyword = (p, keyword) => {
@@ -298,6 +303,7 @@ export function createUi(elements, getState) {
   const renderChecklist = (p) => {
     const list = Array.isArray(p.checklist) ? p.checklist : [];
     const { done, total } = getChecklistProgress(list);
+    const collapsed = getState().collapsedSections?.has(`${p.id}:checklist`);
     const itemsHtml = list.length
       ? list
           .map(
@@ -306,7 +312,7 @@ export function createUi(elements, getState) {
           )
           .join("")
       : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
-    return `<div class="checklist"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div>`;
+    return `<div class="checklist${collapsed ? " collapsed" : ""}"><div class="checklist-head"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></div><div class="checklist-body"><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div></div>`;
   };
 
   /** v0.4.5：列表 cell 右侧倒计时 pill —— 短文案 + 紧急度 class（60s 刷新只更新文字） */

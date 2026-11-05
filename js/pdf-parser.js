@@ -58,6 +58,7 @@ export function createPdfParser({ elements, ui }) {
     elements.toggleTextBtn.disabled = true;
     elements.copyTextBtn.disabled = true;
     if (elements.aiAnalyzeBtn) elements.aiAnalyzeBtn.disabled = true;
+    if (elements.clearParserBtn) elements.clearParserBtn.disabled = true;
     elements.dropZone?.classList.add("parsing");
     setParseProgress(0, "正在加载 PDF…");
     let loadingTask = null;
@@ -117,6 +118,7 @@ export function createPdfParser({ elements, ui }) {
       const fullText = pages.join("\n\n");
       elements.parsedText.value = fullText;
       elements.toggleTextBtn.disabled = false;
+      if (elements.clearParserBtn) elements.clearParserBtn.disabled = false;
       // 扫描版 / 图片 PDF 几乎没有文本层：平均每页少于 20 字即判定为可疑，
       // 避免用户拿着空文本去做 AI 分析、模型瞎编。此时禁用 AI 按钮并明示原因。
       const bodyText = pages
@@ -142,6 +144,7 @@ export function createPdfParser({ elements, ui }) {
       // 旧任务被新任务作废：静默返回，不弹失败提示、不重置进度（新任务在写进度）
       if (isStale()) return null;
       setParseProgress(0, "PDF 解析失败");
+      if (elements.clearParserBtn) elements.clearParserBtn.disabled = false;
       ui.showToast(
         `PDF 解析失败：${error?.message || "请确认文件未损坏或受密码保护。"}`
       );

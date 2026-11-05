@@ -70,6 +70,7 @@ import { createDataIo } from "./js/data-io.js";
     toggleTextBtn: document.getElementById("toggleTextBtn"),
     copyTextBtn: document.getElementById("copyTextBtn"),
     aiAnalyzeBtn: document.getElementById("aiAnalyzeBtn"),
+    clearParserBtn: document.getElementById("clearParserBtn"),
     aiResultPanel: document.getElementById("aiResultPanel"),
     aiSettingsBtn: document.getElementById("aiSettingsBtn"),
     aiSettingsPanel: document.getElementById("aiSettingsPanel"),
@@ -176,6 +177,8 @@ import { createDataIo } from "./js/data-io.js";
     channel: null,
     /** v0.4.1：项目卡片详情展开态（内存 Set，render/筛选/排序/分页/保存后恢复） */
     expandedIds: new Set(),
+    /** v0.16.0：卡片内分区折叠态（key 为 `${projectId}:risk` / `${projectId}:checklist`） */
+    collapsedSections: new Set(),
     /** v0.4.3：新增 / 编辑表单默认折叠 */
     formExpanded: false,
     /** v0.6.0：选填信息默认折叠（与 formExpanded 独立） */
@@ -879,11 +882,14 @@ import { createDataIo } from "./js/data-io.js";
       const originalText = btn.textContent;
       btn.disabled = true;
       btn.textContent = "保存中…";
-      const ok = await projectsApi.saveProject(formData(), state.editingId);
+      const savedId = await projectsApi.saveProject(formData(), state.editingId);
       btn.disabled = false;
       // 成功时 resetForm() 会把按钮文案设回“新增项目”；失败才恢复原文字
-      if (ok) resetForm();
-      else btn.textContent = originalText;
+      // v0.16.0：保存成功后定位到该项目卡片并展开，不再只停在表单页。
+      if (savedId) {
+        resetForm();
+        ui.focusProjectInList(savedId);
+      } else btn.textContent = originalText;
     });
     elements.cancelBtn?.addEventListener("click", resetForm);
     // v0.4.0：搜索框 input 防抖 200ms；筛选 / 排序 change 立即渲染。
@@ -968,6 +974,7 @@ import { createDataIo } from "./js/data-io.js";
     });
     elements.pdfInput?.addEventListener("change", async (event) => {
       await ensureParserModules();
+      clearStaleAiResult();
       pdfParser.parsePdf(event.target.files?.[0]);
     });
     ["dragenter", "dragover"].forEach((eventName) =>
@@ -984,8 +991,16 @@ import { createDataIo } from "./js/data-io.js";
     );
     elements.dropZone?.addEventListener("drop", async (event) => {
       await ensureParserModules();
+      clearStaleAiResult();
       pdfParser.parsePdf(event.dataTransfer.files?.[0]);
     });
+    // v0.16.0：清掉上一份解析的 AI 结果 —— 新文件解析前、查看已保存文本时、
+    // 点"清空"时都调，避免旧面板配新文本、旧结果带进下次保存。
+    const clearStaleAiResult = () => {
+      lastAiResult = null;
+      if (elements.aiResultPanel) elements.aiResultPanel.innerHTML = "";
+    };
+
     elements.toggleTextBtn?.addEventListener("click", () => {
       const hidden = elements.parsedText.classList.toggle("hidden");
       elements.toggleTextBtn.textContent = hidden
@@ -995,6 +1010,60 @@ import { createDataIo } from "./js/data-io.js";
     elements.copyTextBtn?.addEventListener("click", async () => {
       await ensureParserModules();
       pdfParser.copyParsedText();
+    });
+
+    // v0.16.0：清空解析结果 —— 只清解析区（文本 + AI 面板 + 内存旧结果），不动表单。
+    elements.clearParserBtn?.addEventListener("click", () => {
+      clearStaleAiResult();
+      elements.parsedText.value = "";
+      elements.parsedText.classList.add("hidden");
+      elements.pdfFileName.textContent = "";
+      elements.pdfPageCount.textContent = "总页数：0";
+      pdfParser.setParseProgress(0, "等待解析");
+      if (elements.pdfInput) elements.pdfInput.value = "";
+      if (elements.pdfProjectSelect) elements.pdfProjectSelect.value = "";
+      elements.toggleTextBtn.disabled = true;
+      elements.toggleTextBtn.textContent = "查看原始文本";
+      elements.copyTextBtn.disabled = true;
+      elements.aiAnalyzeBtn.disabled = true;
+      elements.clearParserBtn.disabled = true;
+      ui.showToast("已清空解析结果。");
+    });
+
+    // v0.16.0：AI 面板下一步 —— 保存方式由用户点按决定，不再分析完自动跳表单。
+    elements.aiResultPanel?.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      if (button.dataset.action === "ai-save-new") {
+        state.editingId = null;
+        elements.submitBtn.textContent = "新增项目";
+        elements.cancelBtn.classList.add("hidden");
+        elements.formBody?.closest(".form-panel")?.classList.remove("editing");
+        if (elements.formSubtitle)
+          elements.formSubtitle.textContent =
+            "必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。";
+        showDashboard();
+        revealForm();
+      }
+      if (button.dataset.action === "ai-save-update") {
+        const targetId = elements.pdfProjectSelect?.value || "";
+        if (!targetId) {
+          ui.showToast("先在「保存到项目」里选择要更新的项目。");
+          return;
+        }
+        const p = state.projects.find((project) => project.id === targetId);
+        if (!p) {
+          ui.showToast("所选项目不存在。");
+          return;
+        }
+        // 先按该项目进编辑态（表单填回该项目的值），再把刚出的新分析盖上去。
+        const freshAi = lastAiResult;
+        enterEditMode(p);
+        if (freshAi) {
+          lastAiResult = freshAi;
+          aiExtract.applyToForm(elements, freshAi);
+        }
+      }
     });
 
     // 解析页：把当前解析文本保存到所选项目（pdf_text / pdf_filename / pdf_parsed_at）
@@ -1044,9 +1113,8 @@ import { createDataIo } from "./js/data-io.js";
         if (optionalFilled) setOptionalExpanded(true);
         aiExtract.renderAiResultPanel(elements.aiResultPanel, result);
         pdfParser.setParseProgress(100, "AI 分析完成。");
-        ui.showToast("AI 分析完成，已回填表单，请核对后保存。");
-        showDashboard();
-        revealForm();
+        ui.showToast("AI 分析完成，已回填表单，请在下方选择保存方式。");
+        // v0.16.0：分析完不再自动跳表单 —— 留在解析页核对结果，保存方式由面板上的按钮决定。
       } catch (err) {
         ui.showToast(err?.message || "AI 分析失败");
         pdfParser.setParseProgress(0, "AI 分析失败");
@@ -1158,6 +1226,60 @@ import { createDataIo } from "./js/data-io.js";
       }
     });
 
+    // v0.16.0：编辑回填抽出共用 —— 卡片"编辑"与 AI"更新到已有项目"都走这里。
+    const fillFormFromProject = (p) => {
+      elements.form.date.value = p.date || "";
+      elements.form.type.value = p.type || "";
+      elements.form.name.value = p.name || "";
+      elements.form.biddingCompany.value = p.biddingCompany || "";
+      if (elements.form.tenderer) elements.form.tenderer.value = p.tenderer || "";
+      if (elements.form.amountValue)
+        elements.form.amountValue.value = p.amountValue ?? "";
+      if (elements.form.amountUnit)
+        elements.form.amountUnit.value = p.amountUnit || "万元";
+      elements.form.guarantee.value = p.guarantee || "";
+      if (elements.form.guaranteeAmount)
+        elements.form.guaranteeAmount.value = p.guaranteeAmount ?? "";
+      if (elements.form.guaranteeUnit)
+        elements.form.guaranteeUnit.value = p.guaranteeUnit || "万元";
+      if (elements.form.guaranteeStatus)
+        elements.form.guaranteeStatus.value = p.guaranteeStatus || "未缴纳";
+      if (elements.form.registrationDeadline)
+        elements.form.registrationDeadline.value = p.registrationDeadline || "";
+      if (elements.form.inquiryDeadline)
+        elements.form.inquiryDeadline.value = p.inquiryDeadline || "";
+      if (elements.form.clarificationDeadline)
+        elements.form.clarificationDeadline.value =
+          p.clarificationDeadline || "";
+      if (elements.form.guaranteeDeadline)
+        elements.form.guaranteeDeadline.value = p.guaranteeDeadline || "";
+      elements.form.contact.value = p.contact || "";
+      elements.form.status.value = p.status || "报名中";
+      elements.form.notes.value = p.notes || "";
+    };
+
+    const enterEditMode = (p) => {
+      state.editingId = p.id;
+      lastAiResult =
+        p.riskSummary || p.qualification || p.invalidBidClauses
+          ? {
+              riskSummary: p.riskSummary,
+              riskPoints: p.riskPoints,
+              qualification: p.qualification,
+              invalidBidClauses: p.invalidBidClauses,
+              extractedMeta: p.extractedMeta,
+            }
+          : null;
+      fillFormFromProject(p);
+      setOptionalExpanded(hasOptionalValues()); // v0.6.0：编辑时有选填值则展开
+      elements.submitBtn.textContent = "保存修改";
+      elements.cancelBtn.classList.remove("hidden");
+      elements.formBody?.closest(".form-panel")?.classList.add("editing");
+      if (elements.formSubtitle)
+        elements.formSubtitle.textContent = `正在编辑：${String(p.name || "").slice(0, 12)}…`;
+      revealForm();
+    };
+
     elements.list?.addEventListener("click", async (event) => {
       // v0.5.1：操作按钮已搬到行头部——点按钮只走按钮分支，不触发折叠切换
       const button = event.target.closest("button");
@@ -1212,10 +1334,15 @@ import { createDataIo } from "./js/data-io.js";
         elements.parsedText.value = text;
         elements.parsedText.classList.remove("hidden");
         elements.pdfFileName.textContent = `已保存文件：${p.pdfFilename || "未命名"}（${text.length} 字）`;
+        // v0.16.0：这份文本归属该项目 —— 选框跟上，AI"更新到所选项目"可直接用；
+        // 同时清掉上一份的 AI 面板，避免旧结果配这份文本。
+        clearStaleAiResult();
+        if (elements.pdfProjectSelect) elements.pdfProjectSelect.value = p.id;
         elements.toggleTextBtn.disabled = false;
         elements.toggleTextBtn.textContent = "隐藏原始文本";
         elements.copyTextBtn.disabled = false;
         elements.aiAnalyzeBtn.disabled = false;
+        elements.clearParserBtn.disabled = false;
         showParser();
       }
       if (button.dataset.action === "clone") {
@@ -1262,6 +1389,46 @@ import { createDataIo } from "./js/data-io.js";
         });
         if (ok) ui.showToast("已添加检查项。");
       }
+      // v0.16.0：卡片内分区折叠（风险与条款 / 废标检查清单）——只动 DOM 与内存态，不重渲染。
+      if (button.dataset.action === "toggle-section") {
+        const section = button.dataset.section;
+        if (section !== "risk" && section !== "checklist") return;
+        const key = `${id}:${section}`;
+        const collapsed = state.collapsedSections.has(key);
+        if (collapsed) state.collapsedSections.delete(key);
+        else state.collapsedSections.add(key);
+        const container = button.closest(".risk-report, .checklist");
+        container?.classList.toggle("collapsed", !collapsed);
+        button.textContent = collapsed ? "收起" : "展开";
+        button.setAttribute("aria-expanded", String(collapsed));
+      }
+      // v0.16.0：AI 结论单条删除 —— 先确认，再整列回写；原始 JSON 仍在 extractedMeta 里。
+      if (button.dataset.action === "delete-evidence") {
+        const p = state.projects.find((project) => project.id === id);
+        if (!p) return;
+        const fieldMap = {
+          qualification: "qualification",
+          invalid: "invalidBidClauses",
+          risk: "riskPoints",
+        };
+        const field = fieldMap[button.dataset.kind];
+        const index = Number(button.dataset.index);
+        if (!field || !Number.isInteger(index)) return;
+        const items = normalizeEvidenceItems(p[field]);
+        if (!items[index]) return;
+        const okConfirm = await ui.confirmDialog({
+          title: "删除这条结论",
+          message: "确定删除这条结论吗？删除后不再显示，也无法直接恢复。",
+          confirmText: "删除",
+          danger: true,
+        });
+        if (!okConfirm) return;
+        items.splice(index, 1);
+        const ok = await projectsApi.updateProjectFields(id, {
+          [field]: items,
+        });
+        if (ok) ui.showToast("已删除该条结论。");
+      }
       if (button.dataset.action === "checklist-delete") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
@@ -1300,52 +1467,7 @@ import { createDataIo } from "./js/data-io.js";
       if (button.dataset.action === "edit") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
-        state.editingId = id;
-        lastAiResult =
-          p.riskSummary || p.qualification || p.invalidBidClauses
-            ? {
-                riskSummary: p.riskSummary,
-                riskPoints: p.riskPoints,
-                qualification: p.qualification,
-                invalidBidClauses: p.invalidBidClauses,
-                extractedMeta: p.extractedMeta,
-              }
-            : null;
-        elements.form.date.value = p.date || "";
-        elements.form.type.value = p.type || "";
-        elements.form.name.value = p.name || "";
-        elements.form.biddingCompany.value = p.biddingCompany || "";
-        if (elements.form.tenderer) elements.form.tenderer.value = p.tenderer || "";
-        if (elements.form.amountValue)
-          elements.form.amountValue.value = p.amountValue ?? "";
-        if (elements.form.amountUnit)
-          elements.form.amountUnit.value = p.amountUnit || "万元";
-        elements.form.guarantee.value = p.guarantee || "";
-        if (elements.form.guaranteeAmount)
-          elements.form.guaranteeAmount.value = p.guaranteeAmount ?? "";
-        if (elements.form.guaranteeUnit)
-          elements.form.guaranteeUnit.value = p.guaranteeUnit || "万元";
-        if (elements.form.guaranteeStatus)
-          elements.form.guaranteeStatus.value = p.guaranteeStatus || "未缴纳";
-        if (elements.form.registrationDeadline)
-          elements.form.registrationDeadline.value = p.registrationDeadline || "";
-        if (elements.form.inquiryDeadline)
-          elements.form.inquiryDeadline.value = p.inquiryDeadline || "";
-        if (elements.form.clarificationDeadline)
-          elements.form.clarificationDeadline.value =
-            p.clarificationDeadline || "";
-        if (elements.form.guaranteeDeadline)
-          elements.form.guaranteeDeadline.value = p.guaranteeDeadline || "";
-        elements.form.contact.value = p.contact || "";
-        elements.form.status.value = p.status || "报名中";
-        elements.form.notes.value = p.notes || "";
-        setOptionalExpanded(hasOptionalValues()); // v0.6.0：编辑时有选填值则展开
-        elements.submitBtn.textContent = "保存修改";
-        elements.cancelBtn.classList.remove("hidden");
-        elements.formBody?.closest(".form-panel")?.classList.add("editing");
-        if (elements.formSubtitle)
-          elements.formSubtitle.textContent = `正在编辑：${String(p.name || "").slice(0, 12)}…`;
-        revealForm();
+        enterEditMode(p);
       }
     });
 
