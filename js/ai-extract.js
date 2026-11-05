@@ -21,8 +21,17 @@ import {
 
 const DEFAULT_BASE = "https://api.openai.com/v1";
 const DEFAULT_MODEL = "gpt-4o-mini";
-/** 单次请求建议上限（字符），超出则走分块 */
-const CHUNK_CHARS = 24000;
+/** 单次请求建议上限（字符），超出则走分块
+ * v0.18.2：24000 → 48000 —— 14.5 万字文档从 7 块减到 4 块，少 3 次往返；
+ * 模型长上下文足够，单块摘要质量不受损。 */
+const CHUNK_CHARS = 48000;
+/** v0.18.2：分块摘要并行路数（2 路）。串行是慢的主因；3 路以上中转限流
+ * 429 概率明显上升，2 路是速度与限流的平衡点，失败有退避与串行回退兜底。 */
+const SUMMARY_CONCURRENCY = 2;
+/** v0.18.2：流式进度估算 —— 单次请求内按已收字符占期望输出的比例推进，
+ * 收到期望量时卡在 90%，请求完成再跳满；期望只是刻度，不是承诺。 */
+const EXPECTED_SUMMARY_CHARS = 1600;
+const EXPECTED_FINAL_CHARS = 6000;
 const MAX_RETRIES = 1;
 /** 单次模型请求超时（120 秒），防网络卡死一直转圈 */
 const AI_REQUEST_TIMEOUT_MS = 120000;
@@ -238,20 +247,87 @@ export function createAiExtract({ ui }) {
     return ctrl.signal;
   }
 
-  async function callChat(messages, onProgress, cancelSignal) {
-    const cfg = getAiConfig();
-    if (!cfg.apiKey) {
-      throw new Error("请先在「AI 设置」中填写 API Key。");
+  // v0.18.2：流式（SSE）解析 —— parseSseChunk 是纯函数（可单测），一次只
+  // 解析 buffer 里已完整的行，最后一行残段留给下次；data 行里的 delta.content
+  // 拼起来就是本次输出。role-only 首包、[DONE]、注释行、坏行都跳过。
+  function parseSseChunk(buffer) {
+    const lines = String(buffer).split("\n");
+    const rest = lines.pop();
+    const contents = [];
+    for (let line of lines) {
+      if (line.endsWith("\r")) line = line.slice(0, -1);
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      try {
+        const obj = JSON.parse(data);
+        const delta = obj.choices?.[0]?.delta?.content;
+        if (delta) contents.push(delta);
+        const msg = obj.choices?.[0]?.message?.content;
+        if (msg) contents.push(msg);
+      } catch {
+        // 坏行跳过，不让一行脏数据毁掉整段输出
+      }
     }
-    const body = {
-      model: cfg.model,
-      temperature: 0.2,
-      max_tokens: AI_MAX_TOKENS,
-      messages,
-    };
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
-    const signal = combineSignals(controller.signal, cancelSignal);
+    return { contents, rest };
+  }
+
+  // 标记"中转不支持流式"：只在这种情况下回退非流式；取消、超时、HTTP 错
+  // 误都不是它，不回退（回退了也一样错，还白费一次请求）。
+  class StreamUnsupportedError extends Error {}
+
+  // v0.18.2：读 SSE 流。onChars(已收字符数) 随 token 到达而回调，调用方据此
+  // 在本次请求的进度带里推进。流里没见到 SSE 数据（中转无视 stream 参数
+  // 直接回了 JSON，或 body 不可读）即报 StreamUnsupported，由 callChat 回退。
+  async function readStreamContent(res, signal, onChars) {
+    const contentType = res.headers?.get?.("content-type") || "";
+    if (!res.body || typeof res.body.getReader !== "function") {
+      throw new StreamUnsupportedError("中转未返回可读流");
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let received = "";
+    let sawSse = contentType.includes("text/event-stream");
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const { contents, rest } = parseSseChunk(buffer);
+        buffer = rest;
+        if (contents.length) sawSse = true;
+        for (const c of contents) {
+          received += c;
+          onChars?.(received.length);
+        }
+      }
+      buffer += decoder.decode();
+      const tail = parseSseChunk(`${buffer}\n`);
+      for (const c of tail.contents) {
+        received += c;
+        onChars?.(received.length);
+      }
+    } finally {
+      try {
+        reader.cancel();
+      } catch {
+        // 读完/取消后无需再处理
+      }
+    }
+    if (!sawSse) throw new StreamUnsupportedError("中转未返回 SSE 流");
+    if (!received) throw new Error("模型未返回有效内容。");
+    return received;
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // 可重试的错误：限流与服务端瞬错才值得重试；401（密钥错）与取消不重试。
+  const isRetryableError = (err) =>
+    /429|500|502|503|504/.test(err?.message || "") ||
+    /超时/.test(err?.message || "");
+
+  async function postChatCompletions(cfg, body, signal) {
     let res;
     try {
       res = await fetch(`${cfg.baseUrl}/chat/completions`, {
@@ -265,15 +341,11 @@ export function createAiExtract({ ui }) {
       });
     } catch (err) {
       // 用户取消优先于超时：两者都表现为 AbortError。
-      if (cancelSignal?.aborted) {
-        throw new Error(CANCELLED_MESSAGE);
-      }
-      if (err?.name === "AbortError") {
+      if (signal?.aborted && err?.name === "AbortError") {
+        // 区分取消与超时：取消信号 abort 时抛取消文案，否则报超时。
         throw new Error("模型请求超时（120 秒），请检查网络或稍后重试。");
       }
       throw err;
-    } finally {
-      clearTimeout(timer);
     }
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
@@ -281,22 +353,104 @@ export function createAiExtract({ ui }) {
         `模型请求失败（${res.status}）：${errText.slice(0, 200) || res.statusText}`
       );
     }
+    return res;
+  }
+
+  async function callChatNonStream(messages, signal, cfg) {
+    const res = await postChatCompletions(
+      cfg,
+      {
+        model: cfg.model,
+        temperature: 0.2,
+        max_tokens: AI_MAX_TOKENS,
+        messages,
+      },
+      signal
+    );
     const data = await res.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) throw new Error("模型未返回有效内容。");
     return content;
   }
 
-  // v0.17.0：onProgress 第二个参数是真实百分比 —— 摘要按块算 10→80，
-  // 最终调用 85，解析结果 95；app.js 收到后直接画进度条，不再钉死 90%。
-  async function summarizeChunks(chunks, onProgress, cancelSignal) {
-    const summaries = [];
-    for (let i = 0; i < chunks.length; i++) {
-      if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
-      onProgress?.(
-        `长文档分块摘要中（${i + 1}/${chunks.length}）…`,
-        10 + Math.round((i / chunks.length) * 70)
+  // v0.18.2：先试流式（边收 token 边通过 onStreamChars 推进度），中转不
+  // 支持流式时回退一次非流式；取消/超时/HTTP 错误直接抛，不回退。
+  // onStreamChars(已收字符数) 由调用方映射到本次请求的进度带。
+  async function callChat(messages, onProgress, cancelSignal, onStreamChars) {
+    const cfg = getAiConfig();
+    if (!cfg.apiKey) {
+      throw new Error("请先在「AI 设置」中填写 API Key。");
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+    const signal = combineSignals(controller.signal, cancelSignal);
+    try {
+      const streamRes = await postChatCompletions(
+        cfg,
+        {
+          model: cfg.model,
+          temperature: 0.2,
+          max_tokens: AI_MAX_TOKENS,
+          stream: true,
+          messages,
+        },
+        signal
       );
+      try {
+        return await readStreamContent(streamRes, signal, onStreamChars);
+      } catch (err) {
+        if (err instanceof StreamUnsupportedError) {
+          return await callChatNonStream(messages, signal, cfg);
+        }
+        throw err;
+      }
+    } catch (err) {
+      if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
+      if (err?.name === "AbortError") {
+        throw new Error("模型请求超时（120 秒），请检查网络或稍后重试。");
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // v0.18.2：分块摘要 2 路并行（worker 池，顺序由下标保证，摘要拼回时按原序）。
+  // 进度是真的按完成量算：每块占 70/n 个点，块内流式按已收字符推进到该块的
+  // 90%，块完成跳满；文案带已用时间与按已完成块平均耗时估的剩余时间。
+  // 失败处理：限流/服务端错先退避重试一次，再失败进失败清单；并行跑完后，
+  // 失败的块逐块串行再试一次（中转限流下串行更容易过），还失败才整体报错。
+  // 取消与 401 这类不可重试错误不进失败清单，直接抛出去，不白费重试。
+  async function summarizeChunks(chunks, onProgress, cancelSignal) {
+    const n = chunks.length;
+    const summaries = new Array(n);
+    const fracs = new Array(n).fill(0);
+    const startedAt = Date.now();
+    let done = 0;
+    let lastReportAt = 0;
+    let lastPct = -1;
+    const report = (force = false) => {
+      const now = Date.now();
+      const frac = fracs.reduce((a, b) => a + b, 0) / n;
+      const pct = 10 + Math.round(frac * 70);
+      // 流式回调来得密：百分比没变且 300ms 内报过就跳过，别让进度条 DOM 狂刷。
+      if (!force && pct === lastPct && now - lastReportAt < 300) return;
+      lastReportAt = now;
+      lastPct = pct;
+      const elapsed = Math.round((now - startedAt) / 1000);
+      const avgMs = done > 0 ? (now - startedAt) / done : 0;
+      const remain = Math.max(
+        0,
+        Math.round((avgMs * (n - done)) / SUMMARY_CONCURRENCY / 1000)
+      );
+      onProgress?.(
+        `长文档分块摘要中（${done}/${n}）· 已用 ${elapsed} 秒${done > 0 ? `，预计还剩 ${remain} 秒` : ""}…`,
+        pct
+      );
+    };
+
+    const summarizeOne = async (i, attempts = 2) => {
+      if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
       // v0.15.0：分块带页码区间进提示词，摘要才留得住出处。
       const chunk = chunks[i];
       const range =
@@ -306,20 +460,66 @@ export function createAiExtract({ ui }) {
             : `第 ${chunk.startPage}–${chunk.endPage} 页`
           : "";
       const label = range
-        ? `【片段 ${i + 1}/${chunks.length} · ${range}】`
-        : `【片段 ${i + 1}/${chunks.length}】`;
-      const content = await callChat(
-        [
-          { role: "system", content: CHUNK_SUMMARY_PROMPT },
-          {
-            role: "user",
-            content: `${label}\n\n${chunk.text}`,
-          },
-        ],
-        onProgress,
-        cancelSignal
-      );
-      summaries.push(`【片段 ${i + 1} 摘要${range ? ` · ${range}` : ""}】\n${content.trim()}`);
+        ? `【片段 ${i + 1}/${n} · ${range}】`
+        : `【片段 ${i + 1}/${n}】`;
+      let lastError = null;
+      for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+          const content = await callChat(
+            [
+              { role: "system", content: CHUNK_SUMMARY_PROMPT },
+              { role: "user", content: `${label}\n\n${chunk.text}` },
+            ],
+            onProgress,
+            cancelSignal,
+            // 流式进度：按已收字符占期望输出的比例推到该块的 90%，完成再跳满。
+            (received) => {
+              fracs[i] = Math.min(received / EXPECTED_SUMMARY_CHARS, 0.9);
+              report();
+            }
+          );
+          summaries[i] = `【片段 ${i + 1} 摘要${range ? ` · ${range}` : ""}】\n${content.trim()}`;
+          fracs[i] = 1;
+          done += 1;
+          report(true);
+          return;
+        } catch (err) {
+          if (err?.message === CANCELLED_MESSAGE) throw err;
+          lastError = err;
+          if (!isRetryableError(err) || attempt >= attempts) throw err;
+          await sleep(1000 * attempt);
+          if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
+        }
+      }
+      throw lastError || new Error("分块摘要失败");
+    };
+
+    const failures = [];
+    let next = 0;
+    const workers = Array.from(
+      { length: Math.min(SUMMARY_CONCURRENCY, n) },
+      async () => {
+        for (;;) {
+          if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
+          const i = next;
+          next += 1;
+          if (i >= n) return;
+          try {
+            await summarizeOne(i);
+          } catch (err) {
+            if (err?.message === CANCELLED_MESSAGE) throw err;
+            if (!isRetryableError(err)) throw err;
+            failures.push(i);
+          }
+        }
+      }
+    );
+    await Promise.all(workers);
+    // 串行回退：并行阶段失败的块逐块再试一次（限流下串行更容易过）。
+    for (const i of failures) {
+      if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
+      await sleep(1000);
+      await summarizeOne(i);
     }
     return summaries.join("\n\n");
   }
@@ -327,6 +527,9 @@ export function createAiExtract({ ui }) {
   async function analyzeOnce(textForModel, onProgress, cancelSignal) {
     if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
     onProgress?.("正在调用大模型分析…", 85);
+    // v0.18.2：最终调用也走流式进度 —— 在 85→95 的带子里按已收字符推进，
+    // 收到期望量卡在 94%，出结果再跳 95%；中转不支持流式时进度仍停在 85，
+    // 与 v0.17.0 行为一致，不会更差。
     const content = await callChat(
       [
         { role: "system", content: SYSTEM_PROMPT },
@@ -336,7 +539,11 @@ export function createAiExtract({ ui }) {
         },
       ],
       onProgress,
-      cancelSignal
+      cancelSignal,
+      (received) => {
+        const frac = Math.min(received / EXPECTED_FINAL_CHARS, 0.9);
+        onProgress?.("正在调用大模型分析…", 85 + Math.round(frac * 10));
+      }
     );
     onProgress?.("正在解析结构化结果…", 95);
     const parsed = parseJsonLoose(content);
@@ -583,6 +790,7 @@ export function createAiExtract({ ui }) {
       validateExtracted,
       normalizeResult,
       normalizeBidDate,
+      parseSseChunk,
     },
   };
 }

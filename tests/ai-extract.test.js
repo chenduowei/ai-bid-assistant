@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createAiExtract } from "../js/ai-extract.js";
 
 const { _test } = createAiExtract({ ui: {} });
-const { normalizeBidDate, parseJsonLoose, validateExtracted, normalizeResult, splitIntoChunks } = _test;
+const { normalizeBidDate, parseJsonLoose, validateExtracted, normalizeResult, splitIntoChunks, parseSseChunk } = _test;
 
 test("normalizeBidDate：只接受真实存在的 YYYY-MM-DD", () => {
   assert.equal(normalizeBidDate("2026-08-10"), "2026-08-10");
@@ -240,4 +240,40 @@ test("renderAiResultPanel：绑定项目时出直存/编辑按钮并显示项目
   assert.ok(c.innerHTML.includes("测试项目"));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-new"'));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-update"'));
+});
+
+/* ============ v0.18.2：分块放大 + 流式 SSE 解析 ============ */
+
+test("splitIntoChunks：默认块大小 48k，14.5 万字切 4 块", () => {
+  assert.equal(splitIntoChunks("x".repeat(50000)).length, 2);
+  assert.equal(splitIntoChunks("x".repeat(145478)).length, 4);
+  assert.equal(splitIntoChunks("abc").length, 1);
+});
+
+test("parseSseChunk：拼出 delta 内容，跳过首包/[DONE]/坏行", () => {
+  const sse = [
+    'data: {"choices":[{"delta":{"role":"assistant"}}]}',
+    'data: {"choices":[{"delta":{"content":"你好"}}]}',
+    'data: {"choices":[{"delta":{"content":"世界"}}]}',
+    "data: [DONE]",
+    "",
+  ].join("\n");
+  const { contents, rest } = parseSseChunk(`${sse}\n`);
+  assert.deepEqual(contents, ["你好", "世界"]);
+  assert.equal(rest, "");
+});
+
+test("parseSseChunk：行被 TCP 切半时残段留给下次", () => {
+  const first = parseSseChunk('data: {"choices":[{"delta":{"content":"你');
+  assert.deepEqual(first.contents, []);
+  const second = parseSseChunk(`${first.rest}好"}}]}\n`);
+  assert.deepEqual(second.contents, ["你好"]);
+  assert.equal(second.rest, "");
+});
+
+test("parseSseChunk：坏行不毁掉整段输出", () => {
+  const { contents } = parseSseChunk(
+    'data: 不是 JSON\n\ndata: {"choices":[{"delta":{"content":"有效"}}]}\n'
+  );
+  assert.deepEqual(contents, ["有效"]);
 });
