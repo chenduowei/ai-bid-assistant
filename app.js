@@ -55,10 +55,13 @@ import { createDataIo } from "./js/data-io.js";
     offlineBanner: document.getElementById("offlineBanner"),
     dashboardView: document.getElementById("dashboardView"),
     parserView: document.getElementById("parserView"),
+    parserSheet: document.getElementById("parserSheet"),
+    parserSheetSubtitle: document.getElementById("parserSheetSubtitle"),
     openParserBtn: document.getElementById("openParserBtn"),
     closeParserBtn: document.getElementById("closeParserBtn"),
     pdfInput: document.getElementById("pdfInput"),
     pdfProjectSelect: document.getElementById("pdfProjectSelect"),
+    pdfProjectName: document.getElementById("pdfProjectName"),
     savePdfTextBtn: document.getElementById("savePdfTextBtn"),
     dropZone: document.getElementById("dropZone"),
     parserStatus: document.getElementById("parserStatus"),
@@ -159,6 +162,10 @@ import { createDataIo } from "./js/data-io.js";
   let client = null;
   /** 最近一次 AI 分析结果，保存项目时一并写入 */
   let lastAiResult = null;
+  /** v0.18.0：解析抽屉绑定的项目（null = 全局新建模式）；换目标时清旧解析态 */
+  let parseTargetId = null;
+  let parserSheetOpen = false;
+  let parserOpener = null;
   /** 错过提醒每个会话只提示一次，避免 Realtime 刷新时反复刷屏 */
   let missedReminderShown = false;
   let trashSheetOpen = false;
@@ -635,19 +642,84 @@ import { createDataIo } from "./js/data-io.js";
     );
   }
 
-  const showParser = () => {
-    // v0.11.0：进解析页时顺手预加载解析模块（不阻塞切页），首次解析无需再等
+  // v0.18.0：解析改抽屉 —— showParser 打开抽屉（可绑定项目），showDashboard
+  // 关闭抽屉；工作台视图不再被解析页藏起，抽屉盖在列表上方，上下文可见。
+  const openParserSheet = (targetId = null, opener = null) => {
+    // v0.11.0：进解析时顺手预加载解析模块（不阻塞开抽屉），首次解析无需再等
     ensureParserModules().catch(() => {});
     refreshPdfProjectOptions();
-    elements.dashboardView.classList.add("hidden");
-    elements.parserView.classList.remove("hidden");
-    playViewEnter(elements.parserView);
+    setParseTarget(targetId);
+    parserSheetOpen = true;
+    parserOpener = opener || null;
+    elements.parserSheet?.classList.remove("hidden");
+    document.body.classList.add("sheet-open");
     setActiveTab("parser");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    elements.closeParserBtn?.focus();
   };
 
+  const closeParserSheet = () => {
+    if (!parserSheetOpen) return;
+    parserSheetOpen = false;
+    elements.parserSheet?.classList.add("hidden");
+    document.body.classList.remove("sheet-open");
+    setActiveTab(state.viewMode === "calendar" ? "calendar" : "projects");
+    if (parserOpener && document.contains(parserOpener)) parserOpener.focus();
+    parserOpener = null;
+  };
+
+  // v0.18.0：解析目标 —— 抽屉绑定到某个项目时，解析文本/AI 结果都归属它；
+  // 换目标时清掉上一份解析态，避免旧文本配新项目；同目标重开则保留。
+  const setParseTarget = (targetId) => {
+    const nextId = targetId || null;
+    if (nextId === parseTargetId) return;
+    parseTargetId = nextId;
+    resetParserState();
+    // 保存行：绑定时下拉框换成固定项目名，未绑定时恢复下拉框。
+    const p = nextId
+      ? state.projects.find((project) => project.id === nextId)
+      : null;
+    if (elements.pdfProjectSelect) {
+      elements.pdfProjectSelect.classList.toggle("hidden", !!nextId);
+      if (nextId) elements.pdfProjectSelect.value = nextId;
+    }
+    if (elements.pdfProjectName) {
+      elements.pdfProjectName.classList.toggle("hidden", !nextId);
+      elements.pdfProjectName.textContent = p ? p.name : "";
+    }
+    if (elements.parserSheetSubtitle) {
+      elements.parserSheetSubtitle.textContent = p
+        ? `正在为「${p.name}」解析招标文件，分析结果可直接保存到该项目。`
+        : "PDF 在浏览器本地解析，文件本身不上传；解析文字只在您保存后存到云端，AI 分析时会发给您配置的模型服务商。";
+    }
+  };
+
+  // v0.18.0：解析区复位 —— 清文本、AI 面板、进度与按钮态，不动表单；
+  // 绑定目标本身不在这里动（换目标由 setParseTarget 管，清空按钮只清内容）。
+  const resetParserState = () => {
+    clearStaleAiResult();
+    if (elements.parsedText) {
+      elements.parsedText.value = "";
+      elements.parsedText.classList.add("hidden");
+    }
+    if (elements.pdfFileName) elements.pdfFileName.textContent = "";
+    if (elements.pdfPageCount) elements.pdfPageCount.textContent = "总页数：0";
+    pdfParser?.setParseProgress?.(0, "等待解析");
+    // setParseProgress 会取消隐藏，复位完再藏起，下次解析开始时它自己再显示。
+    elements.parserStatus?.classList.add("hidden");
+    if (elements.pdfInput) elements.pdfInput.value = "";
+    elements.toggleTextBtn.disabled = true;
+    elements.toggleTextBtn.textContent = "查看原始文本";
+    elements.copyTextBtn.disabled = true;
+    elements.aiAnalyzeBtn.disabled = true;
+    elements.clearParserBtn.disabled = true;
+    setSavePdfTextState(false);
+  };
+
+  const showParser = (targetId = null, opener = null) =>
+    openParserSheet(targetId, opener);
+
   const showDashboard = () => {
-    elements.parserView.classList.add("hidden");
+    closeParserSheet();
     elements.dashboardView.classList.remove("hidden");
     playViewEnter(elements.dashboardView);
     setActiveTab("projects");
@@ -955,15 +1027,31 @@ import { createDataIo } from "./js/data-io.js";
           showDashboard();
           setViewMode("calendar");
         } else if (tab === "parser") {
-          showParser();
-          setActiveTab("parser");
+          showParser(null, btn);
         } else if (tab === "menu") {
           ui.toggleMobileMenu();
         }
       })
     );
-    elements.openParserBtn?.addEventListener("click", showParser);
+    elements.openParserBtn?.addEventListener("click", (event) =>
+      showParser(null, event.currentTarget)
+    );
     elements.closeParserBtn?.addEventListener("click", showDashboard);
+    // v0.18.0：解析抽屉 —— 点遮罩或按 Esc 关闭；确认框盖在抽屉上时先让
+    // 确认框处理 Esc，别把抽屉一起关了。
+    elements.parserSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-parser']"))
+        closeParserSheet();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !parserSheetOpen) return;
+      if (
+        elements.confirmDialog &&
+        !elements.confirmDialog.classList.contains("hidden")
+      )
+        return;
+      closeParserSheet();
+    });
     elements.dropZone?.addEventListener("click", () =>
       elements.pdfInput.click()
     );
@@ -1025,26 +1113,17 @@ import { createDataIo } from "./js/data-io.js";
     });
 
     // v0.16.0：清空解析结果 —— 只清解析区（文本 + AI 面板 + 内存旧结果），不动表单。
+    // v0.18.0：绑定模式下目标不变，只清解析内容；未绑定时选框也复位。
     elements.clearParserBtn?.addEventListener("click", () => {
-      clearStaleAiResult();
-      elements.parsedText.value = "";
-      elements.parsedText.classList.add("hidden");
-      elements.pdfFileName.textContent = "";
-      elements.pdfPageCount.textContent = "总页数：0";
-      pdfParser.setParseProgress(0, "等待解析");
-      if (elements.pdfInput) elements.pdfInput.value = "";
-      if (elements.pdfProjectSelect) elements.pdfProjectSelect.value = "";
-      elements.toggleTextBtn.disabled = true;
-      elements.toggleTextBtn.textContent = "查看原始文本";
-      elements.copyTextBtn.disabled = true;
-      elements.aiAnalyzeBtn.disabled = true;
-      elements.clearParserBtn.disabled = true;
-      setSavePdfTextState(false);
+      resetParserState();
+      if (!parseTargetId && elements.pdfProjectSelect)
+        elements.pdfProjectSelect.value = "";
       ui.showToast("已清空解析结果。");
     });
 
     // v0.16.0：AI 面板下一步 —— 保存方式由用户点按决定，不再分析完自动跳表单。
-    elements.aiResultPanel?.addEventListener("click", (event) => {
+    // v0.18.0：绑定模式多两个动作（直存本项目 / 打开表单编辑），直存要调接口故监听改为 async。
+    elements.aiResultPanel?.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
       if (button.dataset.action === "ai-save-new") {
@@ -1071,6 +1150,45 @@ import { createDataIo } from "./js/data-io.js";
         }
         // v0.17.0：先回工作台再展开表单 —— v0.16.0 漏了 showDashboard，
         // 用户停在解析页时表单在藏着的视图里展开，点了跟没点一样。
+        const freshAi = lastAiResult;
+        showDashboard();
+        enterEditMode(p);
+        if (freshAi) {
+          lastAiResult = freshAi;
+          aiExtract.applyToForm(elements, freshAi);
+        }
+      }
+      if (button.dataset.action === "ai-save-attach") {
+        // 绑定模式：分析结果直写该项目（风险 + 资格 + 废标 + 摘要），不用过表单；
+        // 项目名称、开标时间等字段不动，想改走「打开表单编辑」。
+        const p = parseTargetId
+          ? state.projects.find((project) => project.id === parseTargetId)
+          : null;
+        if (!p || !lastAiResult) {
+          ui.showToast("没有可保存的分析结果。");
+          return;
+        }
+        const ok = await projectsApi.updateProjectFields(parseTargetId, {
+          riskPoints: lastAiResult.riskPoints || [],
+          qualification: lastAiResult.qualification || [],
+          invalidBidClauses: lastAiResult.invalidBidClauses || [],
+          riskSummary: lastAiResult.riskSummary || null,
+        });
+        if (ok) {
+          ui.showToast(`分析结果已保存到项目「${p.name}」。`);
+          showDashboard();
+          ui.focusProjectInList(parseTargetId);
+        }
+      }
+      if (button.dataset.action === "ai-save-edit") {
+        // 绑定模式：去表单改字段 —— 回工作台、进该项目编辑态、盖上新分析。
+        const p = parseTargetId
+          ? state.projects.find((project) => project.id === parseTargetId)
+          : null;
+        if (!p) {
+          ui.showToast("未绑定项目。");
+          return;
+        }
         const freshAi = lastAiResult;
         showDashboard();
         enterEditMode(p);
@@ -1136,19 +1254,34 @@ import { createDataIo } from "./js/data-io.js";
           pdfParser.setParseProgress(pct ?? 90, msg)
         );
         lastAiResult = result;
-        // v0.6.0：AI 回填到选填字段时自动展开选填区
-        const beforeOptional = OPTIONAL_FIELDS.map(
-          (k) => elements.form[k]?.value ?? ""
-        );
-        aiExtract.applyToForm(elements, result);
-        const optionalFilled = OPTIONAL_FIELDS.some((k, i) => {
-          const v = elements.form[k]?.value ?? "";
-          return v !== beforeOptional[i] && String(v).trim() !== "";
+        // v0.18.0：绑定模式不回填表单 —— 表单藏在工作台里，填了也看不见；
+        // 直存与编辑两条路都不依赖这次回填（编辑时现填）。
+        if (!parseTargetId) {
+          // v0.6.0：AI 回填到选填字段时自动展开选填区
+          const beforeOptional = OPTIONAL_FIELDS.map(
+            (k) => elements.form[k]?.value ?? ""
+          );
+          aiExtract.applyToForm(elements, result);
+          const optionalFilled = OPTIONAL_FIELDS.some((k, i) => {
+            const v = elements.form[k]?.value ?? "";
+            return v !== beforeOptional[i] && String(v).trim() !== "";
+          });
+          if (optionalFilled) setOptionalExpanded(true);
+        }
+        const targetProject = parseTargetId
+          ? state.projects.find((project) => project.id === parseTargetId)
+          : null;
+        aiExtract.renderAiResultPanel(elements.aiResultPanel, result, {
+          target: targetProject
+            ? { id: targetProject.id, name: targetProject.name }
+            : null,
         });
-        if (optionalFilled) setOptionalExpanded(true);
-        aiExtract.renderAiResultPanel(elements.aiResultPanel, result);
         pdfParser.setParseProgress(100, "AI 分析完成。");
-        ui.showToast("AI 分析完成，已回填表单，请在下方选择保存方式。");
+        ui.showToast(
+          parseTargetId
+            ? "AI 分析完成，请在下方选择保存方式。"
+            : "AI 分析完成，已回填表单，请在下方选择保存方式。"
+        );
         // v0.16.0：分析完不再自动跳表单 —— 留在解析页核对结果，保存方式由面板上的按钮决定。
       } catch (err) {
         const msg = err?.message || "AI 分析失败";
@@ -1364,6 +1497,13 @@ import { createDataIo } from "./js/data-io.js";
         const ok = await projectsApi.deleteProject(id);
         if (ok && state.editingId === id) resetForm();
       }
+      // v0.18.0：卡片上直接解析 —— 打开绑定该项目的解析抽屉，上下文不用再选。
+      if (button.dataset.action === "parse") {
+        const p = state.projects.find((project) => project.id === id);
+        if (!p) return;
+        showParser(id, button);
+        return;
+      }
       if (button.dataset.action === "view-pdf") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
@@ -1376,13 +1516,13 @@ import { createDataIo } from "./js/data-io.js";
           ui.showToast("该项目没有已保存的招标文件文本。");
           return;
         }
+        // v0.18.0：查看已保存文本 = 打开绑定该项目的解析抽屉（先清旧态，再载入这份文本）。
+        showParser(id, button);
         elements.parsedText.value = text;
         elements.parsedText.classList.remove("hidden");
         elements.pdfFileName.textContent = `已保存文件：${p.pdfFilename || "未命名"}（${text.length} 字）`;
-        // v0.16.0：这份文本归属该项目 —— 选框跟上，AI"更新到所选项目"可直接用；
-        // 同时清掉上一份的 AI 面板，避免旧结果配这份文本。
+        // v0.16.0：同时清掉上一份的 AI 面板，避免旧结果配这份文本。
         clearStaleAiResult();
-        if (elements.pdfProjectSelect) elements.pdfProjectSelect.value = p.id;
         elements.toggleTextBtn.disabled = false;
         elements.toggleTextBtn.textContent = "隐藏原始文本";
         elements.copyTextBtn.disabled = false;
@@ -1390,7 +1530,6 @@ import { createDataIo } from "./js/data-io.js";
         elements.clearParserBtn.disabled = false;
         // 这份文本本就是从该项目存里取出来的，直接标已保存。
         setSavePdfTextState(true);
-        showParser();
       }
       if (button.dataset.action === "clone") {
         await projectsApi.cloneProject(id);

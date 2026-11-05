@@ -591,7 +591,7 @@ body.dark .sort-select {
   gap: 3px;
 }
 .project-head-top { display: flex; align-items: center; gap: 6px; }
-.project-head-actions { display: flex; gap: 2px; }
+.project-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
 .row-btn {
   border: 0;
   background: transparent;
@@ -1576,6 +1576,13 @@ body.sheet-open { overflow: hidden; }
   .sheet { align-items: center; padding: var(--sp-6); }
   .sheet-panel { border-radius: 20px; max-height: 80vh; }
 }
+/* v0.18.0：解析抽屉比普通抽屉更宽更高（解析流程长、AI 面板长） */
+.sheet-panel.parser-sheet-panel { width: min(960px, 100%); max-height: 92dvh; }
+@media (min-width: 681px) {
+  .sheet-panel.parser-sheet-panel { max-height: 88vh; }
+}
+/* v0.18.0：绑定模式下“保存到项目”显示固定项目名，不再是下拉框 */
+.pdf-target-label { font-weight: 700; font-size: var(--fs-base); padding: 10px 0; }
 /* toast 永远在最上层：抽屉内操作（恢复/彻底删除）的提示不能被遮罩盖住 */
 .toast-wrap { z-index: 50; }
 

@@ -375,47 +375,7 @@
     </section>
     </div>
 
-    <section id="parserView" class="parser-page hidden">
-      <header class="card parser-header">
-        <div class="panel-title">
-          <div>
-            <h1>招标文件解析</h1>
-            <p>PDF 在浏览器本地解析，文件本身不上传；解析文字只在您保存后存到云端，AI 分析时会发给您配置的模型服务商。</p>
-          </div>
-          <button id="closeParserBtn" class="btn secondary" type="button">← 返回工作台</button>
-        </div>
-      </header>
-      <section class="card panel">
-        <input id="pdfInput" type="file" accept="application/pdf,.pdf" class="hidden" />
-        <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="上传 PDF 文件">
-          <div><strong>拖拽 PDF 文件到这里</strong><span>或点击选择文件 · 单个文件最大 50 MB</span></div>
-        </div>
-        <div id="parserStatus" class="parser-status hidden">
-          <div class="progress-track"><div id="parseProgress" class="progress-bar"></div></div>
-          <div class="parser-meta"><span id="pdfFileName"></span><span id="pdfPageCount">总页数：0</span><span id="parseProgressText">等待解析</span></div>
-        </div>
-      </section>
-      <section class="card panel">
-        <div class="panel-title"><div><h2>解析文本与 AI 分析</h2><p>查看、复制原文，或让 AI 抽取关键信息并生成风险报告。</p></div></div>
-        <div class="parser-actions">
-          <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
-          <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
-          <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析并回填</button>
-          <button id="aiCancelBtn" class="btn tint-red hidden" type="button">⏹ 终止分析</button>
-          <button id="clearParserBtn" class="btn secondary" type="button" disabled>清空解析结果</button>
-        </div>
-        <div class="pdf-save-row">
-          <div class="field pdf-save-field">
-            <label for="pdfProjectSelect">保存到项目</label>
-            <select id="pdfProjectSelect"><option value="">请选择项目</option></select>
-          </div>
-          <button id="savePdfTextBtn" class="btn secondary" type="button">保存文本到该项目</button>
-        </div>
-        <textarea id="parsedText" class="parser-text hidden" readonly placeholder="完成解析后，全文将在这里显示。"></textarea>
-        <div id="aiResultPanel" class="ai-result-wrap"></div>
-      </section>
-    </section>
-    <footer class="app-footer">投标工作台 v0.17.0</footer>
+    <footer class="app-footer">投标工作台 v0.18.0</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
@@ -451,6 +411,52 @@
         <button id="guaranteeSheetClose" class="btn secondary" type="button" aria-label="关闭保证金清单">✕</button>
       </div>
       <div id="guaranteeList" class="guarantee-list"></div>
+    </div>
+  </div>
+
+  <!-- v0.18.0：解析抽屉 —— 从项目卡片发起时绑定该项目，上下文永远可见；全局入口仍为新建模式 -->
+  <div id="parserSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="parserSheetTitle">
+    <div class="sheet-backdrop" data-action="close-parser"></div>
+    <div class="sheet-panel parser-sheet-panel card">
+      <div class="sheet-head">
+        <div>
+          <h2 id="parserSheetTitle">招标文件解析</h2>
+          <p id="parserSheetSubtitle">PDF 在浏览器本地解析，文件本身不上传；解析文字只在您保存后存到云端，AI 分析时会发给您配置的模型服务商。</p>
+        </div>
+        <button id="closeParserBtn" class="btn secondary" type="button" aria-label="关闭解析">✕</button>
+      </div>
+      <section id="parserView" class="parser-page">
+        <section class="card panel">
+          <input id="pdfInput" type="file" accept="application/pdf,.pdf" class="hidden" />
+          <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="上传 PDF 文件">
+            <div><strong>拖拽 PDF 文件到这里</strong><span>或点击选择文件 · 单个文件最大 50 MB</span></div>
+          </div>
+          <div id="parserStatus" class="parser-status hidden">
+            <div class="progress-track"><div id="parseProgress" class="progress-bar"></div></div>
+            <div class="parser-meta"><span id="pdfFileName"></span><span id="pdfPageCount">总页数：0</span><span id="parseProgressText">等待解析</span></div>
+          </div>
+        </section>
+        <section class="card panel">
+          <div class="panel-title"><div><h2>解析文本与 AI 分析</h2><p>查看、复制原文，或让 AI 抽取关键信息并生成风险报告。</p></div></div>
+          <div class="parser-actions">
+            <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
+            <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
+            <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析并回填</button>
+            <button id="aiCancelBtn" class="btn tint-red hidden" type="button">⏹ 终止分析</button>
+            <button id="clearParserBtn" class="btn secondary" type="button" disabled>清空解析结果</button>
+          </div>
+          <div class="pdf-save-row">
+            <div class="field pdf-save-field">
+              <label for="pdfProjectSelect">保存到项目</label>
+              <select id="pdfProjectSelect"><option value="">请选择项目</option></select>
+              <span id="pdfProjectName" class="pdf-target-label hidden"></span>
+            </div>
+            <button id="savePdfTextBtn" class="btn secondary" type="button">保存文本到该项目</button>
+          </div>
+          <textarea id="parsedText" class="parser-text hidden" readonly placeholder="完成解析后，全文将在这里显示。"></textarea>
+          <div id="aiResultPanel" class="ai-result-wrap"></div>
+        </section>
+      </section>
     </div>
   </div>
 

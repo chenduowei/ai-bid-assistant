@@ -205,3 +205,39 @@ test("analyzeTenderText：分析进行中再调直接拒绝", async () => {
     restoreStorage();
   }
 });
+
+/* v0.18.0：AI 面板按模式出按钮 —— 假容器（只要 innerHTML 与 querySelector）即可测 */
+
+function fakePanelContainer() {
+  return { innerHTML: "", querySelector: () => null };
+}
+
+const PANEL_RESULT = {
+  riskSummary: "风险摘要",
+  qualification: [],
+  invalidBidClauses: [],
+  riskPoints: [],
+};
+
+test("renderAiResultPanel：未绑定时出新建/更新按钮", () => {
+  const ai = createAiExtract({ ui: {} });
+  const c = fakePanelContainer();
+  ai.renderAiResultPanel(c, PANEL_RESULT);
+  assert.ok(c.innerHTML.includes('data-action="ai-save-new"'));
+  assert.ok(c.innerHTML.includes('data-action="ai-save-update"'));
+  assert.ok(!c.innerHTML.includes('data-action="ai-save-attach"'));
+  assert.ok(!c.innerHTML.includes('data-action="ai-save-edit"'));
+});
+
+test("renderAiResultPanel：绑定项目时出直存/编辑按钮并显示项目名", () => {
+  const ai = createAiExtract({ ui: {} });
+  const c = fakePanelContainer();
+  ai.renderAiResultPanel(c, PANEL_RESULT, {
+    target: { id: "1", name: "测试项目" },
+  });
+  assert.ok(c.innerHTML.includes('data-action="ai-save-attach"'));
+  assert.ok(c.innerHTML.includes('data-action="ai-save-edit"'));
+  assert.ok(c.innerHTML.includes("测试项目"));
+  assert.ok(!c.innerHTML.includes('data-action="ai-save-new"'));
+  assert.ok(!c.innerHTML.includes('data-action="ai-save-update"'));
+});
