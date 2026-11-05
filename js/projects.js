@@ -5,6 +5,7 @@ import {
   TRASH_RETENTION_DAYS,
   getTrashExpiryCutoff,
   normalizeChecklist,
+  stripPdfFilenameSuffix,
   parseBackupPayload,
   splitRestoreRows,
   saveProjectsSnapshot,
@@ -100,7 +101,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     guaranteeDeadline: row.guarantee_deadline || null,
     // v0.3.0：PDF 文本持久化
     pdfText: row.pdf_text || "",
-    pdfFilename: row.pdf_filename || "",
+    // v0.18.1：入库前已污染的文件名（末尾连拼"（N 字）"）在这里洗掉，
+    // 列表、查看、导出、保存回退拿到的都是干净名；下次保存即写回干净值。
+    pdfFilename: stripPdfFilenameSuffix(row.pdf_filename || ""),
     pdfParsedAt: row.pdf_parsed_at || null,
   });
 
@@ -228,7 +231,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const item = state.projects.find((p) => p.id === id);
     if (item) {
       item.pdfText = data.pdf_text || "";
-      item.pdfFilename = data.pdf_filename || "";
+      item.pdfFilename = stripPdfFilenameSuffix(data.pdf_filename || "");
       item.pdfParsedAt = data.pdf_parsed_at || null;
     }
     return data.pdf_text || "";

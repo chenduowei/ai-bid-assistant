@@ -232,6 +232,40 @@ export function normalizeEvidenceItem(raw) {
   return item;
 }
 
+/* ================= v0.18.1：已保存文本的文件名与页数 ================= */
+
+/**
+ * 去掉文件名末尾的"（N 字）"后缀，可重复去（已污染的文件名可能连拼多次）。
+ * 全角 / 半角括号都认；只去末尾，不动文件名中间的同类文字。
+ * 用途：查看已保存文本时显示行会拼字数后缀，保存时又从该行反取文件名，
+ * 每存一次多一个后缀 —— 取名与入库前都先过这一道，循环就断了。
+ */
+export function stripPdfFilenameSuffix(name) {
+  let clean = String(name ?? "").trim();
+  let prev = "";
+  while (clean !== prev) {
+    prev = clean;
+    clean = clean.replace(/[（(]\s*\d+\s*字\s*[)）]\s*$/, "").trim();
+  }
+  return clean;
+}
+
+/**
+ * 从已保存文本推算总页数：解析时每页以"【第 N 页】"标记开头，取最大页码。
+ * 没有标记（旧文本或非解析来源）返回 0，调用方显示"未知"，不编造页数。
+ */
+export function countPdfPagesFromText(text) {
+  if (!text) return 0;
+  const re = /【第\s*(\d+)\s*页】/g;
+  let max = 0;
+  let m;
+  while ((m = re.exec(String(text))) !== null) {
+    const n = Number(m[1]);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max;
+}
+
 /** 数组归一化：非数组返回 []；过滤空项，最多保留 100 项。 */
 export function normalizeEvidenceItems(value) {
   if (!Array.isArray(value)) return [];

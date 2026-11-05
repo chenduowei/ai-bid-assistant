@@ -5,7 +5,7 @@
  * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
  * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -534,12 +534,14 @@ import { createDataIo } from "./js/data-io.js";
     }
   }
 
-  /** 当前解析区对应的 PDF 文件名（从文件名栏解析，取不到则用默认名） */
+  /** 当前解析区对应的 PDF 文件名（从文件名栏解析，取不到则用默认名）
+   * v0.18.1：文件名栏在查看已保存文本时会带"（N 字）"后缀，从这里反取
+   * 会把后缀存回库里、越存越长 —— 取名时先去掉末尾的"（N 字）"（可重复去）。 */
   function getCurrentPdfFilename(fallback) {
     const label = elements.pdfFileName?.textContent || "";
     const match = label.match(/^(?:文件|已保存文件)：\s*(.+)$/);
-    const name = (match?.[1] || "").trim();
-    return name || fallback || "招标文件.pdf";
+    const name = stripPdfFilenameSuffix(match?.[1] || "");
+    return name || stripPdfFilenameSuffix(fallback) || "招标文件.pdf";
   }
 
   /** v0.4.0：显示密码重置面板（PASSWORD_RECOVERY 事件触发时调用） */
@@ -1520,7 +1522,15 @@ import { createDataIo } from "./js/data-io.js";
         showParser(id, button);
         elements.parsedText.value = text;
         elements.parsedText.classList.remove("hidden");
-        elements.pdfFileName.textContent = `已保存文件：${p.pdfFilename || "未命名"}（${text.length} 字）`;
+        // v0.18.1：文件名先洗掉已污染的"（N 字）"后缀再显示，字数只作显示、
+        // 不再进文件名；总页数从文本里的"【第 N 页】"标记推算（这条路以前
+        // 从不写页数，一直留着初始的 0），没标记则显示"未知"，不编造。
+        const cleanFilename = stripPdfFilenameSuffix(p.pdfFilename || "未命名");
+        elements.pdfFileName.textContent = `已保存文件：${cleanFilename}（${text.length} 字）`;
+        const savedPages = countPdfPagesFromText(text);
+        if (elements.pdfPageCount)
+          elements.pdfPageCount.textContent =
+            savedPages > 0 ? `总页数：${savedPages}` : "总页数：未知";
         // v0.16.0：同时清掉上一份的 AI 面板，避免旧结果配这份文本。
         clearStaleAiResult();
         elements.toggleTextBtn.disabled = false;

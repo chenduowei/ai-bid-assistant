@@ -24,6 +24,8 @@ import {
   normalizeEvidenceItem,
   normalizeEvidenceItems,
   getEvidenceState,
+  stripPdfFilenameSuffix,
+  countPdfPagesFromText,
 } from "../js/utils.js";
 
 test("getMissedBidProjects：只返回最近 7 天内过期且未开标的项目", () => {
@@ -496,4 +498,32 @@ test("buildChecklistFromAi：对象形态的结论仍能生成清单", () => {
   assert.equal(list.length, 2);
   assert.equal(list[0].text, "逾期投标无效");
   assert.equal(list[1].source, "ai-risk");
+});
+
+/* ============ v0.18.1：已保存文本的文件名与页数 ============ */
+
+test("stripPdfFilenameSuffix：去掉末尾连拼的（N 字），不动中间的同类文字", () => {
+  assert.equal(stripPdfFilenameSuffix("招标文件正文.pdf"), "招标文件正文.pdf");
+  assert.equal(
+    stripPdfFilenameSuffix("招标文件正文.pdf（145478 字）"),
+    "招标文件正文.pdf"
+  );
+  assert.equal(
+    stripPdfFilenameSuffix("招标文件正文.pdf（145478 字）（145478 字）（145478 字）"),
+    "招标文件正文.pdf"
+  );
+  assert.equal(stripPdfFilenameSuffix("文件（2024 字）.pdf"), "文件（2024 字）.pdf");
+  assert.equal(stripPdfFilenameSuffix("a.pdf(123 字)"), "a.pdf");
+  assert.equal(stripPdfFilenameSuffix(""), "");
+  assert.equal(stripPdfFilenameSuffix(null), "");
+});
+
+test("countPdfPagesFromText：取【第 N 页】的最大页码，无标记返回 0", () => {
+  assert.equal(
+    countPdfPagesFromText("【第 1 页】\n正文\n\n【第 3 页】\n正文\n\n【第 2 页】\n正文"),
+    3
+  );
+  assert.equal(countPdfPagesFromText("没有页码标记的旧文本"), 0);
+  assert.equal(countPdfPagesFromText(""), 0);
+  assert.equal(countPdfPagesFromText(null), 0);
 });

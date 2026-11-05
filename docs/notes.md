@@ -1,6 +1,6 @@
 # 维护说明
 
-当前以 **v0.18.0 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
+当前以 **v0.18.1 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
 
 ---
 
@@ -23,7 +23,7 @@
 
 - 表 `projects`：`user_id` + RLS；状态仅 `报名中 | 制作中 | 已开标`；`deleted_at` 为空表示正常，非空表示在回收站（保留 30 天，过期自动彻底删除）。
 - AI 相关列：`risk_summary`、`risk_points`、`qualification`、`invalid_bid_clauses`、`extracted_meta`（均为可选）。
-- v0.3.0 新增列：`checklist`（jsonb，每项 `{id, text, done, source}`，source ∈ ai-invalid / ai-risk / manual）；`amount_value`（numeric）+ `amount_unit`（元/万元，默认万元）；`guarantee_amount`（numeric）+ `guarantee_unit`（元/万元，默认万元）+ `guarantee_status`（未缴纳/已缴纳/已退回/已没收，默认未缴纳）；`registration_deadline` / `inquiry_deadline` / `clarification_deadline` / `guarantee_deadline`（date，均可为空）；`pdf_text`（text，保存时截断到 200000 字符）+ `pdf_filename` + `pdf_parsed_at`。旧 `amount` / `guarantee` 文本列保留，新字段为空时列表显示旧文本。
+- v0.3.0 新增列：`checklist`（jsonb，每项 `{id, text, done, source}`，source ∈ ai-invalid / ai-risk / manual）；`amount_value`（numeric）+ `amount_unit`（元/万元，默认万元）；`guarantee_amount`（numeric）+ `guarantee_unit`（元/万元，默认万元）+ `guarantee_status`（未缴纳/已缴纳/已退回/已没收，默认未缴纳）；`registration_deadline` / `inquiry_deadline` / `clarification_deadline` / `guarantee_deadline`（date，均可为空）；`pdf_text`（text，保存时截断到 200000 字符）+ `pdf_filename` + `pdf_parsed_at`。v0.18.1：`pdf_filename` 入库与读出时去掉末尾连拼的"（N 字）"后缀（半角括号也认），已污染的文件名下次保存即洗回；查看已保存文本的总页数从文本的"【第 N 页】"标记取最大值，无标记显示"未知"。旧 `amount` / `guarantee` 文本列保留，新字段为空时列表显示旧文本。
 - v0.4.0 无新列，但保证金改为选填：`guarantee` 列已改为可为空并去掉长度校验（`supabase.sql` 第 8 节，旧库需执行一次，幂等）。列表查询为显式列清单（排除 `pdf_text`，全文按需拉）；搜索框 input 防抖 200ms；必填为开标时间、项目类型、项目名称、投标公司、联系人（保证金/金额均选填）。
 - v0.4.2 无新列、无约束变更，旧库无需执行任何 SQL。登录页为左右分栏（海报底图（内联于 styles.css 的 WebP data URI，因推送通道不支持二进制） 海报 + `.auth-split` 布局），移动端 <900px 海报变顶部横幅；列表头部默认显示项目类型，保证金（金额+状态）在详情区与项目金额同行。
 - v0.4.1 无新列、无约束变更，旧库无需执行任何 SQL。列表卡片改为两段式折叠（头部 + 详情），展开态在 `app.js` 的 `state.expandedIds`（Set）内存维护；排序默认 `date-desc`（`#sortBy` 默认选中 + ui.js 两处 fallback）；styles.css 顶部有 `[hidden] { display: none !important; }` 全局规则（修复 display:flex 覆盖 hidden 的占位问题）；`.project-item` 用 `content-visibility: auto` 优化长列表。
