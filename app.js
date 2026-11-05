@@ -5,7 +5,7 @@
  * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
  * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -1271,6 +1271,31 @@ import { createDataIo } from "./js/data-io.js";
           ),
         });
         if (ok) ui.showToast("已删除检查项。");
+      }
+      // v0.15.0：AI 结论逐条核对 —— 点按切换 verified，整列回写；旧字符串先归一化。
+      if (button.dataset.action === "verify-evidence") {
+        const p = state.projects.find((project) => project.id === id);
+        if (!p) return;
+        const fieldMap = {
+          qualification: "qualification",
+          invalid: "invalidBidClauses",
+          risk: "riskPoints",
+        };
+        const field = fieldMap[button.dataset.kind];
+        const index = Number(button.dataset.index);
+        if (!field || !Number.isInteger(index)) return;
+        const items = normalizeEvidenceItems(p[field]);
+        const item = items[index];
+        if (!item) return;
+        items[index] = { ...item, verified: !item.verified };
+        const ok = await projectsApi.updateProjectFields(id, {
+          [field]: items,
+        });
+        if (ok) {
+          ui.showToast(
+            items[index].verified ? "已标记为人工已核对。" : "已取消核对。"
+          );
+        }
       }
       if (button.dataset.action === "edit") {
         const p = state.projects.find((project) => project.id === id);

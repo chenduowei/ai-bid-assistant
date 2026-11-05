@@ -190,6 +190,73 @@ export function getChecklistProgress(checklist) {
   return { done: list.filter((i) => i?.done).length, total: list.length };
 }
 
+/* ================= v0.15.0：AI 结论证据项 ================= */
+
+/**
+ * 页码归一化：数字、"12"、"第12页"、"12-14" 均取首个正整数；取不到返回 null。
+ * 绝不编造页码 —— 模型没给或给不出时就是 null，界面标"未给出来源"。
+ */
+export function normalizeEvidencePage(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const m = String(value).match(/\d+/);
+  if (!m) return null;
+  const n = Number(m[0]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * 单条 AI 结论归一化为 {text, page, quote, verified}（风险点另带合法的 level）。
+ * 字符串与旧数据兼容进对象形态；正文超 500 字、原文摘录超 200 字截断。
+ */
+export function normalizeEvidenceItem(raw) {
+  if (typeof raw === "string") {
+    const text = raw.trim().slice(0, 500);
+    if (!text) return null;
+    return { text, page: null, quote: "", verified: false };
+  }
+  if (!raw || typeof raw !== "object") return null;
+  const text = String(raw.text ?? "").trim().slice(0, 500);
+  if (!text) return null;
+  const item = {
+    text,
+    page: normalizeEvidencePage(raw.page),
+    quote: String(raw.quote ?? "").trim().slice(0, 200),
+    verified: Boolean(raw.verified),
+  };
+  if (
+    typeof raw.level === "string" &&
+    ["high", "medium", "low"].includes(raw.level)
+  ) {
+    item.level = raw.level;
+  }
+  return item;
+}
+
+/** 数组归一化：非数组返回 []；过滤空项，最多保留 100 项。 */
+export function normalizeEvidenceItems(value) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  for (const raw of value) {
+    const item = normalizeEvidenceItem(raw);
+    if (item) out.push(item);
+    if (out.length >= 100) break;
+  }
+  return out;
+}
+
+/**
+ * 结论核对状态（三态）：人工已核对 > 未给出来源 > AI 已提取。
+ * verified 为人工核对过；既无页码又无原文时标未给出来源。
+ */
+export function getEvidenceState(item) {
+  const it = item && typeof item === "object" ? item : {};
+  if (it.verified) return { cls: "verified", label: "人工已核对" };
+  if (!normalizeEvidencePage(it.page) && !String(it.quote || "").trim()) {
+    return { cls: "unsourced", label: "未给出来源" };
+  }
+  return { cls: "ai", label: "AI 已提取" };
+}
+
 /* ================= v0.3.0：结构化金额 / 保证金 ================= */
 
 /**

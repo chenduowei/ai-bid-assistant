@@ -417,6 +417,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const dbPatch = {};
     const fieldMap = {
       checklist: "checklist",
+      // v0.15.0：AI 结论证据项（核对态走此通道整列回写，无需改表）
+      riskPoints: "risk_points",
+      qualification: "qualification",
+      invalidBidClauses: "invalid_bid_clauses",
       amountValue: "amount_value",
       amountUnit: "amount_unit",
       guaranteeAmount: "guarantee_amount",

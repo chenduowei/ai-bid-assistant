@@ -20,6 +20,10 @@ import {
   sheetRowsToCsv,
   parseBackupPayload,
   splitRestoreRows,
+  normalizeEvidencePage,
+  normalizeEvidenceItem,
+  normalizeEvidenceItems,
+  getEvidenceState,
 } from "../js/utils.js";
 
 test("getMissedBidProjects：只返回最近 7 天内过期且未开标的项目", () => {
@@ -432,4 +436,64 @@ test("splitRestoreRows：已有进 update、新行进 insert", () => {
   const { insert, update } = splitRestoreRows(rows, new Set(["a", "c"]));
   assert.deepEqual(insert.map((r) => r.id), ["b"]);
   assert.deepEqual(update.map((r) => r.id), ["a", "c"]);
+});
+
+test("normalizeEvidencePage：数字与中文页码取首个正整数，取不到为 null", () => {
+  assert.equal(normalizeEvidencePage(12), 12);
+  assert.equal(normalizeEvidencePage("12"), 12);
+  assert.equal(normalizeEvidencePage("第12页"), 12);
+  assert.equal(normalizeEvidencePage("12-14"), 12);
+  assert.equal(normalizeEvidencePage(null), null);
+  assert.equal(normalizeEvidencePage(""), null);
+  assert.equal(normalizeEvidencePage("没有页码"), null);
+  assert.equal(normalizeEvidencePage(0), null);
+});
+
+test("normalizeEvidenceItem：字符串与对象兼容，原文截断 200 字、保留合法 level", () => {
+  assert.deepEqual(normalizeEvidenceItem("  须有施工资质  "), {
+    text: "须有施工资质",
+    page: null,
+    quote: "",
+    verified: false,
+  });
+  const item = normalizeEvidenceItem({
+    text: "保证金 80 万",
+    page: "第36页",
+    quote: "x".repeat(250),
+    verified: true,
+    level: "high",
+  });
+  assert.equal(item.page, 36);
+  assert.equal(item.quote.length, 200);
+  assert.equal(item.verified, true);
+  assert.equal(item.level, "high");
+  assert.equal(normalizeEvidenceItem({ text: "  " }), null);
+  assert.equal(normalizeEvidenceItem(null), null);
+  assert.equal(
+    normalizeEvidenceItem({ text: "A", level: "critical" }).level,
+    undefined
+  );
+});
+
+test("normalizeEvidenceItems：非数组返回 []，空项过滤", () => {
+  assert.deepEqual(normalizeEvidenceItems(null), []);
+  assert.equal(normalizeEvidenceItems(["A", "", { text: "B", page: 3 }]).length, 2);
+});
+
+test("getEvidenceState：人工已核对 > 未给出来源 > AI 已提取", () => {
+  assert.equal(getEvidenceState({ verified: true }).label, "人工已核对");
+  assert.equal(getEvidenceState({ page: null, quote: "" }).label, "未给出来源");
+  assert.equal(getEvidenceState({ page: 5, quote: "" }).label, "AI 已提取");
+  assert.equal(getEvidenceState({ page: null, quote: "原文" }).label, "AI 已提取");
+  assert.equal(getEvidenceState("旧字符串").label, "未给出来源");
+});
+
+test("buildChecklistFromAi：对象形态的结论仍能生成清单", () => {
+  const list = buildChecklistFromAi(
+    [{ text: "逾期投标无效", page: 36, quote: "原文", verified: false }],
+    [{ level: "high", text: "保证金过高", page: 12, quote: "", verified: false }]
+  );
+  assert.equal(list.length, 2);
+  assert.equal(list[0].text, "逾期投标无效");
+  assert.equal(list[1].source, "ai-risk");
 });

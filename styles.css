@@ -1709,3 +1709,16 @@ body.sheet-open { overflow: hidden; }
     text-overflow: ellipsis;
   }
 }
+
+/* ========== v0.15.0 ========== */
+
+/* —— AI 结论证据行：页码徽章 + 原文摘录 + 核对状态 + 核对开关 —— */
+.risk-point-body { flex: 1; min-width: 0; }
+.evidence-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-top: var(--sp-1); font-size: var(--fs-xs); line-height: 1.5; }
+.evidence-page { flex: none; font-weight: 700; color: var(--tint-blue-text); background: var(--tint-blue-bg); border-radius: 999px; padding: 2px 8px; }
+.evidence-quote { min-width: 0; flex: 1 1 120px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.evidence-state { flex: none; font-weight: 700; border-radius: 999px; padding: 2px 8px; background: var(--btn-fill); color: var(--muted); }
+.evidence-state.verified { color: var(--tint-green-text); background: var(--tint-green-bg); }
+.evidence-state.unsourced { color: var(--tint-orange-text); background: var(--tint-orange-bg); }
+.verify-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; }
+.verify-btn.verified { color: var(--tint-green-text); background: var(--tint-green-bg); }

@@ -14,6 +14,7 @@ import {
   getGuaranteeRefundReminders,
   paginateItems,
   expandLimitForIndex,
+  getEvidenceState,
 } from "./utils.js";
 
 export function createUi(elements, getState) {
@@ -167,10 +168,32 @@ export function createUi(elements, getState) {
       .join("");
   };
 
-  const renderStructList = (title, items) => {
+  // v0.15.0：证据行（页码 + 原文 + 核对状态）与核对开关；旧字符串数据兼容显示。
+  const evidenceMeta = (raw, project, kind, index) => {
+    const item =
+      raw && typeof raw === "object"
+        ? raw
+        : { text: raw, page: null, quote: "", verified: false };
+    const state = getEvidenceState(item);
+    const page = item.page
+      ? `<span class="evidence-page">第 ${escapeHtml(item.page)} 页</span>`
+      : "";
+    const quote = item.quote
+      ? `<span class="evidence-quote" title="${escapeHtml(item.quote)}">“${escapeHtml(item.quote)}”</span>`
+      : "";
+    const toggle = project
+      ? `<button class="btn verify-btn ${item.verified ? "verified" : ""}" type="button" data-action="verify-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" aria-pressed="${item.verified ? "true" : "false"}" title="${item.verified ? "取消核对" : "标记为已核对"}">${item.verified ? "✓ 已核对" : "核对"}</button>`
+      : "";
+    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${toggle}</div>`;
+  };
+
+  const renderStructList = (title, items, project, kind) => {
     if (!Array.isArray(items) || !items.length) return "";
     const lis = items
-      .map((item) => `<li>${escapeHtml(typeof item === "string" ? item : item.text || "")}</li>`)
+      .map(
+        (item, i) =>
+          `<li><div>${escapeHtml(typeof item === "string" ? item : item.text || "")}</div>${evidenceMeta(item, project, kind, i)}</li>`
+      )
       .join("");
     return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}</div><ul class="struct-list">${lis}</ul></div>`;
   };
@@ -189,8 +212,8 @@ export function createUi(elements, getState) {
     const pointsHtml = points.length
       ? `<ul class="risk-points">${points
           .map(
-            (pt) =>
-              `<li><span class="risk-level ${sanitizeLevel(pt.level)}">${escapeHtml(pt.level || "注意")}</span>${escapeHtml(pt.text || pt)}</li>`
+            (pt, i) =>
+              `<li><span class="risk-level ${sanitizeLevel(pt.level)}">${escapeHtml(pt.level || "注意")}</span><div class="risk-point-body"><div>${escapeHtml(pt.text || pt)}</div>${evidenceMeta(pt, p, "risk", i)}</div></li>`
           )
           .join("")}</ul>`
       : "";
@@ -198,16 +221,20 @@ export function createUi(elements, getState) {
       p.riskSummary
         ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
         : ""
-    }${renderStructList("资格要求", p.qualification)}${renderStructList("废标条款", p.invalidBidClauses)}${pointsHtml}</div>`;
+    }${renderStructList("资格要求", p.qualification, p, "qualification")}${renderStructList("废标条款", p.invalidBidClauses, p, "invalid")}${pointsHtml}</div>`;
   };
 
   const matchesKeyword = (p, keyword) => {
     if (!keyword) return true;
     const qualText = Array.isArray(p.qualification)
-      ? p.qualification.join(" ")
+      ? p.qualification
+          .map((item) => (typeof item === "string" ? item : item.text || ""))
+          .join(" ")
       : "";
     const invalidText = Array.isArray(p.invalidBidClauses)
-      ? p.invalidBidClauses.join(" ")
+      ? p.invalidBidClauses
+          .map((item) => (typeof item === "string" ? item : item.text || ""))
+          .join(" ")
       : "";
     const checklistText = Array.isArray(p.checklist)
       ? p.checklist.map((item) => item?.text || "").join(" ")

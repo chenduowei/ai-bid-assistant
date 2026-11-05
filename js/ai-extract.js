@@ -14,6 +14,9 @@ import {
   AI_KEY_STORAGE,
   AI_BASE_STORAGE,
   AI_MODEL_STORAGE,
+  normalizeEvidenceItem,
+  normalizeEvidenceItems,
+  getEvidenceState,
 } from "./utils.js";
 
 const DEFAULT_BASE = "https://api.openai.com/v1";
@@ -35,17 +38,18 @@ const SYSTEM_PROMPT = `你是工程建设行业招标文件分析助手。请根
   "bid_date": "开标日期，格式 YYYY-MM-DD，不确定则空字符串",
   "guarantee": "投标保证金或保函要求原文摘要",
   "contact": "招标人或代理机构联系人/电话摘要",
-  "qualification": ["资格要求要点1", "要点2"],
-  "invalid_bid_clauses": ["废标条款1", "条款2"],
+  "qualification": [{"text": "资格要求要点", "page": 18, "quote": "对应的原文摘录，尽量短"}],
+  "invalid_bid_clauses": [{"text": "废标条款", "page": 36, "quote": "对应的原文摘录，尽量短"}],
   "risk_summary": "100字以内的整体风险摘要",
   "risk_points": [
-    { "level": "high|medium|low", "text": "风险点描述" }
+    { "level": "high|medium|low", "text": "风险点描述", "page": 12, "quote": "对应的原文摘录，尽量短" }
   ],
   "notes": "其它值得注意的信息（不要重复资格与废标条款）"
-}`;
+}
+证据要求：每条 qualification、invalid_bid_clauses、risk_points 都必须带 page（数字，对应原文中的【第 N 页】标记）和 quote（该结论对应的原文摘录，不超过 100 字）；如果原文中找不到对应出处，page 写 null、quote 写空字符串，绝不要编造页码。`;
 
 const CHUNK_SUMMARY_PROMPT = `你是工程建设行业招标文件分析助手。请对以下「招标文件片段」做要点摘要，重点保留：项目名称、招标单位、金额、开标时间、保证金、联系人、资格要求、废标条款、明显风险。
-只输出纯文本摘要（不要 JSON），控制在 800 字以内。`;
+只输出纯文本摘要（不要 JSON），控制在 800 字以内。摘要里保留每条信息的页码（原文【第 N 页】标记），不要丢掉出处；不同页的内容分开写，注明页码范围。`;
 
 function getAiConfig() {
   return {
@@ -73,26 +77,85 @@ export function loadAiConfigToForm(elements) {
   if (elements.aiModel) elements.aiModel.value = cfg.model;
 }
 
+/**
+ * 按页分块（v0.15.0）：返回 [{text, startPage, endPage}]。
+ * 先按原文【第 N 页】标记切成页，再把整页打包进块；单页超长时页内再按
+ * 段落边界切分。无页码标记的文本按旧逻辑纯按字符切。短文本返回单块。
+ */
 function splitIntoChunks(text, maxChars = CHUNK_CHARS) {
-  if (!text || text.length <= maxChars) return [text || ""];
-  const chunks = [];
-  let start = 0;
-  while (start < text.length) {
-    let end = Math.min(start + maxChars, text.length);
-    if (end < text.length) {
-      // 尽量在段落边界切断
-      const slice = text.slice(start, end);
-      const lastBreak = Math.max(
-        slice.lastIndexOf("\n\n"),
-        slice.lastIndexOf("\n"),
-        slice.lastIndexOf("。")
-      );
-      if (lastBreak > maxChars * 0.5) end = start + lastBreak + 1;
+  const src = String(text || "");
+  if (!src) return [{ text: "", startPage: null, endPage: null }];
+  // 按页码标记切分：每段以【第 N 页】开头，未命中的开头部分归为 page=null。
+  const markerRe = /【第\s*(\d+)\s*页】/g;
+  const pages = [];
+  let lastIndex = 0;
+  let lastPage = null;
+  let m;
+  while ((m = markerRe.exec(src)) !== null) {
+    if (m.index > lastIndex) {
+      pages.push({ page: lastPage, text: src.slice(lastIndex, m.index) });
     }
-    chunks.push(text.slice(start, end));
-    start = end;
+    lastPage = Number(m[1]);
+    lastIndex = m.index;
   }
-  return chunks;
+  if (lastIndex < src.length) {
+    pages.push({ page: lastPage, text: src.slice(lastIndex) });
+  }
+  // 页内按段落边界切分（旧逻辑）。
+  const splitLong = (str) => {
+    if (str.length <= maxChars) return [str];
+    const out = [];
+    let start = 0;
+    while (start < str.length) {
+      let end = Math.min(start + maxChars, str.length);
+      if (end < str.length) {
+        const slice = str.slice(start, end);
+        const lastBreak = Math.max(
+          slice.lastIndexOf("\n\n"),
+          slice.lastIndexOf("\n"),
+          slice.lastIndexOf("。")
+        );
+        if (lastBreak > maxChars * 0.5) end = start + lastBreak + 1;
+      }
+      out.push(str.slice(start, end));
+      start = end;
+    }
+    return out;
+  };
+  const chunks = [];
+  let current = null;
+  const flush = () => {
+    if (current) chunks.push(current);
+    current = null;
+  };
+  const trackPage = (chunk, page) => {
+    if (page === null) return;
+    chunk.startPage =
+      chunk.startPage === null ? page : Math.min(chunk.startPage, page);
+    chunk.endPage =
+      chunk.endPage === null ? page : Math.max(chunk.endPage, page);
+  };
+  for (const page of pages) {
+    for (const part of splitLong(page.text)) {
+      if (!current) {
+        current = { text: part, startPage: null, endPage: null };
+        trackPage(current, page.page);
+        continue;
+      }
+      if (current.text.length + part.length <= maxChars) {
+        current.text += part;
+        trackPage(current, page.page);
+      } else {
+        flush();
+        current = { text: part, startPage: null, endPage: null };
+        trackPage(current, page.page);
+      }
+    }
+  }
+  flush();
+  return chunks.length
+    ? chunks
+    : [{ text: "", startPage: null, endPage: null }];
 }
 
 function parseJsonLoose(content) {
@@ -128,19 +191,6 @@ function normalizeBidDate(value) {
     return "";
   }
   return `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
-function asStringArray(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) {
-    return value
-      .map((item) =>
-        typeof item === "string" ? item.trim() : String(item?.text || item || "").trim()
-      )
-      .filter(Boolean);
-  }
-  if (typeof value === "string" && value.trim()) return [value.trim()];
-  return [];
 }
 
 function validateExtracted(raw) {
@@ -211,17 +261,28 @@ export function createAiExtract({ ui }) {
       onProgress?.(
         `长文档分块摘要中（${i + 1}/${chunks.length}）…`
       );
+      // v0.15.0：分块带页码区间进提示词，摘要才留得住出处。
+      const chunk = chunks[i];
+      const range =
+        chunk.startPage !== null && chunk.endPage !== null
+          ? chunk.startPage === chunk.endPage
+            ? `第 ${chunk.startPage} 页`
+            : `第 ${chunk.startPage}–${chunk.endPage} 页`
+          : "";
+      const label = range
+        ? `【片段 ${i + 1}/${chunks.length} · ${range}】`
+        : `【片段 ${i + 1}/${chunks.length}】`;
       const content = await callChat(
         [
           { role: "system", content: CHUNK_SUMMARY_PROMPT },
           {
             role: "user",
-            content: `【片段 ${i + 1}/${chunks.length}】\n\n${chunks[i]}`,
+            content: `${label}\n\n${chunk.text}`,
           },
         ],
         onProgress
       );
-      summaries.push(`【片段 ${i + 1} 摘要】\n${content.trim()}`);
+      summaries.push(`【片段 ${i + 1} 摘要${range ? ` · ${range}` : ""}】\n${content.trim()}`);
     }
     return summaries.join("\n\n");
   }
@@ -276,23 +337,27 @@ export function createAiExtract({ ui }) {
   }
 
   function normalizeResult(raw) {
+    // v0.15.0：风险点带证据（page/quote/verified）；字符串旧形态兼容进对象。
     const riskPoints = Array.isArray(raw.risk_points)
       ? raw.risk_points
-          .map((p) =>
-            typeof p === "string"
-              ? { level: "medium", text: p }
-              : {
-                  level: ["high", "medium", "low"].includes(p.level)
-                    ? p.level
-                    : "medium",
-                  text: String(p.text || "").trim(),
-                }
-          )
-          .filter((p) => p.text)
+          .map((p) => {
+            const item = normalizeEvidenceItem(p);
+            if (!item) return null;
+            return {
+              level:
+                p &&
+                typeof p === "object" &&
+                ["high", "medium", "low"].includes(p.level)
+                  ? p.level
+                  : "medium",
+              ...item,
+            };
+          })
+          .filter(Boolean)
       : [];
 
-    const qualification = asStringArray(raw.qualification);
-    const invalidBidClauses = asStringArray(raw.invalid_bid_clauses);
+    const qualification = normalizeEvidenceItems(raw.qualification);
+    const invalidBidClauses = normalizeEvidenceItems(raw.invalid_bid_clauses);
 
     // notes 仅保留模型给出的其它信息，不再自动拼接资格/废标（已独立字段）
     const notes = String(raw.notes || "").trim();
@@ -355,17 +420,29 @@ export function createAiExtract({ ui }) {
     if (!container) return;
     const sanitizeLevel = (level) =>
       ["high", "medium", "low"].includes(level) ? level : "medium";
+    // v0.15.0：分析结果面板只读展示证据（页码 + 原文 + 状态），核对开关在项目卡片上。
+    const evidenceMeta = (item) => {
+      const it = item && typeof item === "object" ? item : {};
+      const state = getEvidenceState(it);
+      const page = it.page
+        ? `<span class="evidence-page">第 ${escape(it.page)} 页</span>`
+        : "";
+      const quote = it.quote
+        ? `<span class="evidence-quote" title="${escape(it.quote)}">“${escape(it.quote)}”</span>`
+        : "";
+      return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span></div>`;
+    };
     const points = (result.riskPoints || [])
       .map(
         (p) =>
-          `<li><span class="risk-level ${sanitizeLevel(p.level)}">${escape(p.level || "medium")}</span>${escape(p.text)}</li>`
+          `<li><span class="risk-level ${sanitizeLevel(p.level)}">${escape(p.level || "medium")}</span><div class="risk-point-body"><div>${escape(p.text)}</div>${evidenceMeta(p)}</div></li>`
       )
       .join("");
     const qual = (result.qualification || [])
-      .map((q) => `<li>${escape(q)}</li>`)
+      .map((q) => `<li><div>${escape(q.text ?? q)}</div>${evidenceMeta(q)}</li>`)
       .join("");
     const invalid = (result.invalidBidClauses || [])
-      .map((c) => `<li>${escape(c)}</li>`)
+      .map((c) => `<li><div>${escape(c.text ?? c)}</div>${evidenceMeta(c)}</li>`)
       .join("");
     const metaBits = [
       result.tenderer ? `招标单位：${escape(result.tenderer)}` : "",
@@ -417,7 +494,6 @@ export function createAiExtract({ ui }) {
       validateExtracted,
       normalizeResult,
       normalizeBidDate,
-      asStringArray,
     },
   };
 }
