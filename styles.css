@@ -272,6 +272,9 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .panel { padding: var(--sp-5); margin-bottom: var(--sp-5); }
 /* v0.5.1：表单面板内边距收紧一档 */
 .form-panel.panel { padding: var(--sp-4); }
+/* v0.20.0：表单顶部可选的解析入口 —— 一行提示 + 一个按钮，不占地方 */
+.form-parser-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 2px 0 14px; }
+.form-parser-row span { color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
 .panel-title {
   display: flex;
   justify-content: space-between;
@@ -1000,7 +1003,6 @@ body.dark .sort-select {
   font: 14px/1.75 Consolas, "Microsoft YaHei", monospace;
 }
 .parser-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.pdf-save-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-top: 14px; }
 .pdf-save-field { flex: 1; min-width: 200px; }
 
 /* ---------- 废标检查清单 ---------- */
@@ -1582,7 +1584,6 @@ body.sheet-open { overflow: hidden; }
   .sheet-panel.parser-sheet-panel { max-height: 88vh; }
 }
 /* v0.18.0：绑定模式下“保存到项目”显示固定项目名，不再是下拉框 */
-.pdf-target-label { font-weight: 700; font-size: var(--fs-base); padding: 10px 0; }
 /* toast 永远在最上层：抽屉内操作（恢复/彻底删除）的提示不能被遮罩盖住 */
 .toast-wrap { z-index: 50; }
 
@@ -1747,5 +1748,4 @@ body.sheet-open { overflow: hidden; }
 /* —— AI 面板下一步：保存方式二选一 —— */
 .ai-next { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
 .ai-next-text { font-size: var(--fs-md); font-weight: 700; }
-.ai-next-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
 .ai-next-hint { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; }

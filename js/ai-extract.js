@@ -741,9 +741,6 @@ export function createAiExtract({ ui }) {
         </div>
         <div class="ai-next">
           <div class="ai-next-text">分析完成，请核对结果。</div>
-          <div class="ai-next-actions">
-            <button class="btn primary" type="button" data-action="ai-apply-form">回填到表单</button>
-          </div>
         </div>
       </div>`;
     // v0.16.0：面板折叠开关（容器本身不替换，监听绑在本次渲染的按钮上即可）。

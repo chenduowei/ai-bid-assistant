@@ -69,7 +69,6 @@
         </div>
         <div class="header-top-actions">
           <button id="addProjectBtn" class="btn primary" type="button">＋ 新增项目</button>
-          <button id="openParserBtn" class="btn secondary" type="button">📄 解析招标文件</button>
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
@@ -192,6 +191,12 @@
       </div>
 
       <div id="formBody" class="form-body collapse"><div class="collapse-inner">
+      <!-- v0.20.0：解析入口挪进表单（可选）—— 标题栏按钮已删；从这里进抽屉，
+        回填后回到同一张表单（新建仍是新建，编辑仍是正在改的那张）。 -->
+      <div class="form-parser-row">
+        <span>可选：先解析招标文件，让 AI 帮你填表</span>
+        <button id="formOpenParserBtn" class="btn secondary" type="button">📄 解析招标文件</button>
+      </div>
       <div class="form-grid">
         <div class="form-section">
           <div class="form-section-title">必填信息</div>
@@ -375,7 +380,7 @@
     </section>
     </div>
 
-    <footer class="app-footer">投标工作台 v0.19.0</footer>
+    <footer class="app-footer">投标工作台 v0.20.0</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
@@ -414,7 +419,7 @@
     </div>
   </div>
 
-  <!-- v0.18.0：解析抽屉 —— 从项目卡片发起时绑定该项目，上下文永远可见；全局入口仍为新建模式 -->
+  <!-- v0.18.0：解析抽屉 —— 从项目卡片发起时绑定该项目，上下文永远可见；全局入口在新增/编辑表单顶部（可选），仍为新建模式 -->
   <div id="parserSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="parserSheetTitle">
     <div class="sheet-backdrop" data-action="close-parser"></div>
     <div class="sheet-panel parser-sheet-panel card">
@@ -423,7 +428,7 @@
           <h2 id="parserSheetTitle">招标文件解析</h2>
           <p id="parserSheetSubtitle">PDF 在浏览器本地解析，文件本身不上传；解析文字只在您保存后存到云端，AI 分析时会发给您配置的模型服务商。</p>
         </div>
-        <button id="closeParserBtn" class="btn secondary" type="button" aria-label="关闭解析">✕</button>
+        <button id="closeParserBtn" class="btn secondary" type="button" data-action="close-parser" aria-label="关闭解析">✕</button>
       </div>
       <section id="parserView" class="parser-page">
         <section class="card panel">
@@ -442,19 +447,9 @@
             <button id="toggleTextBtn" class="btn secondary" type="button" disabled>查看原始文本</button>
             <button id="copyTextBtn" class="btn secondary" type="button" disabled>复制全文</button>
             <button id="aiAnalyzeBtn" class="btn primary" type="button" disabled>🤖 AI 分析</button>
-            <button id="saveToProjectBtn" class="btn secondary" type="button">💾 保存到项目</button>
+            <button id="applyAiToFormBtn" class="btn primary" type="button" disabled>↩️ 回填到表单</button>
             <button id="aiCancelBtn" class="btn tint-red hidden" type="button">⏹ 终止分析</button>
             <button id="clearParserBtn" class="btn secondary" type="button" disabled>清空解析结果</button>
-          </div>
-          <!-- v0.19.0：目标选择器 —— 平时藏起，只在未绑定时点「保存到项目」或
-            「回填到表单」才出现，就地选一次；绑定模式目标已知，永远不出现。 -->
-          <div id="parserTargetRow" class="pdf-save-row hidden">
-            <div class="field pdf-save-field">
-              <label for="pdfProjectSelect" id="parserTargetLabel">保存到项目</label>
-              <select id="pdfProjectSelect"><option value="">请选择项目</option></select>
-            </div>
-            <button id="parserTargetConfirmBtn" class="btn primary" type="button">确定</button>
-            <button id="parserTargetCancelBtn" class="btn secondary" type="button">取消</button>
           </div>
           <textarea id="parsedText" class="parser-text hidden" readonly placeholder="完成解析后，全文将在这里显示。"></textarea>
           <div id="aiResultPanel" class="ai-result-wrap"></div>

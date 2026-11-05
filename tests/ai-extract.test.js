@@ -206,8 +206,8 @@ test("analyzeTenderText：分析进行中再调直接拒绝", async () => {
   }
 });
 
-/* v0.19.0：AI 面板底部只剩「回填到表单」—— 绑定与全局同一套，不再分
-   新建/更新/直存/编辑四种按钮，也不再有「选择保存方式」与下拉框提示 */
+/* v0.20.0：AI 面板只展示结果 —— 「回填到表单」挪到操作区「AI 分析」后面，
+   不再是面板里的按钮；面板底部只剩「分析完成，请核对结果。」一行字 */
 
 function fakePanelContainer() {
   return { innerHTML: "", querySelector: () => null };
@@ -220,17 +220,17 @@ const PANEL_RESULT = {
   riskPoints: [],
 };
 
-test("renderAiResultPanel：面板底部只有一个「回填到表单」，不分模式", () => {
+test("renderAiResultPanel：面板里不再有任何操作按钮，只有结果与提示", () => {
   const ai = createAiExtract({ ui: {} });
   const c = fakePanelContainer();
   ai.renderAiResultPanel(c, PANEL_RESULT);
-  assert.ok(c.innerHTML.includes('data-action="ai-apply-form"'));
-  assert.ok(c.innerHTML.includes("回填到表单"));
   assert.ok(c.innerHTML.includes("分析完成，请核对结果。"));
+  assert.ok(!c.innerHTML.includes('data-action="ai-apply-form"'));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-new"'));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-update"'));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-attach"'));
   assert.ok(!c.innerHTML.includes('data-action="ai-save-edit"'));
+  assert.ok(!c.innerHTML.includes("回填到表单"));
   assert.ok(!c.innerHTML.includes("选择保存方式"));
   assert.ok(!c.innerHTML.includes("已回填表单"));
 });
