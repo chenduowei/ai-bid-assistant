@@ -5,7 +5,7 @@
  * 用户刷新也看不到新功能（v0.8.1 教训：只改了页面没改 sw.js，
  * 缓存名不变导致新版按钮一直不出现）。发版前跑 npm run check:version 校验。
  */
-const CACHE_NAME = "bid-assistant-v0.30.0";
+const CACHE_NAME = "bid-assistant-v0.31.0";
 const APP_SHELL = [
   "./",
   "./index.html",

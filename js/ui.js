@@ -427,6 +427,25 @@ export function createUi(elements, getState) {
     "没有更多项目了，项目都在这儿啦 📋",
   ];
 
+  // v0.31.0：空状态与末尾元素（加载更多 / 到底啦）的 HTML 抽出来，renderList 与
+  // syncListDom 共用一份，免得两处文案各写各的、改了一处漏一处。
+  const EMPTY_STATE_HTML =
+    '<div class="empty-state"><div class="empty-icon">＋</div><div class="empty-title">还没有项目</div><div class="empty-sub">新增第一个项目，开始管理投标进度</div><button class="btn primary" type="button" data-action="empty-add">新增第一个项目</button></div>';
+  const listTailHtml = (filtered, visible, remaining) =>
+    remaining > 0
+      ? `<button class="btn secondary load-more-btn" type="button" data-action="load-more">加载更多（剩余 ${remaining} 条，已显示 ${visible.length} / 共 ${filtered.length} 条）</button>`
+      : `<div class="list-end">—— ${escapeHtml(
+          END_QUOTES[filtered.length % END_QUOTES.length].replace(
+            "{n}",
+            String(filtered.length)
+          )
+        )} ——</div>`;
+  const htmlToElement = (html) => {
+    const template = document.createElement("template");
+    template.innerHTML = html.trim();
+    return template.content.firstElementChild;
+  };
+
   const renderList = (projects, filters) => {
     const keyword = (filters.keyword || "").trim();
     const status = filters.status || "all";
@@ -441,8 +460,7 @@ export function createUi(elements, getState) {
       );
 
     if (!filtered.length) {
-      elements.list.innerHTML =
-        '<div class="empty-state"><div class="empty-icon">＋</div><div class="empty-title">还没有项目</div><div class="empty-sub">新增第一个项目，开始管理投标进度</div><button class="btn primary" type="button" data-action="empty-add">新增第一个项目</button></div>';
+      elements.list.innerHTML = EMPTY_STATE_HTML;
       return;
     }
     // v0.11.0：列表分页——只渲染前 listLimit 条，剩余的用"加载更多"续取；
@@ -454,15 +472,105 @@ export function createUi(elements, getState) {
     );
     elements.list.innerHTML =
       visible.map((p, i) => renderProjectItem(p, i)).join("") +
-      (remaining > 0
-        ? `<button class="btn secondary load-more-btn" type="button" data-action="load-more">加载更多（剩余 ${remaining} 条，已显示 ${visible.length} / 共 ${filtered.length} 条）</button>`
-        : `<div class="list-end">—— ${escapeHtml(
-            END_QUOTES[filtered.length % END_QUOTES.length].replace(
-              "{n}",
-              String(filtered.length)
-            )
-          )} ——</div>`);
+      listTailHtml(filtered, visible, remaining);
   };
+
+  // v0.31.0：列表增量同步 —— 按当前筛选 / 排序算出应显示的卡片，与 DOM 现有卡片逐个对账：
+  // 缺失的插入、移位的挪过去、内容变了的重建（changedIds 内）、多余的移除；末尾的
+  // “加载更多 / 到底啦”与筛选计数一并更新。新建与重建的卡片加 no-enter，不重播入场动画。
+  const syncListDom = (changedIds = new Set()) => {
+    const listEl = elements.list;
+    if (!listEl) return;
+    const state = getState();
+    const filters = getCurrentFilters();
+    const keyword = (filters.keyword || "").trim();
+    const status = filters.status || "all";
+    const hasActiveFilter = Boolean(keyword) || status !== "all";
+    const filtered = getFilteredProjects(state.projects, filters);
+    updateFilterCount(filtered.length, state.projects.length, hasActiveFilter);
+    listEl.classList.toggle("selecting", !!(state.selectMode));
+    if (!filtered.length) {
+      listEl.innerHTML = EMPTY_STATE_HTML;
+      return;
+    }
+    const { visible, remaining } = paginateItems(
+      filtered,
+      state.listLimit || 50
+    );
+    const byId = new Map(visible.map((p) => [p.id, p]));
+    // 1. 移除不在应显示范围内的卡片与旧的末尾元素（加载更多 / 到底啦 / 空状态）。
+    listEl.querySelectorAll(".project-item").forEach((el) => {
+      if (!byId.has(el.dataset.id)) el.remove();
+    });
+    listEl.querySelector(".load-more-btn, .list-end, .empty-state")?.remove();
+    // 2. 记录焦点：若当前聚焦在待重建的卡片里，重建后把焦点还给同款按钮。
+    const activeEl = document.activeElement;
+    const activeCard = activeEl?.closest?.(".project-item");
+    const activeCardId = activeCard?.dataset?.id;
+    let focusAction = null;
+    let focusIndex = null;
+    if (activeCardId && changedIds.has(activeCardId)) {
+      focusAction = activeEl.dataset?.action || null;
+      focusIndex =
+        activeEl.dataset?.index ?? activeEl.dataset?.itemId ?? null;
+    }
+    // 3. 倒序走一遍：存在则（变了就重建、位置不对就挪），缺失则新建插入。
+    //    倒序 + insertBefore(anchor) 保证最终顺序与 desired 一致。
+    let anchor = null;
+    for (let i = visible.length - 1; i >= 0; i--) {
+      const p = visible[i];
+      let el = listEl.querySelector(
+        `.project-item[data-id="${CSS.escape(p.id)}"]`
+      );
+      if (el) {
+        if (changedIds.has(p.id)) {
+          const replacement = htmlToElement(renderProjectItem(p, i));
+          replacement.classList.add("no-enter");
+          el.replaceWith(replacement);
+          el = replacement;
+        }
+        if (anchor) listEl.insertBefore(el, anchor);
+        else listEl.appendChild(el);
+      } else {
+        el = htmlToElement(renderProjectItem(p, i));
+        el.classList.add("no-enter");
+        if (anchor) listEl.insertBefore(el, anchor);
+        else listEl.appendChild(el);
+      }
+      anchor = el;
+    }
+    // 4. 末尾元素（加载更多 / 到底啦）。
+    listEl.appendChild(
+      htmlToElement(listTailHtml(filtered, visible, remaining))
+    );
+    // 5. 焦点恢复。
+    if (focusAction && activeCardId) {
+      const newCard = listEl.querySelector(
+        `.project-item[data-id="${CSS.escape(activeCardId)}"]`
+      );
+      const sel =
+        focusIndex !== null && focusIndex !== undefined
+          ? `[data-action="${focusAction}"][data-index="${focusIndex}"], [data-action="${focusAction}"][data-item-id="${focusIndex}"]`
+          : `[data-action="${focusAction}"]`;
+      newCard?.querySelector(sel)?.focus();
+    }
+  };
+
+  // v0.31.0：写后定向渲染 —— 只刷新统计、即将开标、截止提醒、保证金清单、日历（可见时）
+  // 与列表（增量同步 DOM），不再全量重建整个页面。
+  const renderAfterWrite = ({ changedIds = [] } = {}) => {
+    const state = getState();
+    renderStats(state.projects);
+    renderUpcomingList(state.projects);
+    renderDeadlineTip(state.projects);
+    renderRefundReminder(state.projects);
+    renderGuaranteeList(state.projects);
+    syncListDom(new Set(changedIds));
+    if (!elements.calendarView?.classList.contains("hidden")) {
+      renderCalendar(state.projects, getCurrentFilters());
+    }
+  };
+
 
   /** 定位到项目列表中的某一项并高亮（v0.4.1：自动展开该项目） */
   // v0.27.0：连续点两个项目时，旧的定时器会把新的高亮提前摘掉——先清掉再排新的。
@@ -495,7 +603,8 @@ export function createUi(elements, getState) {
     if (targetIndex >= 0) {
       s.listLimit = expandLimitForIndex(s.listLimit, targetIndex);
     }
-    render();
+    // v0.31.0：定位也走定向渲染（只动目标卡片），不再全量重建整个列表。
+    renderAfterWrite({ changedIds: [projectId] });
     const item = elements.list?.querySelector(
       `.project-item[data-id="${CSS.escape(String(projectId))}"]`
     );
@@ -905,6 +1014,7 @@ export function createUi(elements, getState) {
     setSyncStatus,
     applyTheme,
     render,
+    renderAfterWrite,
     renderTrashList,
     renderQualList,
     getCurrentFilteredProjects,

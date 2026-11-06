@@ -12,6 +12,8 @@ import {
   saveProjectsSnapshot,
   loadProjectsSnapshot,
   APP_VERSION,
+  upsertById,
+  removeByIds,
 } from "./utils.js";
 
 /** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
@@ -183,6 +185,58 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return true;
   }
 
+  // v0.31.0：写后本地提交 —— 不再全量重拉：把受影响的行合进 state.projects、
+  // 刷新离线快照、定向渲染（只动受影响的卡片与统计）。loadProjects 只留给
+  // 首次加载 / 联网恢复 / 重置 / 恢复备份这四种整库场景。
+  const upsertLocalProject = (row) => {
+    if (!row?.id) return;
+    const proj = toUiProject(row);
+    // 列表 state 从不带 pdf_text（LIST_COLUMNS 不含它），与重拉一致，免得实时
+    // 推送把几十万字全文塞进内存。
+    proj.pdfText = "";
+    setState({ projects: upsertById(getState().projects, proj) });
+  };
+  const removeLocalProjects = (ids) => {
+    const list = [...new Set(ids || [])];
+    if (!list.length) return;
+    setState({ projects: removeByIds(getState().projects, list) });
+    const selectedIds = getState().selectedIds;
+    if (selectedIds) list.forEach((id) => selectedIds.delete(id));
+  };
+  const afterLocalChange = (changedIds = []) => {
+    saveProjectsSnapshot(localStorage, getState().projects);
+    ui.renderAfterWrite({ changedIds });
+  };
+
+  // v0.31.0：Realtime 增量应用 —— 之前每次变更（包括自己刚保存的回声）都全量重拉；
+  // 现在按事件类型只动受影响的行。收不到 payload 或解析失败时返回 false，调用方回落全量重拉。
+  function applyRealtimeChange(payload) {
+    const type = payload?.eventType;
+    if (type === "DELETE") {
+      const id = payload.old?.id;
+      if (!id) return false;
+      removeLocalProjects([id]);
+      afterLocalChange();
+      return true;
+    }
+    if (type === "INSERT" || type === "UPDATE") {
+      const row = payload.new;
+      // 行不完整（缺必填列，可能是副本标识配置异常）时别硬合，回落全量重拉。
+      if (!row?.id || typeof row.name !== "string" || !row.bid_date)
+        return false;
+      if (row.deleted_at) {
+        // 软删除（另一端移入回收站）：从主列表移除
+        removeLocalProjects([row.id]);
+        afterLocalChange();
+        return true;
+      }
+      upsertLocalProject(row);
+      afterLocalChange([row.id]);
+      return true;
+    }
+    return false;
+  }
+
   /** 拉取回收站（deleted_at 非空），按删除时间倒序。旧库无列时返回 [] 并提示迁移。 */
   async function loadDeletedProjects() {
     const PAGE_SIZE = 500;
@@ -332,7 +386,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
           table: "projects",
           filter: `user_id=eq.${state.user.id}`,
         },
-        () => onChange()
+        (payload) => onChange(payload)
       )
       .subscribe((status, error) => {
         if (status === "SUBSCRIBED") {
@@ -388,16 +442,21 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const wasEditing = Boolean(editingId);
     // v0.16.0：保存成功返回项目 id（新建时取刚插入行的 id），供调用方定位到该卡片；
     // 失败仍返回 false。调用方只有 app.js 的提交按钮一处。
+    // v0.31.0：保存后取回整行（LIST_COLUMNS，与列表查询同款列），本地合进 state，
+    // 不再全量重拉。
     const query = wasEditing
       ? client
           .from("projects")
           .update(payload)
           .eq("id", editingId)
           .eq("user_id", state.user.id)
+          .select(LIST_COLUMNS)
+          .single()
       : client
           .from("projects")
           .insert({ ...payload, user_id: state.user.id })
-          .select("id")
+          .select(LIST_COLUMNS)
+          .single()
           .single();
     const { data, error } = await query;
     if (error) {
@@ -409,7 +468,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       }
       return false;
     }
-    await loadProjects();
+    upsertLocalProject(data);
+    afterLocalChange([data?.id || editingId].filter(Boolean));
     ui.setSyncStatus(
       getState().realtimeReady ? "实时同步已连接" : "云端已同步"
     );
@@ -463,11 +523,15 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       dbPatch[dbKey] = value;
     }
     if (!Object.keys(dbPatch).length) return false;
-    const { error } = await client
+    // v0.31.0：取回整行本地提交，不再全量重拉（LIST_COLUMNS 不含 pdf_text，
+    // 与列表重拉后的 state 一致）。
+    const { data, error } = await client
       .from("projects")
       .update(dbPatch)
       .eq("id", id)
-      .eq("user_id", state.user.id);
+      .eq("user_id", state.user.id)
+      .select(LIST_COLUMNS)
+      .single();
     if (error) {
       if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
         ui.showToast("保存失败：先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
@@ -476,7 +540,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       }
       return false;
     }
-    await loadProjects();
+    upsertLocalProject(data);
+    afterLocalChange([data?.id || id]);
     return true;
   }
 
@@ -526,10 +591,18 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       .eq("id", id)
       .eq("user_id", state.user.id);
     if (error) {
+      // v0.31.0：删除失败时把刚才折叠起来的行恢复原样（之前失败后行一直缩着，直到下次渲染才回来）。
+      if (row) {
+        row.style.height = "";
+        row.style.overflow = "";
+        row.classList.remove("leaving");
+      }
       ui.showToast(`删除失败：${error.message}`);
       return false;
     }
-    await loadProjects();
+    // v0.31.0：本地移除 + 定向渲染，不再全量重拉。
+    removeLocalProjects([id]);
+    afterLocalChange();
     ui.showToast(`已移到回收站，${TRASH_RETENTION_DAYS} 天内可在回收站恢复。`);
     return true;
   }
@@ -564,7 +637,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(`批量删除失败：${error.message}`);
       return false;
     }
-    await loadProjects();
+    // v0.31.0：本地移除 + 定向渲染，不再全量重拉。
+    removeLocalProjects(list);
+    afterLocalChange();
     ui.showToast(`已将 ${list.length} 个项目移到回收站。`);
     return true;
   }
@@ -577,16 +652,20 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast("当前为离线快照，联网后才能恢复项目。");
       return false;
     }
-    const { error } = await client
+    // v0.31.0：取回整行本地提交（恢复的行回到主列表），不再全量重拉。
+    const { data, error } = await client
       .from("projects")
       .update({ deleted_at: null })
       .eq("id", id)
-      .eq("user_id", state.user.id);
+      .eq("user_id", state.user.id)
+      .select(LIST_COLUMNS)
+      .single();
     if (error) {
       ui.showToast(`恢复失败：${error.message}`);
       return false;
     }
-    await loadProjects();
+    upsertLocalProject(data);
+    afterLocalChange([data?.id || id]);
     ui.showToast("项目已从回收站恢复。");
     return true;
   }
@@ -617,7 +696,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(`彻底删除失败：${error.message}`);
       return false;
     }
-    await loadProjects();
+    // v0.31.0：彻底删除的行本就不在主列表里，不用重拉；回收站抽屉由调用方刷新。
     ui.showToast("项目已彻底删除。");
     return true;
   }
@@ -654,7 +733,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(`清空回收站失败：${error.message}`);
       return false;
     }
-    await loadProjects();
+    // v0.31.0：同上，不用重拉。
     ui.showToast(`已清空回收站，共彻底删除 ${list.length} 个项目。`);
     return true;
   }
@@ -681,17 +760,24 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     }
     let imported = 0;
     let failed = 0;
+    const insertedRows = [];
     for (let i = 0; i < fresh.length; i += 100) {
       const batch = fresh.slice(i, i + 100).map((r) => ({ ...r, user_id: state.user.id }));
-      const { error } = await client.from("projects").insert(batch);
+      // v0.31.0：取回插入的行本地提交，不再全量重拉。
+      const { data, error } = await client
+        .from("projects")
+        .insert(batch)
+        .select(LIST_COLUMNS);
       if (error) {
         failed += batch.length;
         ui.showToast(`导入失败（第 ${i + 1}–${i + batch.length} 条）：${error.message}`);
       } else {
         imported += batch.length;
+        insertedRows.push(...(data || []));
       }
     }
-    await loadProjects();
+    insertedRows.forEach((row) => upsertLocalProject(row));
+    afterLocalChange();
     return { imported, failed, skipped: duplicates };
   }
 
@@ -751,12 +837,18 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       pdf_filename: null,
       pdf_parsed_at: null,
     };
-    const { error } = await client.from("projects").insert(payload);
+    // v0.31.0：取回副本行本地提交，不再全量重拉。
+    const { data, error } = await client
+      .from("projects")
+      .insert(payload)
+      .select(LIST_COLUMNS)
+      .single();
     if (error) {
       ui.showToast(`复制失败：${error.message}`);
       return false;
     }
-    await loadProjects();
+    upsertLocalProject(data);
+    afterLocalChange();
     ui.showToast(`已复制为「${payload.name}」。`);
     return true;
   }
@@ -1120,8 +1212,20 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       }
       return false;
     }
-    const list = await loadQualifications();
-    setState({ qualifications: list });
+    // v0.31.0：本地提交 + 只重绘资质列表，不再重拉整张资质表。
+    const quals = [...(state.qualifications || [])];
+    const saved = {
+      id: editingId || data?.id || `tmp-${Date.now()}`,
+      category,
+      name,
+      details: details || "",
+      expires_at: expires_at || "",
+    };
+    const qi = quals.findIndex((q) => q.id === saved.id);
+    if (qi >= 0) quals[qi] = saved;
+    else quals.push(saved);
+    setState({ qualifications: quals });
+    ui.renderQualList(quals);
     ui.showToast(editingId ? "资质已更新。" : "资质已添加。");
     return editingId || data?.id || false;
   }
@@ -1147,8 +1251,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(`删除失败：${error.message}`);
       return false;
     }
-    const list = await loadQualifications();
-    setState({ qualifications: list });
+    // v0.31.0：本地移除 + 只重绘资质列表，不再重拉整张资质表。
+    const quals = (state.qualifications || []).filter((q) => q.id !== id);
+    setState({ qualifications: quals });
+    ui.renderQualList(quals);
     return true;
   }
 
@@ -1159,6 +1265,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     purgeExpiredTrash,
     migrateLocalProjects,
     subscribeToProjects,
+    applyRealtimeChange,
     saveProject,
     updateProjectFields,
     importProjects,

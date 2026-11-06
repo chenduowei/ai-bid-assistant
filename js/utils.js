@@ -886,7 +886,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.30.0";
+export const APP_VERSION = "0.31.0";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {
@@ -938,6 +938,27 @@ export function loadProjectsSnapshot(storage, now = Date.now()) {
   } catch {
     return null;
   }
+}
+
+// v0.31.0：本地 state 的增量维护 —— 纯函数（可单测）。写操作成功后不再全量重拉，
+// 只把受影响的行合进 state.projects；合完按开标时间升序排，与服务端
+// loadProjects 的顺序（bid_date ASC）一致。
+export function upsertById(list, item) {
+  const arr = Array.isArray(list) ? [...list] : [];
+  const i = arr.findIndex((p) => p.id === item.id);
+  if (i >= 0) arr[i] = item;
+  else arr.push(item);
+  arr.sort(
+    (a, b) =>
+      String(a.date || "").localeCompare(String(b.date || "")) ||
+      String(a.id).localeCompare(String(b.id))
+  );
+  return arr;
+}
+
+export function removeByIds(list, ids) {
+  const set = new Set(ids || []);
+  return (Array.isArray(list) ? list : []).filter((p) => !set.has(p.id));
 }
 
 // v0.30.0：通知去重键过期清理 —— 键里嵌着截止日期（YYYY-MM-DD），超过 30 天的直接清掉，

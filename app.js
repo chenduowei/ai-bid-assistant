@@ -735,10 +735,17 @@ import { createDataIo } from "./js/data-io.js";
       projectsApi.purgeExpiredTrash();
       return projectsApi.migrateLocalProjects();
     });
-    projectsApi.subscribeToProjects(() => {
-      projectsApi.loadProjects().then(() => {
+    // v0.31.0：Realtime 改走增量应用（只动受影响的行）——之前每次变更（含自己刚保存
+    // 的回声）都全量重拉，等于每次保存拉两遍；解析失败才回落全量重拉。
+    projectsApi.subscribeToProjects((payload) => {
+      const applied = projectsApi.applyRealtimeChange(payload);
+      if (!applied) {
+        projectsApi.loadProjects().then(() => {
+          sendBidNotifications();
+        });
+      } else {
         sendBidNotifications();
-      });
+      }
     });
   }
 
