@@ -4,6 +4,8 @@
    圆角：卡片 16px / 按钮 12px · 动效：--ease-spring
    v0.21.0 呼吸感：只动间距 —— 行内操作、标题栏、定义列表、
    分区标题、搜索与工具栏、窄屏页边距各放宽一档，不动布局与颜色。
+   v0.22.0 手机端：行高与间距再放一档，输入框纵向内边距统一 12px，
+   窄屏工具栏贴边对齐；回收站底部加清空按钮的通栏间距。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -356,7 +358,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   color: var(--text);
   font-size: var(--fs-base);
   font-family: inherit;
-  padding: 10px var(--sp-3) 10px 36px;
+  padding: 12px var(--sp-3) 12px 36px;
   transition: box-shadow var(--dur-fast) var(--ease-out);
 }
 .search-box input::placeholder { color: var(--muted); }
@@ -414,7 +416,7 @@ body.dark .sort-select {
   overflow: hidden;
 }
 .form-group > .field {
-  padding: var(--sp-2) var(--sp-4);
+  padding: 10px var(--sp-4);
   border-bottom: 1px solid var(--border);
   gap: 2px;
 }
@@ -715,6 +717,8 @@ body.dark .sort-select {
 .trash-head { display: flex; align-items: center; gap: var(--sp-3); padding: 13px var(--sp-4); }
 .trash-actions { display: flex; gap: var(--sp-2); flex: none; }
 .trash-actions .btn { padding: var(--sp-2) 14px; font-size: var(--fs-sm); }
+/* v0.22.0：回收站底部通栏清空按钮与列表之间留一档呼吸 */
+.trash-empty-row { margin-top: var(--sp-4); }
 
 /* ---------- 表单 CTA 头（v0.4.4 概念，iOS 重画） ---------- */
 .form-title {
@@ -955,7 +959,7 @@ body.dark .sort-select {
 .auth-card h1 { margin: 0 0 var(--sp-2); font-size: var(--fs-4xl); font-weight: 800; letter-spacing: -0.01em; }
 .auth-card > p { margin: 0 0 var(--sp-6); color: var(--muted); line-height: 1.65; font-size: var(--fs-md); }
 .auth-form { display: grid; gap: 14px; }
-.auth-form .field input { font-size: var(--fs-lg); padding: 13px 14px; background: var(--surface-soft); }
+.auth-form .field input { font-size: var(--fs-lg); padding: 12px 14px; background: var(--surface-soft); }
 .auth-form .btn.primary { width: 100%; padding: 14px; font-size: var(--fs-lg); margin-top: var(--sp-1); }
 /* 登录/注册 segmented */
 .auth-tabs { display: flex; background: var(--btn-fill); border-radius: 10px; padding: 2px; gap: 2px; margin-bottom: var(--sp-5); }
@@ -1171,20 +1175,20 @@ body.dark .sort-select {
   .user-menu { flex-wrap: wrap; padding: var(--sp-1); }
 }
 @media (max-width: 680px) {
-  .page { padding: var(--sp-3) var(--sp-4) var(--sp-12); }
+  .page { padding: var(--sp-4) var(--sp-4) var(--sp-12); }
   .header-title h1 { font-size: var(--fs-3xl); }
   .panel { padding: var(--sp-4); }
   .panel-title h2 { font-size: var(--fs-xl); }
-  .stat-card { padding: var(--sp-3) 14px; }
+  .stat-card { padding: 14px var(--sp-4); }
   .stat-card .value { font-size: 22px; }
-  .list-tools { gap: var(--sp-2); }
+  .list-tools { gap: 10px; margin: 0 calc(-1 * var(--sp-4)) var(--sp-4); }
   .list-tools .seg-control { order: 2; flex-basis: 100%; }
   .sort-select { margin-left: auto; }
   .form-group > .field > input,
   .form-group > .field > select,
   .form-group > .field > textarea { font-size: var(--fs-lg); }
-  .project-head { padding: var(--sp-3) 14px; }
-  .project-details.collapse.expanded > .collapse-inner { margin: 2px 14px 0; }
+  .project-head { padding: 14px var(--sp-4); }
+  .project-details.collapse.expanded > .collapse-inner { margin: 2px var(--sp-4) 0; }
   .upcoming-item { flex-basis: 224px; }
   .trash-head { flex-wrap: wrap; }
   .trash-actions { width: 100%; }
@@ -1670,7 +1674,7 @@ body.sheet-open { overflow: hidden; }
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: var(--sp-2) 0;
+    padding: 10px 0;
     border: 0;
     background: none;
     color: var(--muted);

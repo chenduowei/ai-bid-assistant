@@ -111,6 +111,7 @@ import { createDataIo } from "./js/data-io.js";
     guaranteeSheet: document.getElementById("guaranteeSheet"),
     guaranteeSheetClose: document.getElementById("guaranteeSheetClose"),
     trashList: document.getElementById("trashList"),
+    emptyTrashBtn: document.getElementById("emptyTrashBtn"),
     trashMenuBtn: document.getElementById("trashMenuBtn"),
     trashSheet: document.getElementById("trashSheet"),
     trashSheetClose: document.getElementById("trashSheetClose"),
@@ -516,6 +517,9 @@ import { createDataIo } from "./js/data-io.js";
     if (!trashSheetOpen) return;
     const deleted = await projectsApi.loadDeletedProjects();
     ui.renderTrashList(deleted);
+    // v0.22.0：回收站为空时禁用清空按钮，避免对着空抽屉点确认框。
+    if (elements.emptyTrashBtn)
+      elements.emptyTrashBtn.disabled = !deleted?.length;
   }
 
   /** 当前解析区对应的 PDF 文件名（从文件名栏解析，取不到则用默认名）
@@ -1710,6 +1714,26 @@ import { createDataIo } from "./js/data-io.js";
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       setFormExpanded(!state.formExpanded);
+    });
+
+    // v0.22.0：清空回收站 —— 先取最新列表（防抽屉开着时数据已变），
+    // 空了直接提示；有内容则走批量彻底删除（自带确认框），成功后刷新列表。
+    elements.emptyTrashBtn?.addEventListener("click", async () => {
+      const btn = elements.emptyTrashBtn;
+      btn.disabled = true;
+      const deleted = await projectsApi.loadDeletedProjects();
+      if (!deleted?.length) {
+        ui.showToast("回收站已经是空的。");
+        return; // 本来就是空的，保持禁用
+      }
+      const ok = await projectsApi.permanentlyDeleteProjects(
+        deleted.map((p) => p.id)
+      );
+      if (ok) {
+        await refreshTrashList(); // 列表已空，按钮保持禁用
+        return;
+      }
+      btn.disabled = false; // 用户在确认框点了取消，恢复可点
     });
 
     elements.trashList?.addEventListener("click", async (event) => {

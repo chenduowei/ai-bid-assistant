@@ -605,6 +605,43 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   }
 
   /**
+   * v0.22.0：清空回收站 = 批量彻底删除。一次 confirm、一次 delete、一个 toast。
+   * 与单条彻底删除共用同一张确认框样式，文案按数量走。
+   */
+  async function permanentlyDeleteProjects(ids) {
+    const client = getClient();
+    const state = getState();
+    // 离线快照下拦截（同 deleteProjects）。
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能删除。");
+      return false;
+    }
+    const list = [...new Set(ids || [])];
+    if (!list.length) return false;
+    if (
+      !(await ui.confirmDialog({
+        title: "清空回收站",
+        message: `将彻底删除回收站里的 ${list.length} 个项目吗？删除后无法恢复。`,
+        confirmText: "全部彻底删除",
+        danger: true,
+      }))
+    )
+      return false;
+    const { error } = await client
+      .from("projects")
+      .delete()
+      .in("id", list)
+      .eq("user_id", state.user.id);
+    if (error) {
+      ui.showToast(`清空回收站失败：${error.message}`);
+      return false;
+    }
+    await loadProjects();
+    ui.showToast(`已清空回收站，共彻底删除 ${list.length} 个项目。`);
+    return true;
+  }
+
+  /**
    * v0.4.0：批量导入（CSV 解析后的 DB 形态行）。每批 100 条 insert。
    * 返回 { imported, failed }；失败 toast 报错。
    */
@@ -921,6 +958,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     deleteProjects,
     restoreProject,
     permanentlyDeleteProject,
+    permanentlyDeleteProjects,
     exportCsv,
     exportBackup,
     restoreBackup,
