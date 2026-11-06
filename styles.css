@@ -11,6 +11,7 @@
    统计卡片各自成卡、品牌角标随文字高度自适应。
    v0.24.0 浮钮根因修复（page-in 动画收尾改 none）、角标改正方形、
    版本号移到页眉、README 加少量表情点缀。
+   v0.25.0 定位高亮改单次淡出、手机端名称改回两行 + 操作按钮铺满。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -1153,7 +1154,8 @@ body.dark .sort-select {
 /* 移动端不显示回顶部浮钮（底部“项目”Tab 自带回顶）；桌面端不显示回到底部浮钮 */
 @media (max-width: 680px) { .back-to-top { display: none; } }
 @media (min-width: 681px) { .go-to-bottom { display: none; } }
-.project-item.project-highlight { background: var(--accent-soft); animation: project-pulse 2.2s var(--ease-out); }
+/* v0.25.0：定位高亮改单次淡出（之前是 2.2s 来回脉冲，结束移除类名时瞬间回透明，看着像闪一下） */
+.project-item.project-highlight { animation: highlight-fade 1.6s var(--ease-out) both; }
 .form-panel.form-highlight { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
 .ripple {
   position: absolute;
@@ -1179,7 +1181,7 @@ body.dark .sort-select {
 @keyframes ripple { to { transform: scale(4); opacity: 0; } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
-@keyframes project-pulse { 0%, 100% { background: var(--accent-soft); } 50% { background: var(--tint-blue-bg); } }
+@keyframes highlight-fade { from { background: var(--accent-soft); } to { background: transparent; } }
 @keyframes form-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent); } 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
 
 /* ---------- 响应式 ---------- */
@@ -1224,7 +1226,8 @@ body.dark .sort-select {
   .project-head { padding: 12px var(--sp-4); flex-wrap: wrap; }
   .project-head-right { display: contents; }
   .project-head-top { order: 1; }
-  .project-head-actions { order: 2; flex: 1 1 100%; justify-content: flex-start; margin-top: 10px; }
+  .project-head-actions { order: 2; flex: 1 1 100%; margin-top: 8px; }
+  .project-head-actions .row-btn { flex: 1; justify-content: center; }
   .project-details.collapse.expanded > .collapse-inner { margin: 2px var(--sp-4) 0; }
   .upcoming-item { flex-basis: 224px; }
   .trash-head { flex-wrap: wrap; }
@@ -1744,17 +1747,8 @@ body.sheet-open { overflow: hidden; }
 
 /* ========== v0.13.2 ========== */
 
-/* —— 手机端项目名恢复单行省略（v0.9.0 的两行换行只留给桌面端） —— */
-@media (max-width: 680px) {
-  .project-head .project-name {
-    display: block;
-    -webkit-line-clamp: unset;
-    line-clamp: unset;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
+/* —— v0.25.0：手机端项目名改回两行（与桌面端一致），用名称本身填掉折叠行的空白 —— */
+/* （v0.13.2 的单行省略至此退役；桌面端的两行 clamp 规则现在全端通用。） */
 
 /* ========== v0.15.0 ========== */
 

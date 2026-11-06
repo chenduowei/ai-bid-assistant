@@ -469,7 +469,8 @@ export function createUi(elements, getState) {
     }
     item.scrollIntoView({ behavior: "smooth", block: "center" });
     item.classList.add("project-highlight");
-    setTimeout(() => item.classList.remove("project-highlight"), 2200);
+    // v0.25.0：与 1.6s 淡出动画对齐；动画终态就是透明，移除类名时不再闪一下。
+    setTimeout(() => item.classList.remove("project-highlight"), 1600);
   };
 
   /** 仅更新倒计时文字，避免每分钟全量 render */
