@@ -1267,6 +1267,7 @@ body.dark .sort-select {
   padding: 6px var(--sp-2);
 }
 .btn-text:active { opacity: 0.6; }
+.btn-text:disabled { opacity: 0.35; cursor: default; }
 .select-bar {
   display: flex;
   align-items: center;
@@ -1650,6 +1651,12 @@ body.sheet-open { overflow: hidden; }
 .confirm-panel h2 { margin: 0 0 var(--sp-2); font-size: var(--fs-2xl); font-weight: 800; }
 .confirm-panel p { margin: 0 0 var(--sp-5); color: var(--muted); font-size: var(--fs-base); line-height: 1.6; }
 .confirm-actions { display: flex; gap: 10px; }
+/* v0.32.0：打字确认输入区 */
+.confirm-typing { margin: 0 0 var(--sp-5); }
+.confirm-typing label { display: block; font-size: var(--fs-sm); color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+.confirm-typing label span { color: var(--text); font-weight: 700; }
+.confirm-typing input { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: var(--fs-lg); font-family: inherit; color: var(--text); background: var(--surface-soft); border: 1px solid var(--border); border-radius: 10px; outline: none; }
+.confirm-typing input:focus { border-color: var(--accent); }
 .confirm-actions .btn { flex: 1; }
 .btn.danger-solid { background: var(--danger); color: #fff; }
 

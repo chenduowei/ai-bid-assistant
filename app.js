@@ -89,6 +89,7 @@ import { createDataIo } from "./js/data-io.js";
     sortBy: document.getElementById("sortBy"),
     headerSubtitle: document.getElementById("headerSubtitle"),
     selectModeBtn: document.getElementById("selectModeBtn"),
+    collapseAllBtn: document.getElementById("collapseAllBtn"),
     selectBar: document.getElementById("selectBar"),
     selectAllBtn: document.getElementById("selectAllBtn"),
     selectedCount: document.getElementById("selectedCount"),
@@ -131,6 +132,9 @@ import { createDataIo } from "./js/data-io.js";
     confirmDialogMessage: document.getElementById("confirmDialogMessage"),
     confirmDialogCancel: document.getElementById("confirmDialogCancel"),
     confirmDialogOk: document.getElementById("confirmDialogOk"),
+    confirmDialogTyping: document.getElementById("confirmDialogTyping"),
+    confirmDialogPhrase: document.getElementById("confirmDialogPhrase"),
+    confirmDialogInput: document.getElementById("confirmDialogInput"),
     formBody: document.getElementById("formBody"),
     formSubtitle: document.getElementById("formSubtitle"),
     upcomingList: document.getElementById("upcomingList"),
@@ -1501,6 +1505,14 @@ import { createDataIo } from "./js/data-io.js";
     if (elements.optionalCount)
       elements.optionalCount.textContent = String(OPTIONAL_FIELDS.length);
 
+    // v0.32.0：全部折叠 —— 清掉所有展开的卡片，只重建受影响的卡片（走定向渲染）。
+    elements.collapseAllBtn?.addEventListener("click", () => {
+      if (!state.expandedIds.size) return;
+      const changed = [...state.expandedIds];
+      state.expandedIds.clear();
+      ui.renderAfterWrite({ changedIds: changed });
+    });
+
     // v0.6.0：批量选择模式
     elements.selectModeBtn?.addEventListener("click", () => {
       // v0.8.0：日历视图下先切回列表，避免选择模式与日历叠加
@@ -1536,7 +1548,7 @@ import { createDataIo } from "./js/data-io.js";
         resetArmed = true;
         btn.textContent = "再次点击确认重置";
         btn.classList.add("armed");
-        ui.showToast("再次点击确认重置，10 秒内有效。确认后会先自动下载一份备份，再清空数据。");
+        ui.showToast("再次点击确认重置，10 秒内有效；确认后需打字输入「确认重置」，再自动下载备份并清空数据。");
         resetTimer = setTimeout(() => {
           resetArmed = false;
           btn.textContent = "重置账户";
@@ -1552,6 +1564,16 @@ import { createDataIo } from "./js/data-io.js";
       try {
         const uid = state.user?.id;
         if (!uid) throw new Error("未登录");
+        // v0.32.0：打字确认 —— 必须输入「确认重置」才能继续，输错 / 取消都不执行。
+        const typed = await ui.confirmDialog({
+          title: "确认重置账户",
+          message: "重置将先自动下载一份完整备份，再删除全部项目与通知记录，且无法撤销。",
+          confirmText: "确认重置并清空",
+          cancelText: "取消",
+          danger: true,
+          requireTyping: "确认重置",
+        });
+        if (!typed) return;
         // v0.28.0：重置前先自动下载一份完整备份；备份失败则不执行重置。
         const backedUp = await projectsApi.exportBackup();
         if (!backedUp) {

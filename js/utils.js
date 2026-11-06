@@ -886,7 +886,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.31.0";
+export const APP_VERSION = "0.32.0";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {

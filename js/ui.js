@@ -473,6 +473,14 @@ export function createUi(elements, getState) {
     elements.list.innerHTML =
       visible.map((p, i) => renderProjectItem(p, i)).join("") +
       listTailHtml(filtered, visible, remaining);
+    updateCollapseAllBtn();
+  };
+
+  // v0.32.0：没有展开的卡片时“全部折叠”不可点。
+  const updateCollapseAllBtn = () => {
+    if (elements.collapseAllBtn) {
+      elements.collapseAllBtn.disabled = !(getState().expandedIds?.size);
+    }
   };
 
   // v0.31.0：列表增量同步 —— 按当前筛选 / 排序算出应显示的卡片，与 DOM 现有卡片逐个对账：
@@ -543,6 +551,7 @@ export function createUi(elements, getState) {
     listEl.appendChild(
       htmlToElement(listTailHtml(filtered, visible, remaining))
     );
+    updateCollapseAllBtn();
     // 5. 焦点恢复。
     if (focusAction && activeCardId) {
       const newCard = listEl.querySelector(
@@ -939,12 +948,15 @@ export function createUi(elements, getState) {
   // 默认焦点在取消按钮上，避免回车误触；新调用到来时旧调用按取消处理。
   // 监听全部用属性赋值（每次覆盖），不叠加、不误关新框。
   let pendingConfirmCancel = null;
+  // v0.32.0：requireTyping —— 危险操作的打字确认：输入框须与指定短语一致
+  // （前后空格忽略）才启用确认按钮；不传则保持原样。
   const confirmDialog = ({
     title = "请确认",
     message = "",
     confirmText = "确定",
     cancelText = "取消",
     danger = false,
+    requireTyping = "",
   } = {}) => {
     const dialog = elements.confirmDialog;
     if (!dialog) return Promise.resolve(window.confirm(message));
@@ -958,9 +970,23 @@ export function createUi(elements, getState) {
       if (elements.confirmDialogMessage) elements.confirmDialogMessage.textContent = message;
       if (elements.confirmDialogCancel) elements.confirmDialogCancel.textContent = cancelText;
       const okBtn = elements.confirmDialogOk;
+      const typingInput = elements.confirmDialogInput;
       if (okBtn) {
         okBtn.textContent = confirmText;
         okBtn.className = danger ? "btn danger-solid" : "btn primary";
+      }
+      // 打字确认：显示输入区、确认按钮先禁用，输对短语才放行。
+      if (requireTyping && elements.confirmDialogTyping) {
+        if (elements.confirmDialogPhrase)
+          elements.confirmDialogPhrase.textContent = requireTyping;
+        elements.confirmDialogTyping.classList.remove("hidden");
+        if (typingInput) {
+          typingInput.value = "";
+          typingInput.oninput = () => {
+            if (okBtn) okBtn.disabled = typingInput.value.trim() !== requireTyping;
+          };
+        }
+        if (okBtn) okBtn.disabled = true;
       }
       const cleanup = () => {
         pendingConfirmCancel = null;
@@ -968,7 +994,16 @@ export function createUi(elements, getState) {
         dialog.classList.add("hidden");
         document.body.classList.remove("sheet-open");
         dialog.onclick = null;
-        if (okBtn) okBtn.onclick = null;
+        if (okBtn) {
+          okBtn.onclick = null;
+          okBtn.disabled = false;
+        }
+        if (typingInput) {
+          typingInput.value = "";
+          typingInput.oninput = null;
+        }
+        if (elements.confirmDialogTyping)
+          elements.confirmDialogTyping.classList.add("hidden");
         if (elements.confirmDialogCancel) elements.confirmDialogCancel.onclick = null;
         document.removeEventListener("keydown", onKeyDown);
       };
@@ -989,7 +1024,9 @@ export function createUi(elements, getState) {
       if (okBtn) okBtn.onclick = () => finish(true);
       if (elements.confirmDialogCancel) {
         elements.confirmDialogCancel.onclick = () => finish(false);
-        elements.confirmDialogCancel.focus();
+        // 打字确认时焦点给输入框（方便直接打字），否则默认给取消按钮防误触。
+        if (requireTyping && typingInput) typingInput.focus();
+        else elements.confirmDialogCancel.focus();
       }
       document.addEventListener("keydown", onKeyDown);
     });

@@ -72,7 +72,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.31.0</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.32.0</span></div>
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">内容</span>
         <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
@@ -351,6 +351,7 @@
           <option value="name-asc">项目名称：A 到 Z</option>
         </select>
         <button id="selectModeBtn" class="btn-text" type="button">选择</button>
+        <button id="collapseAllBtn" class="btn-text" type="button" disabled>全部折叠</button>
         <div class="seg-control view-seg" role="group" aria-label="视图切换">
           <button type="button" class="seg-btn view-btn active" data-view="list">列表</button>
           <button type="button" class="seg-btn view-btn" data-view="calendar">日历</button>
@@ -514,6 +515,10 @@
     <div class="sheet-panel confirm-panel card">
       <h2 id="confirmDialogTitle"></h2>
       <p id="confirmDialogMessage"></p>
+      <div id="confirmDialogTyping" class="confirm-typing hidden">
+        <label for="confirmDialogInput">请输入「<span id="confirmDialogPhrase"></span>」以继续</label>
+        <input id="confirmDialogInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      </div>
       <div class="confirm-actions">
         <button id="confirmDialogCancel" class="btn secondary" type="button">取消</button>
         <button id="confirmDialogOk" class="btn primary" type="button">确定</button>
