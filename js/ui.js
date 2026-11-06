@@ -657,9 +657,9 @@ export function createUi(elements, getState) {
     if (elements.scrollProgress) {
       elements.scrollProgress.style.width = `${percent}%`;
     }
-    // v0.23.0：浮动按钮显隐 —— 下滑 400px 后现回顶部；离底部还剩 400px 以上时现回到底部。
-    elements.backToTopBtn?.classList.toggle("visible", scrollY > 400);
-    elements.goToBottomBtn?.classList.toggle("visible", max - scrollY > 400);
+    // v0.24.0：浮动按钮显隐 —— 下滑 200px 后现回顶部；离底部还剩 200px 以上时现回到底部。
+    elements.backToTopBtn?.classList.toggle("visible", scrollY > 200);
+    elements.goToBottomBtn?.classList.toggle("visible", max - scrollY > 200);
   };
 
   const addRipple = (event) => {

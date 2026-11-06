@@ -9,6 +9,8 @@
    v0.23.0 八项打磨：备注回定义列表、列表行去空白、清空按钮置顶、
    窄屏名称不再被挤、桌面回顶部、移动端菜单修复 + 回到底部、
    统计卡片各自成卡、品牌角标随文字高度自适应。
+   v0.24.0 浮钮根因修复（page-in 动画收尾改 none）、角标改正方形、
+   版本号移到页眉、README 加少量表情点缀。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -151,12 +153,9 @@ html { scroll-behavior: smooth; }
 /* v0.13.0：品牌角标——蓝紫渐变圆角方块 + 白色清单对勾，专业里带点亲切 */
 .brand-mark {
   flex: none;
-  /* v0.23.0：角标高度跟随右侧文字块（h1 + 副标题）自适应，宽随高走保持正方形 */
-  align-self: stretch;
-  aspect-ratio: 1 / 1;
-  width: auto;
-  height: auto;
-  min-height: 46px;
+  /* v0.24.0：固定正方形（64px，与右侧标题 + 副标题整块高度基本一致） */
+  width: 64px;
+  height: 64px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -1166,10 +1165,10 @@ body.dark .sort-select {
 }
 
 /* ---------- 动效 ---------- */
-@keyframes page-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 /* v0.7.0：视图切换过渡（dashboard ↔ parser），淡入 + 轻微上滑 */
-@keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .view-enter { animation: view-in var(--dur-med) var(--ease-spring) both; }
 /* v0.7.0：删除退出动画——先淡出收拢，再执行删除刷新 */
 .project-item.leaving {
@@ -1631,13 +1630,8 @@ body.sheet-open { overflow: hidden; }
 /* toast 永远在最上层：抽屉内操作（恢复/彻底删除）的提示不能被遮罩盖住 */
 .toast-wrap { z-index: 50; }
 
-/* —— 页脚版本号：以后报问题先对版本号 —— */
-.app-footer {
-  text-align: center;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  padding: var(--sp-6) var(--sp-3) var(--sp-2);
-}
+/* v0.24.0：版本号从页脚移到页眉用户栏（同步状态与邮箱同一行，右对齐）——以后报问题先对版本号 */
+.app-version { margin-left: auto; }
 
 /* ========== v0.10.0 ========== */
 
@@ -1745,7 +1739,7 @@ body.sheet-open { overflow: hidden; }
 @media (max-width: 680px) {
   .header-top { flex-wrap: wrap; }
   .header-title h1 { font-size: 22px; }
-  .brand-mark { min-height: 44px; border-radius: 12px; }
+  .brand-mark { width: 52px; height: 52px; border-radius: 12px; }
 }
 
 /* ========== v0.13.2 ========== */
