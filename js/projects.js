@@ -8,6 +8,7 @@ import {
   stripPdfFilenameSuffix,
   parseBackupPayload,
   splitRestoreRows,
+  dedupeImportRows,
   saveProjectsSnapshot,
   loadProjectsSnapshot,
 } from "./utils.js";
@@ -654,11 +655,17 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       return { imported: 0, failed: 0 };
     }
     const list = Array.isArray(rows) ? rows : [];
-    if (!list.length) return { imported: 0, failed: 0 };
+    if (!list.length) return { imported: 0, failed: 0, skipped: 0 };
+    // v0.28.0：导入去重 —— 与当前库比对（名称 + 开标时间 + 投标公司），重复行跳过并报数。
+    const { fresh, duplicates } = dedupeImportRows(list, state.projects);
+    if (!fresh.length) {
+      ui.showToast(`全部 ${list.length} 条均已存在，未导入。`);
+      return { imported: 0, failed: 0, skipped: duplicates };
+    }
     let imported = 0;
     let failed = 0;
-    for (let i = 0; i < list.length; i += 100) {
-      const batch = list.slice(i, i + 100).map((r) => ({ ...r, user_id: state.user.id }));
+    for (let i = 0; i < fresh.length; i += 100) {
+      const batch = fresh.slice(i, i + 100).map((r) => ({ ...r, user_id: state.user.id }));
       const { error } = await client.from("projects").insert(batch);
       if (error) {
         failed += batch.length;
@@ -668,7 +675,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       }
     }
     await loadProjects();
-    return { imported, failed };
+    return { imported, failed, skipped: duplicates };
   }
 
   /**
@@ -869,6 +876,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
 
   // v0.8.1：从备份恢复 —— 只写本账号数据；库里有、备份里没有的项目一律不动。
   // decideOverwrite({ overlap, fresh }) 仅在有重叠时调用，返回 true = 覆盖已有。
+  // v0.28.0：恢复前拍一张"恢复前快照"（仅内存）：被覆盖行的当前内容；
+  // 写过程记进度（已写入条数、失败批次），失败时报清进度并给一次撤销机会。
   const restoreBackup = async (text, decideOverwrite) => {
     const client = getClient();
     const state = getState();
@@ -887,6 +896,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast("备份中没有项目，无需恢复。");
       return false;
     }
+    // 恢复前快照 + 本次写入记录（失败撤销用；成功时不产生额外开销以外的写入）
+    let beforeRows = new Map();
+    let writtenInsertIds = [];
+    let writtenUpdateIds = [];
+    let totalToWrite = 0;
+    let failedBatch = 0;
     try {
       // 现有编号集合（只拉 id，分批同导出备份）
       const existingIds = new Set();
@@ -913,20 +928,46 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
           fresh: insert.length,
         });
       }
+      // 恢复前快照：只拉会被覆盖的那些行的当前内容（覆盖模式才需要）
+      if (overwrite && update.length) {
+        const ids = update.map((r) => r.id);
+        for (let k = 0; k < ids.length; k += 200) {
+          const { data, error } = await client
+            .from("projects")
+            .select("*")
+            .eq("user_id", uid)
+            .in("id", ids.slice(k, k + 200));
+          if (error) throw error;
+          for (const row of data || []) beforeRows.set(row.id, row);
+        }
+      }
+      totalToWrite = overwrite ? rows.length : insert.length;
       const BATCH = 100;
       if (overwrite) {
         for (let i = 0; i < rows.length; i += BATCH) {
+          const batch = rows.slice(i, i + BATCH);
           const { error } = await client
             .from("projects")
-            .upsert(rows.slice(i, i + BATCH), { onConflict: "id" });
-          if (error) throw error;
+            .upsert(batch, { onConflict: "id" });
+          if (error) {
+            failedBatch = i / BATCH + 1;
+            throw error;
+          }
+          for (const r of batch) {
+            (existingIds.has(r.id) ? writtenUpdateIds : writtenInsertIds).push(r.id);
+          }
         }
       } else {
         for (let i = 0; i < insert.length; i += BATCH) {
+          const batch = insert.slice(i, i + BATCH);
           const { error } = await client
             .from("projects")
-            .insert(insert.slice(i, i + BATCH));
-          if (error) throw error;
+            .insert(batch);
+          if (error) {
+            failedBatch = i / BATCH + 1;
+            throw error;
+          }
+          writtenInsertIds.push(...batch.map((r) => r.id));
         }
       }
       const inserted = insert.length;
@@ -938,7 +979,44 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       );
       return true;
     } catch (err) {
-      ui.showToast(`恢复失败：${err?.message || err}`);
+      const written = writtenInsertIds.length + writtenUpdateIds.length;
+      await loadProjects();
+      if (!written) {
+        ui.showToast(`恢复失败：${err?.message || err}`);
+        return false;
+      }
+      // 已写入一部分：报清进度，并给一次撤销机会。
+      const undo = await ui.confirmDialog({
+        title: "恢复失败",
+        message: `已写入 ${written} 条（共 ${totalToWrite} 条），失败在第 ${failedBatch} 批：${err?.message || err}。是否撤销本次恢复，把已写入的内容还原？`,
+        confirmText: "撤销本次恢复",
+        cancelText: "保留已写入的",
+      });
+      if (!undo) return false;
+      try {
+        for (let i = 0; i < writtenInsertIds.length; i += 100) {
+          const { error } = await client
+            .from("projects")
+            .delete()
+            .eq("user_id", uid)
+            .in("id", writtenInsertIds.slice(i, i + 100));
+          if (error) throw error;
+        }
+        const back = writtenUpdateIds
+          .map((id) => beforeRows.get(id))
+          .filter(Boolean);
+        for (let i = 0; i < back.length; i += 100) {
+          const { error } = await client
+            .from("projects")
+            .upsert(back.slice(i, i + 100), { onConflict: "id" });
+          if (error) throw error;
+        }
+        await loadProjects();
+        ui.showToast("已撤销本次恢复。");
+      } catch (undoErr) {
+        await loadProjects();
+        ui.showToast(`撤销失败：${undoErr?.message || undoErr}，请用备份文件手动恢复。`);
+      }
       return false;
     }
   };

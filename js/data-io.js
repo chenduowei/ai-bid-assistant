@@ -133,16 +133,18 @@ export function createDataIo({ elements, getState, ui, projectsApi, loadSheetJS 
         ui.showToast(`没有可导入的行。${detail || ""}`);
         return;
       }
-      const { imported, failed } = await projectsApi.importProjects(rows);
+      const { imported, failed, skipped: dupSkipped = 0 } =
+        await projectsApi.importProjects(rows);
       // v0.12.0：离线快照下 importProjects 已拦截并提示过，此处不再补第二条 toast
       if (getState().offlineSnapshot) return;
-      const skipped = errors.length + failed;
+      const skipped = errors.length + failed + dupSkipped;
       const detail = errors
         .slice(0, 2)
         .map((e) => `第${e.line}行：${e.reason}`)
         .join("；");
+      const dupNote = dupSkipped ? `（含重复 ${dupSkipped} 条）` : "";
       ui.showToast(
-        `成功导入 ${imported} 条${skipped ? `，跳过 ${skipped} 条${detail ? `：${detail}` : ""}` : "。"}` +
+        `成功导入 ${imported} 条${skipped ? `，跳过 ${skipped} 条${dupNote}${detail ? `：${detail}` : ""}` : "。"}` +
           (errors.length > 2 ? "（更多错误见控制台）" : "")
       );
       if (errors.length > 2) console.warn("CSV 导入跳过的行：", errors);

@@ -727,6 +727,37 @@ export function buildImportCsvTemplate() {
   );
 }
 
+// v0.28.0：导入去重 —— 按（项目名称 + 开标时间 + 投标公司）去重。
+// 名称与公司去掉全部空白、转小写；日期取前 10 位（YYYY-MM-DD）。
+// 中文名里的空格多半是手误（"甲 公司"即"甲公司"），去掉比保留更贴合去重本意。
+// existing 为内存里的 UI 形态项目（name / date / biddingCompany），
+// rows 为解析后的 DB 形态行（name / bid_date / bidding_company）。
+// 返回 { fresh, duplicates }：fresh 为待导入行，duplicates 为跳过条数
+// （库里已有的 + 文件内重复的都算）。
+export function dedupeImportRows(rows, existing) {
+  const norm = (v) =>
+    String(v ?? "").replace(/\s+/g, "").toLowerCase();
+  const keyOf = (name, date, company) =>
+    `${norm(name)}|${String(date ?? "").slice(0, 10)}|${norm(company)}`;
+  const seen = new Set(
+    (Array.isArray(existing) ? existing : []).map((p) =>
+      keyOf(p.name, p.date, p.biddingCompany)
+    )
+  );
+  const fresh = [];
+  let duplicates = 0;
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const key = keyOf(row.name, row.bid_date, row.bidding_company);
+    if (seen.has(key)) {
+      duplicates += 1;
+      continue;
+    }
+    seen.add(key);
+    fresh.push(row);
+  }
+  return { fresh, duplicates };
+}
+
 // v0.8.1：备份恢复 —— 纯函数（可单测），不碰数据库。
 // 校验备份 JSON：必须是本应用的备份、projects 为数组、每行有 id、
 // 且全部行属于当前登录账号（user_id 一致）；备份内重复 id 只留最后一条。

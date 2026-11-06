@@ -20,6 +20,7 @@ import {
   sheetRowsToCsv,
   parseBackupPayload,
   splitRestoreRows,
+  dedupeImportRows,
   normalizeEvidencePage,
   normalizeEvidenceItem,
   normalizeEvidenceItems,
@@ -526,4 +527,37 @@ test("countPdfPagesFromText：取【第 N 页】的最大页码，无标记返�
   assert.equal(countPdfPagesFromText("没有页码标记的旧文本"), 0);
   assert.equal(countPdfPagesFromText(""), 0);
   assert.equal(countPdfPagesFromText(null), 0);
+});
+
+test("dedupeImportRows：库里已有的按名称+开标时间+投标公司跳过", () => {
+  const existing = [
+    { name: "A 项目", date: "2026-12-01", biddingCompany: "甲公司" },
+  ];
+  const rows = [
+    { name: "A 项目", bid_date: "2026-12-01", bidding_company: "甲公司" },
+    { name: "B 项目", bid_date: "2026-12-02", bidding_company: "甲公司" },
+    { name: "A 项目", bid_date: "2026-12-03", bidding_company: "甲公司" },
+  ];
+  const { fresh, duplicates } = dedupeImportRows(rows, existing);
+  assert.equal(fresh.length, 2);
+  assert.equal(duplicates, 1);
+  assert.equal(fresh[0].name, "B 项目");
+});
+
+test("dedupeImportRows：文件内重复只留第一条，名称/公司空白与大小写不敏感", () => {
+  const rows = [
+    { name: " A 项目 ", bid_date: "2026-12-01", bidding_company: "甲公司" },
+    { name: "a 项目", bid_date: "2026-12-01", bidding_company: "甲公司" },
+    { name: "A  项目", bid_date: "2026-12-01", bidding_company: "甲 公司" },
+  ];
+  const { fresh, duplicates } = dedupeImportRows(rows, []);
+  assert.equal(fresh.length, 1);
+  assert.equal(duplicates, 2);
+});
+
+test("dedupeImportRows：空输入与空库返回原样", () => {
+  assert.deepEqual(dedupeImportRows([], []), { fresh: [], duplicates: 0 });
+  assert.deepEqual(dedupeImportRows(null, null), { fresh: [], duplicates: 0 });
+  const rows = [{ name: "X", bid_date: "2026-12-01", bidding_company: "乙公司" }];
+  assert.equal(dedupeImportRows(rows, null).fresh.length, 1);
 });

@@ -1286,7 +1286,7 @@ import { createDataIo } from "./js/data-io.js";
         resetArmed = true;
         btn.textContent = "再次点击确认重置";
         btn.classList.add("armed");
-        ui.showToast("再次点击确认重置，10 秒内有效。");
+        ui.showToast("再次点击确认重置，10 秒内有效。确认后会先自动下载一份备份，再清空数据。");
         resetTimer = setTimeout(() => {
           resetArmed = false;
           btn.textContent = "重置账户";
@@ -1302,6 +1302,12 @@ import { createDataIo } from "./js/data-io.js";
       try {
         const uid = state.user?.id;
         if (!uid) throw new Error("未登录");
+        // v0.28.0：重置前先自动下载一份完整备份；备份失败则不执行重置。
+        const backedUp = await projectsApi.exportBackup();
+        if (!backedUp) {
+          ui.showToast("备份失败，未执行重置，请检查网络后重试。");
+          return;
+        }
         const { error: e1 } = await client
           .from("projects")
           .delete()
