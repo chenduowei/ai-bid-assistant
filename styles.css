@@ -13,6 +13,7 @@
    版本号移到页眉、README 加少量表情点缀。
    v0.25.0 定位高亮改单次淡出、手机端名称改回两行 + 操作按钮铺满。
    v0.26.0 浮钮真根因：删掉 .page 的 page-in 入场动画（v0.24.0 的“收尾改 none”实测无效——fill 模式仍把 fixed 按钮钉在 .page 上，v0.25.0 线上已证实）；手机端行内解析去 📄、间距再收紧、倒计时 pill 垂直居中。
+   v0.27.0 定位高亮按 iOS 风格：先淡入后淡出，延迟 300ms 再挂类。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -1157,8 +1158,8 @@ body.dark .sort-select {
 /* 移动端不显示回顶部浮钮（底部“项目”Tab 自带回顶）；桌面端不显示回到底部浮钮 */
 @media (max-width: 680px) { .back-to-top { display: none; } }
 @media (min-width: 681px) { .go-to-bottom { display: none; } }
-/* v0.25.0：定位高亮改单次淡出（之前是 2.2s 来回脉冲，结束移除类名时瞬间回透明，看着像闪一下） */
-.project-item.project-highlight { animation: highlight-fade 1.6s var(--ease-out) both; }
+/* v0.27.0：定位高亮按 iOS 风格——先淡入后淡出（之前是起手满格再淡出，背景一帧跳变，看着像闪一下） */
+.project-item.project-highlight { animation: highlight-fade 2s ease-in-out both; }
 .form-panel.form-highlight { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
 .ripple {
   position: absolute;
@@ -1183,7 +1184,7 @@ body.dark .sort-select {
 @keyframes ripple { to { transform: scale(4); opacity: 0; } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
-@keyframes highlight-fade { from { background: var(--accent-soft); } to { background: transparent; } }
+@keyframes highlight-fade { 0% { background: transparent; } 20% { background: var(--accent-soft); } 100% { background: transparent; } }
 @keyframes form-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent); } 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
 
 /* ---------- 响应式 ---------- */

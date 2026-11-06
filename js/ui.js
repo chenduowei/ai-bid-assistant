@@ -439,8 +439,12 @@ export function createUi(elements, getState) {
   };
 
   /** 定位到项目列表中的某一项并高亮（v0.4.1：自动展开该项目） */
+  // v0.27.0：连续点两个项目时，旧的定时器会把新的高亮提前摘掉——先清掉再排新的。
+  let locateTimers = [];
   const focusProjectInList = (projectId) => {
     if (!projectId) return;
+    locateTimers.forEach(clearTimeout);
+    locateTimers = [];
     // 清空搜索与状态筛选，确保目标项目可见
     if (elements.search) elements.search.value = "";
     if (elements.statusFilter) elements.statusFilter.value = "all";
@@ -468,9 +472,12 @@ export function createUi(elements, getState) {
       return;
     }
     item.scrollIntoView({ behavior: "smooth", block: "center" });
-    item.classList.add("project-highlight");
-    // v0.25.0：与 1.6s 淡出动画对齐；动画终态就是透明，移除类名时不再闪一下。
-    setTimeout(() => item.classList.remove("project-highlight"), 1600);
+    // v0.27.0：iOS 风格——高亮不再一上来就满格（那是闪一下的根源），
+    // 等 300ms（列表入场动画落定、滚动已起步）再挂类，动画本身先淡入后淡出。
+    locateTimers = [
+      setTimeout(() => item.classList.add("project-highlight"), 300),
+      setTimeout(() => item.classList.remove("project-highlight"), 2300),
+    ];
   };
 
   /** 仅更新倒计时文字，避免每分钟全量 render */
