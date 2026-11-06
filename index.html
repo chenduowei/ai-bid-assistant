@@ -380,7 +380,7 @@
     </section>
     </div>
 
-    <footer class="app-footer">投标工作台 v0.22.0</footer>
+    <footer class="app-footer">投标工作台 v0.23.0</footer>
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
       <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
@@ -388,6 +388,9 @@
       <button type="button" data-tab="parser" class="bottom-tab"><span class="bottom-tab-icon">📄</span><span>解析</span></button>
       <button type="button" data-tab="menu" class="bottom-tab"><span class="bottom-tab-icon">☰</span><span>菜单</span></button>
     </nav>
+    <!-- v0.23.0：浮动按钮 —— 桌面端回顶部（下滑后出现）；移动端回到底部（未到底时出现） -->
+    <button id="backToTopBtn" class="float-btn back-to-top" type="button" aria-label="回到顶部">↑</button>
+    <button id="goToBottomBtn" class="float-btn go-to-bottom" type="button" aria-label="回到底部">↓</button>
   </div>
   <!-- v0.9.0：回收站抽屉 —— 从主界面移入菜单，点菜单按钮打开，不再占用主界面空间 -->
   <div id="trashSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="trashSheetTitle">
@@ -400,11 +403,11 @@
         </div>
         <button id="trashSheetClose" class="btn secondary" type="button" aria-label="关闭回收站">✕</button>
       </div>
-      <div id="trashList" class="project-list"></div>
-      <!-- v0.22.0：清空回收站 —— 整抽屉底部通栏红色按钮，空时禁用，点后确认框二次确认 -->
+      <!-- v0.23.0：清空回收站移到抽屉顶部（标题下方），不用滑到底才看到 -->
       <div class="trash-empty-row">
         <button id="emptyTrashBtn" class="btn tint-red btn-block" type="button" disabled>清空回收站</button>
       </div>
+      <div id="trashList" class="project-list"></div>
     </div>
   </div>
 

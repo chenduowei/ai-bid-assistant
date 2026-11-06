@@ -373,8 +373,9 @@ export function createUi(elements, getState) {
       kv("项目名称", escapeHtml(p.name)) +
       kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
       kv("联系人", escapeHtml(p.contact || "-")) +
+      // v0.23.0：备注改回定义列表行，与项目名称 / 联系人同一格式（之前是小灰字 kv-note）。
+      kv("备注", escapeHtml(p.notes || "—")) +
       `</div>` +
-      `<div class="kv-note">备注：${p.notes ? escapeHtml(p.notes) : "—"}</div>` +
       (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
       deadlineHtml +
       renderRiskCard(p) +
@@ -656,6 +657,9 @@ export function createUi(elements, getState) {
     if (elements.scrollProgress) {
       elements.scrollProgress.style.width = `${percent}%`;
     }
+    // v0.23.0：浮动按钮显隐 —— 下滑 400px 后现回顶部；离底部还剩 400px 以上时现回到底部。
+    elements.backToTopBtn?.classList.toggle("visible", scrollY > 400);
+    elements.goToBottomBtn?.classList.toggle("visible", max - scrollY > 400);
   };
 
   const addRipple = (event) => {

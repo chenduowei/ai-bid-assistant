@@ -126,6 +126,8 @@ import { createDataIo } from "./js/data-io.js";
     deadlineTip: document.getElementById("deadlineTip"),
     refundTip: document.getElementById("refundTip"),
     brandHomeBtn: document.getElementById("brandHomeBtn"),
+    backToTopBtn: document.getElementById("backToTopBtn"),
+    goToBottomBtn: document.getElementById("goToBottomBtn"),
     scrollProgress: document.getElementById("scrollProgress"),
     toastWrap: document.getElementById("toastWrap"),
     totalCount: document.getElementById("totalCount"),
@@ -1026,7 +1028,12 @@ import { createDataIo } from "./js/data-io.js";
         } else if (tab === "parser") {
           showParser(null, btn);
         } else if (tab === "menu") {
+          // v0.23.0：菜单锚在页顶（header 内的绝对定位下拉框），下滑后从底部点它
+          // 会开在看不见的页顶——打开时先回顶；关闭时不动（本来就在顶上）。
+          const menu = document.getElementById("headerMenu");
+          const wasOpen = menu?.classList.contains("open");
           ui.toggleMobileMenu();
+          if (!wasOpen) window.scrollTo({ top: 0, behavior: "smooth" });
         }
       })
     );
@@ -1758,7 +1765,8 @@ import { createDataIo } from "./js/data-io.js";
       if (
         menu?.classList.contains("open") &&
         !e.target.closest("#headerMenu") &&
-        !e.target.closest("#menuToggle")
+        !e.target.closest("#menuToggle") &&
+        !e.target.closest('[data-tab="menu"]')
       ) {
         ui.toggleMobileMenu(false);
       }
@@ -1821,6 +1829,13 @@ import { createDataIo } from "./js/data-io.js";
       setViewMode("list");
       scrollTo({ top: 0, behavior: "smooth" });
     });
+    // v0.23.0：浮动按钮 —— 桌面端回顶部 / 移动端回到底部（显隐由 updateScrollUi 统一管）。
+    elements.backToTopBtn?.addEventListener("click", () =>
+      scrollTo({ top: 0, behavior: "smooth" })
+    );
+    elements.goToBottomBtn?.addEventListener("click", () =>
+      scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" })
+    );
     // v0.4.3：scroll 高频触发，rAF 节流后再更新进度条
     let scrollRaf = 0;
     addEventListener(
