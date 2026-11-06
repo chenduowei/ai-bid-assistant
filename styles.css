@@ -12,6 +12,7 @@
    v0.24.0 浮钮根因修复（page-in 动画收尾改 none）、角标改正方形、
    版本号移到页眉、README 加少量表情点缀。
    v0.25.0 定位高亮改单次淡出、手机端名称改回两行 + 操作按钮铺满。
+   v0.26.0 浮钮真根因：删掉 .page 的 page-in 入场动画（v0.24.0 的“收尾改 none”实测无效——fill 模式仍把 fixed 按钮钉在 .page 上，v0.25.0 线上已证实）；手机端行内解析去 📄、间距再收紧、倒计时 pill 垂直居中。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -123,7 +124,9 @@ html { scroll-behavior: smooth; }
   max-width: 1024px;
   margin: 0 auto;
   padding: var(--sp-5) var(--sp-5) 64px;
-  animation: page-in 0.55s var(--ease-out) both;
+  /* v0.26.0：不要给 .page 加任何带 transform 的动画——fill 模式会让它成为
+     fixed 浮钮的包含块，按钮会被钉在页面底部（v0.24.0“收尾改 none”实测无效）。
+     入场淡入由 dashboardView 的 .view-enter 承担，效果一样。 */
 }
 
 /* iOS 分组卡片：白底 + hairline，无投影 */
@@ -1126,7 +1129,7 @@ body.dark .sort-select {
   transition: width 0.1s linear;
 }
 
-/* ---------- v0.23.0：浮动按钮 —— 桌面端回顶部 / 移动端回到底部 ---------- */
+/* ---------- v0.23.0：浮动按钮 —— 桌面端回顶部 / 移动端回到底部；v0.26.0 真根因：.page 的入场动画已删，按钮恢复相对视口定位 ---------- */
 .float-btn {
   position: fixed;
   z-index: 30;
@@ -1167,7 +1170,6 @@ body.dark .sort-select {
 }
 
 /* ---------- 动效 ---------- */
-@keyframes page-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @keyframes item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 /* v0.7.0：视图切换过渡（dashboard ↔ parser），淡入 + 轻微上滑 */
 @keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -1223,10 +1225,10 @@ body.dark .sort-select {
   .form-group > .field > textarea { font-size: var(--fs-lg); }
   /* v0.23.0：窄屏行内布局改两行——名称行（圆点 + 名称 + 倒计时 + 箭头）+ 操作行（四个按钮一排通栏），
      右侧栏不再以 max-content 宽度挤占名称（之前窄屏名称只剩一两个字宽）；行内边距 14→12px */
-  .project-head { padding: 12px var(--sp-4); flex-wrap: wrap; }
+  .project-head { padding: 10px var(--sp-4); flex-wrap: wrap; }
   .project-head-right { display: contents; }
-  .project-head-top { order: 1; }
-  .project-head-actions { order: 2; flex: 1 1 100%; margin-top: 8px; }
+  .project-head-top { order: 1; align-self: center; }
+  .project-head-actions { order: 2; flex: 1 1 100%; margin-top: 6px; }
   .project-head-actions .row-btn { flex: 1; justify-content: center; }
   .project-details.collapse.expanded > .collapse-inner { margin: 2px var(--sp-4) 0; }
   .upcoming-item { flex-basis: 224px; }
@@ -1668,7 +1670,7 @@ body.sheet-open { overflow: hidden; }
 @media (max-width: 680px) {
   .page { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
   /* 触摸目标：行内操作与抽屉按钮达到 44pt */
-  .row-btn { min-height: 44px; padding: 0 var(--sp-3); display: inline-flex; align-items: center; }
+  .row-btn { min-height: 44px; padding: 0 10px; display: inline-flex; align-items: center; }
   .trash-actions .btn { min-height: 44px; }
   .sheet-head .btn { min-height: 44px; }
 }
