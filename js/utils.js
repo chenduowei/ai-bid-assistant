@@ -14,16 +14,6 @@ export const formatDateDisplay = (value) => {
   return year ? `${year}年${Number(month)}月${Number(day)}日` : value;
 };
 
-export const formatCountdown = (value) => {
-  const target = new Date(`${value}T00:00:00`);
-  const diff = target - Date.now();
-  if (!value || Number.isNaN(target.getTime()) || diff <= 0) return "已开标";
-  const days = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins = Math.floor((diff % 3600000) / 60000);
-  return `${days}天${hours}小时${mins}分钟`;
-};
-
 export const getDaysUntilBid = (value) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -830,7 +820,7 @@ export function dedupeImportRows(rows, existing) {
 
 // v0.8.1：备份恢复 —— 纯函数（可单测），不碰数据库。
 // 校验备份 JSON：必须是本应用的备份、projects 为数组、每行有 id、
-// 且全部行属于当前登录账号（user_id 一致）；备份内重复 id 只留最后一条。
+// 且全部行属于当前登录账号（user_id 一致）；备份内重复 id 只留第一条。
 export function parseBackupPayload(text, uid) {
   let payload;
   try {
@@ -894,6 +884,11 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 // 只有约 5MB），其余字段原样；读写全程 try/catch，配额或脏数据静默失败，
 // 绝不因为快照问题影响正常同步。storage 传 localStorage，测试传 Map 替身。
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
+/** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
+ * scripts/check-version.mjs 强制两者同步，别只改一处。 */
+export const APP_VERSION = "0.30.0";
+// v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
+export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {
   try {
     const slim = (projects || []).map(({ pdfText, ...rest }) => rest);
@@ -903,17 +898,68 @@ export function saveProjectsSnapshot(storage, projects) {
     );
     return true;
   } catch {
-    return false;
+    // 额度满了：退而求其次，只留列表渲染必需的字段，离线至少能看清单。
+    try {
+      const minimal = (projects || []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        date: p.date,
+        status: p.status,
+        biddingCompany: p.biddingCompany,
+        type: p.type,
+        contact: p.contact,
+      }));
+      storage.setItem(
+        SNAPSHOT_KEY,
+        JSON.stringify({ savedAt: Date.now(), projects: minimal })
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 }
-export function loadProjectsSnapshot(storage) {
+export function loadProjectsSnapshot(storage, now = Date.now()) {
   try {
     const raw = storage.getItem(SNAPSHOT_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.projects)) return null;
+    // 过期快照直接丢掉，别拿旧数据冒充现状。
+    if (!Number.isFinite(parsed.savedAt) || now - parsed.savedAt > SNAPSHOT_TTL_MS) {
+      try {
+        storage.removeItem(SNAPSHOT_KEY);
+      } catch {
+        // ignore
+      }
+      return null;
+    }
     return { projects: parsed.projects, savedAt: parsed.savedAt || 0 };
   } catch {
     return null;
   }
+}
+
+// v0.30.0：通知去重键过期清理 —— 键里嵌着截止日期（YYYY-MM-DD），超过 30 天的直接清掉，
+// 不然每个项目每个截止项各留一条，localStorage 越攒越多。纯函数（可单测）。
+export function pruneNotificationKeys(storage, now = new Date()) {
+  const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+  const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+  let removed = 0;
+  try {
+    for (let i = storage.length - 1; i >= 0; i--) {
+      const key = storage.key(i);
+      if (!key || !key.startsWith("bid-reminder:")) continue;
+      // 键形如 bid-reminder:<urlHint>:<uid>:<projectId>:<itemKey>:<YYYY-MM-DD>:<stage>
+      const parts = key.split(":");
+      const datePart = parts[parts.length - 2];
+      if (datePart && datePart < cutoffStr) {
+        storage.removeItem(key);
+        removed += 1;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return removed;
 }

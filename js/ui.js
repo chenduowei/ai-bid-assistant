@@ -26,6 +26,10 @@ export function createUi(elements, getState) {
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.textContent = message;
+    // v0.30.0：Toast 上限 3 条 —— 之前无上限，连续操作会叠满屏。
+    while (elements.toastWrap.children.length >= 3) {
+      elements.toastWrap.firstChild.remove();
+    }
     elements.toastWrap.appendChild(toast);
     setTimeout(() => {
       toast.classList.add("out");
@@ -341,52 +345,68 @@ export function createUi(elements, getState) {
     value ? formatDateDisplay(value).replace(/^\d+年/, "") : "";
 
   /** v0.4.1：两段式项目卡片 —— 头部（始终显示）+ 详情区（默认折叠）。展开态由 state.expandedIds 维护，render 后恢复。 */
+  // v0.30.0：详情懒生成 —— 之前每次渲染都给每张卡片全量拼详情 HTML（含风险卡与清单），
+  // 折叠着的卡片根本看不见，白白花钱。只给已展开的卡片生成；折叠卡片展开时由
+  // fillProjectDetails 补填一次。
+  const buildDetailsHtml = (p) => {
+      const next = getNextDeadline(p);
+      const deadlineHtml = next
+        ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
+        : "";
+      // 4 个截止时间（选填，有则显示）
+      // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
+      const pdfHtml =
+        p.pdfFilename || p.pdfParsedAt
+          ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+          : "";
+      // v0.5.0：iOS 定义列表 —— label 左、value 右、hairline 分隔
+      const kv = (label, valueHtml) =>
+        `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value">${valueHtml}</span></div>`;
+      const deadlineRows = [
+        ["报名截止", p.registrationDeadline],
+        ["质疑截止", p.inquiryDeadline],
+        ["澄清截止", p.clarificationDeadline],
+        ["保证金缴纳截止", p.guaranteeDeadline],
+      ]
+        .filter(([, d]) => d)
+        .map(
+          ([label, d]) => kv(label, escapeHtml(formatDateDisplay(d)))
+        )
+        .join("");
+      // v0.13.1：展开详情恢复旧版内容，前 7 项按指定顺序排列；
+      // 后面只留截止时间、最近截止、风险卡、清单、已保存文件
+      // （招标单位 / 金额 / 保证金已删，截止全空时不渲染空列表）。
+      return (
+        `<div class="kv-list">` +
+        kv("项目状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
+        kv("开标时间", p.date ? escapeHtml(formatDateDisplay(p.date)) : "未设置开标时间") +
+        kv("项目类型", escapeHtml(p.type)) +
+        kv("项目名称", escapeHtml(p.name)) +
+        kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
+        kv("联系人", escapeHtml(p.contact || "-")) +
+        // v0.23.0：备注改回定义列表行，与项目名称 / 联系人同一格式（之前是小灰字 kv-note）。
+        kv("备注", escapeHtml(p.notes || "—")) +
+        `</div>` +
+        (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
+        deadlineHtml +
+        renderRiskCard(p) +
+        renderChecklist(p) +
+        pdfHtml);
+  };
+
+  // v0.30.0：展开时补填详情（折叠卡片渲染时详情区是空的）。
+  const fillProjectDetails = (itemEl, project) => {
+    const inner = itemEl?.querySelector(".project-details .collapse-inner");
+    if (!inner || !project) return;
+    if (inner.innerHTML.trim()) return; // 已填过
+    inner.innerHTML = buildDetailsHtml(project);
+  };
+
   const renderProjectItem = (p, i) => {
     const expandedIds = getState().expandedIds;
     const expanded = expandedIds && expandedIds.has(p.id);
-    const next = getNextDeadline(p);
-    const deadlineHtml = next
-      ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
-      : "";
-    // 4 个截止时间（选填，有则显示）
-    // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
-    const pdfHtml =
-      p.pdfFilename || p.pdfParsedAt
-        ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
-        : "";
-    // v0.5.0：iOS 定义列表 —— label 左、value 右、hairline 分隔
-    const kv = (label, valueHtml) =>
-      `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value">${valueHtml}</span></div>`;
-    const deadlineRows = [
-      ["报名截止", p.registrationDeadline],
-      ["质疑截止", p.inquiryDeadline],
-      ["澄清截止", p.clarificationDeadline],
-      ["保证金缴纳截止", p.guaranteeDeadline],
-    ]
-      .filter(([, d]) => d)
-      .map(
-        ([label, d]) => kv(label, escapeHtml(formatDateDisplay(d)))
-      )
-      .join("");
-    // v0.13.1：展开详情恢复旧版内容，前 7 项按指定顺序排列；
-    // 后面只留截止时间、最近截止、风险卡、清单、已保存文件
-    // （招标单位 / 金额 / 保证金已删，截止全空时不渲染空列表）。
-    const detailsHtml =
-      `<div class="kv-list">` +
-      kv("项目状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
-      kv("开标时间", p.date ? escapeHtml(formatDateDisplay(p.date)) : "未设置开标时间") +
-      kv("项目类型", escapeHtml(p.type)) +
-      kv("项目名称", escapeHtml(p.name)) +
-      kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
-      kv("联系人", escapeHtml(p.contact || "-")) +
-      // v0.23.0：备注改回定义列表行，与项目名称 / 联系人同一格式（之前是小灰字 kv-note）。
-      kv("备注", escapeHtml(p.notes || "—")) +
-      `</div>` +
-      (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
-      deadlineHtml +
-      renderRiskCard(p) +
-      renderChecklist(p) +
-      pdfHtml;
+    // v0.30.0：折叠卡片不生成详情 HTML，展开时再由 fillProjectDetails 补填。
+    const detailsHtml = expanded ? buildDetailsHtml(p) : "";
     const cd = countdownCell(p);
     const dateShort = shortDateDisplay(p.date);
     const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;
@@ -451,12 +471,18 @@ export function createUi(elements, getState) {
     if (!projectId) return;
     locateTimers.forEach(clearTimeout);
     locateTimers = [];
-    // 清空搜索与状态筛选，确保目标项目可见
-    if (elements.search) elements.search.value = "";
-    if (elements.statusFilter) elements.statusFilter.value = "all";
-    // v0.5.0：seg 同步（app.js 在 state 上挂了 syncSegControl）
-    const s0 = getState();
-    if (typeof s0.syncSegControl === "function") s0.syncSegControl();
+    // v0.30.0：只有目标项目在当前搜索 / 筛选中不可见时才清搜索与筛选（之前不管
+    // 可见与否都清空，搜了一半的字就这么没了）；清的时候说一声，不再静默。
+    const visible = getCurrentFilteredProjects();
+    if (!visible.some((p) => p.id === projectId)) {
+      const hadSearch = (elements.search?.value || "").trim() !== "";
+      if (elements.search) elements.search.value = "";
+      if (elements.statusFilter) elements.statusFilter.value = "all";
+      // v0.5.0：seg 同步（app.js 在 state 上挂了 syncSegControl）
+      const s0 = getState();
+      if (typeof s0.syncSegControl === "function") s0.syncSegControl();
+      if (hadSearch) showToast("已清除搜索与筛选以定位该项目。");
+    }
     // v0.4.1：自动展开目标项目的详情区，再 render
     const s = getState();
     if (s.expandedIds && !s.expandedIds.has(projectId)) {
@@ -495,10 +521,21 @@ export function createUi(elements, getState) {
     elements.list
       ?.querySelectorAll(".countdown[data-date]")
       .forEach((el) => {
-        el.textContent = countdownCell({
+        // v0.30.0：每分钟刷新时只改了文字、没改颜色 class —— 跨过“今天开标”
+        // 的临界点后文字对了、颜色还停在昨天。一起更新。
+        const cd = countdownCell({
           date: el.dataset.date,
           status: el.dataset.status,
-        }).text;
+        });
+        el.textContent = cd.text;
+        el.classList.remove(
+          "cd-done",
+          "cd-overdue",
+          "cd-urgent",
+          "cd-warn",
+          "cd-normal"
+        );
+        el.classList.add(cd.cls);
       });
   };
 
@@ -508,16 +545,25 @@ export function createUi(elements, getState) {
       elements.trashList.innerHTML = '<div class="empty">回收站为空。</div>';
       return;
     }
-    elements.trashList.innerHTML = deletedProjects
-      .map(
-        (p) => {
-          const deletedDate = p.deletedAt
-            ? formatDateDisplay(String(p.deletedAt).slice(0, 10))
-            : "未知";
-          return `<div class="project-item"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
-        }
-      )
-      .join("");
+    // v0.30.0：回收站分页 —— 之前全量渲染，删多了抽屉一次吐几百行；
+    // 与主列表同款 50 条一页，点“加载更多”再续。
+    const limit = getState().trashLimit ?? 50;
+    const shown = deletedProjects.slice(0, limit);
+    const rest = deletedProjects.length - shown.length;
+    elements.trashList.innerHTML =
+      shown
+        .map(
+          (p) => {
+            const deletedDate = p.deletedAt
+              ? formatDateDisplay(String(p.deletedAt).slice(0, 10))
+              : "未知";
+            return `<div class="project-item"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
+          }
+        )
+        .join("") +
+      (rest > 0
+        ? `<button class="btn secondary btn-block" type="button" data-action="trash-load-more">加载更多（还剩 ${rest} 条）</button>`
+        : "");
   };
 
   const getCurrentFilters = () => ({
@@ -527,6 +573,43 @@ export function createUi(elements, getState) {
   });
 
   // 导出用：返回当前搜索/筛选/排序后的项目，而非全量。
+  // v0.30.0：焦点陷阱 —— 抽屉 / 确认框打开时 Tab 只在层内循环，不跑到背后页面去。
+  // 栈式：确认框可能盖在抽屉上，关掉确认框后陷阱回到下面的抽屉。
+  const focusTrapStack = [];
+  const FOCUSABLE_SELECTOR =
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const onTrapTab = (event) => {
+    if (event.key !== "Tab") return;
+    const top = focusTrapStack[focusTrapStack.length - 1];
+    if (!top) return;
+    const els = [...top.querySelectorAll(FOCUSABLE_SELECTOR)].filter(
+      (el) => el.getClientRects().length > 0
+    );
+    if (!els.length) return;
+    const first = els[0];
+    const last = els[els.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+  const trapFocusIn = (el) => {
+    if (!el) return;
+    focusTrapStack.push(el);
+    document.addEventListener("keydown", onTrapTab);
+  };
+  const releaseFocusTrap = (el) => {
+    const i = el
+      ? focusTrapStack.lastIndexOf(el)
+      : focusTrapStack.length - 1;
+    if (i >= 0) focusTrapStack.splice(i, 1);
+    if (!focusTrapStack.length)
+      document.removeEventListener("keydown", onTrapTab);
+  };
+
   const getCurrentFilteredProjects = () =>
     getFilteredProjects(getState().projects, getCurrentFilters());
 
@@ -772,6 +855,7 @@ export function createUi(elements, getState) {
       }
       const cleanup = () => {
         pendingConfirmCancel = null;
+        releaseFocusTrap(dialog);
         dialog.classList.add("hidden");
         document.body.classList.remove("sheet-open");
         dialog.onclick = null;
@@ -789,6 +873,7 @@ export function createUi(elements, getState) {
       pendingConfirmCancel = () => finish(false);
       dialog.classList.remove("hidden");
       document.body.classList.add("sheet-open");
+      trapFocusIn(dialog);
       dialog.onclick = (event) => {
         if (event.target.closest("[data-action='cancel-confirm']")) finish(false);
       };
@@ -823,6 +908,9 @@ export function createUi(elements, getState) {
     renderTrashList,
     renderQualList,
     getCurrentFilteredProjects,
+    fillProjectDetails,
+    trapFocusIn,
+    releaseFocusTrap,
     updateCountdowns,
     highlightFormPanel,
     focusProjectInList,

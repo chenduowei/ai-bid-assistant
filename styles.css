@@ -622,6 +622,7 @@ body.dark .sort-select {
   font-weight: 600;
   color: var(--accent);
   padding: 6px 10px;
+  min-height: 36px;
   border-radius: 8px;
   transition: background var(--dur-fast) var(--ease-out),
     transform var(--dur-fast) var(--ease-out);
@@ -1033,7 +1034,7 @@ body.dark .sort-select {
 .checklist-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .checklist-text.done { color: var(--muted); text-decoration: line-through; }
 .checklist-source { flex-shrink: 0; font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px; background: var(--surface); }
-.checklist-del { flex-shrink: 0; padding: var(--sp-1) 11px; font-size: var(--fs-md); line-height: 1.4; }
+.checklist-del { flex-shrink: 0; padding: var(--sp-1) 11px; font-size: var(--fs-md); line-height: 1.4; min-height: 36px; min-width: 36px; }
 .checklist-empty { font-size: var(--fs-sm); color: var(--muted); }
 .checklist-add { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-3); }
 .checklist-add .checklist-new-input {
@@ -1767,7 +1768,7 @@ body.sheet-open { overflow: hidden; }
 .evidence-state { flex: none; font-weight: 700; border-radius: 999px; padding: 2px 8px; background: var(--btn-fill); color: var(--muted); }
 .evidence-state.verified { color: var(--tint-green-text); background: var(--tint-green-bg); }
 .evidence-state.unsourced { color: var(--tint-orange-text); background: var(--tint-orange-bg); }
-.verify-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; }
+.verify-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; min-height: 36px; }
 .verify-btn.verified { color: var(--tint-green-text); background: var(--tint-green-bg); }
 
 /* ========== v0.16.0 ========== */
@@ -1777,12 +1778,12 @@ body.sheet-open { overflow: hidden; }
 .risk-head .risk-title, .checklist-head .checklist-progress { margin-bottom: 0; }
 .risk-body, .checklist-body, .ai-result-body { margin-top: 10px; }
 .risk-report.collapsed .risk-body, .checklist.collapsed .checklist-body, .ai-result-card.collapsed .ai-result-body { display: none; }
-.section-collapse-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; }
+.section-collapse-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; min-height: 36px; }
 /* v0.17.0：分区头的按钮组（清空 + 收起），并排不挤占标题 */
 .risk-head .head-actions, .checklist-head .head-actions { display: flex; flex: none; gap: 8px; }
 .ai-result-head h3 { margin: 0; }
 /* —— 结论单条删除（小 × 按钮，复用清单删除的手感） —— */
-.evidence-del { flex: none; padding: 2px 8px; font-size: var(--fs-sm); border-radius: 999px; }
+.evidence-del { flex: none; padding: 2px 8px; font-size: var(--fs-sm); border-radius: 999px; min-height: 36px; min-width: 36px; }
 /* —— AI 面板下一步：保存方式二选一 —— */
 .ai-next { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
 .ai-next-text { font-size: var(--fs-md); font-weight: 700; }

@@ -27,6 +27,10 @@ import {
   isFormDraftStale,
   qualMatchBadge,
   qualMatchSummary,
+  saveProjectsSnapshot,
+  loadProjectsSnapshot,
+  SNAPSHOT_TTL_MS,
+  pruneNotificationKeys,
   normalizeEvidencePage,
   normalizeEvidenceItem,
   normalizeEvidenceItems,
@@ -640,4 +644,48 @@ test("qualMatchSummary：计数汇总，无对照结果时为空", () => {
   assert.equal(qualMatchSummary([{ text: "x" }]), "");
   assert.equal(qualMatchSummary([]), "");
   assert.equal(qualMatchSummary(null), "");
+});
+
+class FakeStorage {
+  constructor() {
+    this.map = new Map();
+  }
+  get length() {
+    return this.map.size;
+  }
+  key(i) {
+    return [...this.map.keys()][i] ?? null;
+  }
+  getItem(k) {
+    return this.map.has(k) ? this.map.get(k) : null;
+  }
+  setItem(k, v) {
+    this.map.set(k, String(v));
+  }
+  removeItem(k) {
+    this.map.delete(k);
+  }
+}
+
+test("loadProjectsSnapshot：7 天内的快照可用，过期丢弃并清掉", () => {
+  const store = new FakeStorage();
+  const projects = [{ id: "1", name: "A" }];
+  saveProjectsSnapshot(store, projects);
+  const fresh = loadProjectsSnapshot(store, Date.now());
+  assert.equal(fresh.projects.length, 1);
+  const stale = loadProjectsSnapshot(store, Date.now() + SNAPSHOT_TTL_MS + 1000);
+  assert.equal(stale, null);
+  assert.equal(store.getItem("bid-assistant-projects-snapshot"), null);
+});
+
+test("pruneNotificationKeys：只清 30 天以上的去重键", () => {
+  const store = new FakeStorage();
+  store.setItem("bid-reminder:xxx:u:p1:bid_date:2026-09-01:today", "true");
+  store.setItem("bid-reminder:xxx:u:p1:bid_date:2026-11-06:today", "true");
+  store.setItem("other-key", "keep");
+  const now = new Date(2026, 10, 6); // 2026-11-06
+  assert.equal(pruneNotificationKeys(store, now), 1);
+  assert.equal(store.getItem("bid-reminder:xxx:u:p1:bid_date:2026-09-01:today"), null);
+  assert.equal(store.getItem("bid-reminder:xxx:u:p1:bid_date:2026-11-06:today"), "true");
+  assert.equal(store.getItem("other-key"), "keep");
 });

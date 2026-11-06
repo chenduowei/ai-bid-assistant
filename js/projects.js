@@ -11,6 +11,7 @@ import {
   dedupeImportRows,
   saveProjectsSnapshot,
   loadProjectsSnapshot,
+  APP_VERSION,
 } from "./utils.js";
 
 /** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
@@ -424,6 +425,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function updateProjectFields(id, patch) {
     const client = getClient();
     const state = getState();
+    // v0.30.0：离线快照下拦截写操作（同 saveProject）——此前四处写入口没拦，
+    // 快照里点“核对”会静默失败，还以为已保存。
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能更新。");
+      return false;
+    }
     const dbPatch = {};
     const fieldMap = {
       checklist: "checklist",
@@ -565,6 +572,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function restoreProject(id) {
     const client = getClient();
     const state = getState();
+    // v0.30.0：离线快照下拦截写操作（同上）。
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能恢复项目。");
+      return false;
+    }
     const { error } = await client
       .from("projects")
       .update({ deleted_at: null })
@@ -582,6 +594,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function permanentlyDeleteProject(id, name) {
     const client = getClient();
     const state = getState();
+    // v0.30.0：离线快照下拦截写操作（同上）——确认框弹之前就拦，别让用户白确认一次。
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能彻底删除。");
+      return false;
+    }
     if (
       !(await ui.confirmDialog({
         title: "彻底删除",
@@ -686,6 +703,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   async function cloneProject(id) {
     const client = getClient();
     const state = getState();
+    // v0.30.0：离线快照下拦截写操作（同上）。
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能复制项目。");
+      return false;
+    }
     const project = state.projects.find((p) => p.id === id);
     if (!project) return false;
     if (
@@ -843,7 +865,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const payload = {
         app: "ai-bid-assistant",
-        version: "0.8.0",
+        version: APP_VERSION,
         exportedAt: now.toISOString(),
         count: allRows.length,
         projects: allRows,

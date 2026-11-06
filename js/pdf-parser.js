@@ -2,14 +2,34 @@
 
 let pdfjsLib = null;
 
+// v0.30.0：pdf.js 双源 —— cdnjs 不可达时回退 jsdelivr；两个都挂时报一句人话，
+// 不再把 import 失败的英文原样抛给用户。
+const PDFJS_SOURCES = [
+  {
+    lib: "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs",
+    worker:
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs",
+  },
+  {
+    lib: "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs",
+    worker:
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs",
+  },
+];
+
 async function getPdfJs() {
   if (pdfjsLib) return pdfjsLib;
-  pdfjsLib = await import(
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs"
-  );
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
-  return pdfjsLib;
+  for (const src of PDFJS_SOURCES) {
+    try {
+      const lib = await import(src.lib);
+      lib.GlobalWorkerOptions.workerSrc = src.worker;
+      pdfjsLib = lib;
+      return pdfjsLib;
+    } catch {
+      // 换下一个源；都失败才在循环后抛错。
+    }
+  }
+  throw new Error("PDF 解析组件加载失败：两个 CDN 都不可达，请检查网络后重试。");
 }
 
 export function createPdfParser({ elements, ui }) {

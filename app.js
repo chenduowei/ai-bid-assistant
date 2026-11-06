@@ -5,7 +5,7 @@
  * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
  * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, FORM_DRAFT_KEY, isFormDataEmpty, isFormDraftUsable, isFormDraftStale } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, FORM_DRAFT_KEY, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -192,6 +192,7 @@ import { createDataIo } from "./js/data-io.js";
 
   const state = {
     projects: [],
+    trashLimit: 50, // v0.30.0：回收站分页，每页 50 条
     qualifications: [], // v0.29.0：企业自有资质（AI 对照用）
     editingId: null,
     darkMode: localStorage.getItem(THEME_KEY) === "dark",
@@ -243,6 +244,11 @@ import { createDataIo } from "./js/data-io.js";
     details.classList.toggle("expanded", expanded);
     toggleEl.setAttribute("aria-expanded", String(expanded));
     item.classList.toggle("expanded", expanded);
+    // v0.30.0：详情懒生成 —— 展开时才补填详情 HTML（折叠卡片渲染时是空的）。
+    if (expanded) {
+      const project = state.projects.find((p) => p.id === id);
+      ui.fillProjectDetails(item, project);
+    }
   };
 
   /** v0.4.4：新增 / 编辑表单折叠。class 切换（grid 高度动画），只改 DOM + state，不触发 ui.render()。 */
@@ -617,6 +623,8 @@ import { createDataIo } from "./js/data-io.js";
       !state.user
     )
       return;
+    // v0.30.0：通知去重键过期清理（30 天以上的直接清掉，防 localStorage 越攒越多）。
+    pruneNotificationKeys(localStorage);
     const urlHint = String(config.url || "").slice(-12);
     state.projects.forEach((project) => {
       for (const item of getDeadlineItems(project)) {
@@ -774,6 +782,7 @@ import { createDataIo } from "./js/data-io.js";
     parserOpener = opener || null;
     elements.parserSheet?.classList.remove("hidden");
     document.body.classList.add("sheet-open");
+    ui.trapFocusIn(elements.parserSheet);
     setActiveTab("parser");
     elements.closeParserBtn?.focus();
   };
@@ -781,6 +790,7 @@ import { createDataIo } from "./js/data-io.js";
   const closeParserSheet = () => {
     if (!parserSheetOpen) return;
     parserSheetOpen = false;
+    ui.releaseFocusTrap(elements.parserSheet);
     elements.parserSheet?.classList.add("hidden");
     document.body.classList.remove("sheet-open");
     setActiveTab(state.viewMode === "calendar" ? "calendar" : "projects");
@@ -833,12 +843,19 @@ import { createDataIo } from "./js/data-io.js";
   const showParser = (targetId = null, opener = null) =>
     openParserSheet(targetId, opener);
 
-  const showDashboard = () => {
+  // v0.30.0：列表滚动位置 —— 滚动时顺手记下（列表视图下才记），点底部“项目”
+  // 从日历回来时恢复，别每次都回顶丢位置。
+  let savedListScrollY = null;
+  const showDashboard = ({ restoreScroll = false } = {}) => {
     closeParserSheet();
     elements.dashboardView.classList.remove("hidden");
     playViewEnter(elements.dashboardView);
     setActiveTab("projects");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (restoreScroll && savedListScrollY !== null) {
+      window.scrollTo({ top: savedListScrollY, behavior: "auto" });
+    } else {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   /** v0.7.0：视图切换过渡——淡入 + 轻微上滑（动画结束自动清理 class，保证下次可重触发） */
@@ -996,10 +1013,12 @@ import { createDataIo } from "./js/data-io.js";
       guaranteeSheetOpen = true;
       elements.guaranteeSheet?.classList.remove("hidden");
       document.body.classList.add("sheet-open");
+      ui.trapFocusIn(elements.guaranteeSheet);
       elements.guaranteeSheetClose?.focus();
     };
     const closeGuaranteeSheet = () => {
       guaranteeSheetOpen = false;
+      ui.releaseFocusTrap(elements.guaranteeSheet);
       elements.guaranteeSheet?.classList.add("hidden");
       document.body.classList.remove("sheet-open");
       elements.guaranteeMenuBtn?.focus();
@@ -1032,10 +1051,12 @@ import { createDataIo } from "./js/data-io.js";
       ui.renderQualList(state.qualifications);
       elements.qualSheet?.classList.remove("hidden");
       document.body.classList.add("sheet-open");
+      ui.trapFocusIn(elements.qualSheet);
       elements.qualSheetClose?.focus();
     };
     const closeQualSheet = () => {
       qualSheetOpen = false;
+      ui.releaseFocusTrap(elements.qualSheet);
       elements.qualSheet?.classList.add("hidden");
       document.body.classList.remove("sheet-open");
       clearQualForm();
@@ -1232,11 +1253,15 @@ import { createDataIo } from "./js/data-io.js";
       btn.addEventListener("click", () => {
         const tab = btn.dataset.tab;
         if (tab === "projects") {
-          showDashboard();
+          // v0.30.0：从日历回来时恢复列表滚动位置；已经在列表时点“项目”仍是回顶。
+          const returning = state.viewMode !== "list";
+          showDashboard({ restoreScroll: returning });
           setViewMode("list");
-          elements.list
-            ?.closest("section")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          if (!returning) {
+            elements.list
+              ?.closest("section")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         } else if (tab === "calendar") {
           showDashboard();
           setViewMode("calendar");
@@ -1915,8 +1940,10 @@ import { createDataIo } from "./js/data-io.js";
     // v0.9.0：回收站抽屉 —— 菜单按钮打开，关闭按钮 / 遮罩 / Esc 关闭；
     // 打开时刷新列表，关闭后焦点回到菜单按钮
     const openTrashSheet = async () => {
+      state.trashLimit = 50; // v0.30.0：每次打开回收站都从第一页看起
       trashSheetOpen = true;
       elements.trashSheet?.classList.remove("hidden");
+      ui.trapFocusIn(elements.trashSheet);
       document.body.classList.add("sheet-open");
       ui.showTrashSkeleton();
       await refreshTrashList();
@@ -1924,6 +1951,7 @@ import { createDataIo } from "./js/data-io.js";
     };
     const closeTrashSheet = () => {
       trashSheetOpen = false;
+      ui.releaseFocusTrap(elements.trashSheet);
       elements.trashSheet?.classList.add("hidden");
       document.body.classList.remove("sheet-open");
       elements.trashMenuBtn?.focus();
@@ -1986,6 +2014,11 @@ import { createDataIo } from "./js/data-io.js";
         const ok = await projectsApi.permanentlyDeleteProject(id, button.dataset.name);
         if (ok) await refreshTrashList();
       }
+      // v0.30.0：回收站“加载更多”——每页 50 条，续一页。
+      if (button.dataset.action === "trash-load-more") {
+        state.trashLimit += 50;
+        await refreshTrashList();
+      }
     });
 
     elements.menuToggle?.addEventListener("click", () =>
@@ -2013,7 +2046,10 @@ import { createDataIo } from "./js/data-io.js";
     elements.addProjectBtn?.addEventListener("click", () => revealForm());
     // v0.7.0：统计卡片可点击筛选（前 4 张；保证金卡片保持静态）
     const applyStatFilter = (value) => {
+      // v0.30.0：统计卡片清搜索时说一声（之前静默清掉，搜了一半的字就没了）。
+      const hadSearch = (elements.search?.value || "").trim() !== "";
       if (elements.search) elements.search.value = "";
+      if (hadSearch) ui.showToast(`已清除搜索词，按状态「${value}」筛选。`);
       if (elements.statusFilter) elements.statusFilter.value = value;
       if (typeof state.syncSegControl === "function") state.syncSegControl();
       state.listLimit = 50;
@@ -2080,6 +2116,13 @@ import { createDataIo } from "./js/data-io.js";
         scrollRaf = requestAnimationFrame(() => {
           scrollRaf = 0;
           ui.updateScrollUi();
+          // v0.30.0：列表视图下记下滚动位置，供底部“项目”Tab 回来时恢复。
+          if (
+            state.viewMode === "list" &&
+            !elements.dashboardView.classList.contains("hidden")
+          ) {
+            savedListScrollY = window.scrollY;
+          }
         });
       },
       { passive: true }

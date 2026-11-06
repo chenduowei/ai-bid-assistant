@@ -24,6 +24,11 @@ const checks = [
     `v${version}`,
     readFileSync(join(root, "docs/notes.md"), "utf8"),
   ],
+  [
+    "js/utils.js",
+    `APP_VERSION = "${version}"`,
+    readFileSync(join(root, "js/utils.js"), "utf8"),
+  ],
 ];
 let failed = false;
 for (const [file, needle, text] of checks) {
@@ -36,5 +41,5 @@ for (const [file, needle, text] of checks) {
 }
 if (failed) process.exit(1);
 console.log(
-  `版本一致：${version}（package.json / sw.js / changelog / 页眉 / README / notes）`
+  `版本一致：${version}（package.json / sw.js / changelog / 页眉 / README / notes / utils.js APP_VERSION）`
 );
