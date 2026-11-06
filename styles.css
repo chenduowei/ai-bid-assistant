@@ -15,6 +15,7 @@
    v0.26.0 浮钮真根因：删掉 .page 的 page-in 入场动画（v0.24.0 的“收尾改 none”实测无效——fill 模式仍把 fixed 按钮钉在 .page 上，v0.25.0 线上已证实）；手机端行内解析去 📄、间距再收紧、倒计时 pill 垂直居中。
    v0.27.0 定位高亮按 iOS 风格：先淡入后淡出，延迟 300ms 再挂类。
    v0.28.0 数据安全三件套：重置前先自动备份、恢复失败可撤销、导入去重。
+   v0.29.0 P1 四件套：AI 终稿上限 4000→8000 与截断/网络中文提示、表单草稿保护、定位残留闪修复、企业资质库对照。
    ============================================================ */
 :root {
   --bg: #F2F2F7;
@@ -1161,6 +1162,8 @@ body.dark .sort-select {
 @media (min-width: 681px) { .go-to-bottom { display: none; } }
 /* v0.27.0：定位高亮按 iOS 风格——先淡入后淡出（之前是起手满格再淡出，背景一帧跳变，看着像闪一下） */
 .project-item.project-highlight { animation: highlight-fade 2s ease-in-out both; }
+/* v0.29.0：定位时跳过目标卡片的入场动画（否则淡入 + 滚动 + 高亮三重叠加看着像闪） */
+.project-item.no-enter { animation: none; }
 .form-panel.form-highlight { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
 .ripple {
   position: absolute;
@@ -1784,3 +1787,28 @@ body.sheet-open { overflow: hidden; }
 .ai-next { margin-top: var(--sp-3); padding-top: var(--sp-3); border-top: 1px solid var(--border); }
 .ai-next-text { font-size: var(--fs-md); font-weight: 700; }
 .ai-next-hint { margin: var(--sp-2) 0 0; font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; }
+
+/* ========== v0.29.0 ========== */
+
+/* —— 资质对照徽标（资格要求条目上）与标题汇总 —— */
+.qual-match { flex: none; font-weight: 700; border-radius: 999px; padding: 2px 8px; }
+.qual-match.matched { color: var(--tint-green-text); background: var(--tint-green-bg); }
+.qual-match.missing { color: var(--tint-red-text); background: var(--tint-red-bg); }
+.qual-match.unclear { color: var(--muted); background: var(--btn-fill); }
+.qual-match-note { color: var(--muted); }
+.struct-summary { font-weight: 400; color: var(--muted); font-size: var(--fs-sm); margin-left: 4px; }
+
+/* —— 我的资质抽屉 —— */
+.qual-form { display: grid; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.qual-form-actions { display: flex; gap: var(--sp-2); }
+.qual-list { padding-top: var(--sp-2); }
+.qual-group-title { font-size: var(--fs-sm); font-weight: 700; color: var(--muted); margin: var(--sp-3) 0 var(--sp-1); }
+.qual-row { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); padding: var(--sp-3) 0; border-bottom: 1px solid var(--border); }
+.qual-row:last-child { border-bottom: 0; }
+.qual-main { flex: 1; min-width: 0; }
+.qual-name { font-size: var(--fs-base); font-weight: 600; }
+.qual-sub { font-size: var(--fs-sm); color: var(--muted); margin-top: 2px; }
+.qual-expired { color: var(--tint-red-text); font-weight: 700; font-size: var(--fs-xs); margin-left: 6px; }
+.qual-expiring { color: var(--tint-orange-text); font-weight: 700; font-size: var(--fs-xs); margin-left: 6px; }
+.qual-actions { display: flex; flex: none; gap: 8px; }
+.qual-empty { text-align: center; color: var(--muted); font-size: var(--fs-md); padding: var(--sp-4) var(--sp-2); line-height: 1.6; }

@@ -5,7 +5,7 @@
  * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
  * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, FORM_DRAFT_KEY, isFormDataEmpty, isFormDraftUsable, isFormDraftStale } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -108,6 +108,17 @@ import { createDataIo } from "./js/data-io.js";
     guaranteeCount: document.getElementById("guaranteeCount"),
     guaranteeStatCard: document.getElementById("guaranteeStatCard"),
     guaranteeMenuBtn: document.getElementById("guaranteeMenuBtn"),
+    qualMenuBtn: document.getElementById("qualMenuBtn"),
+    qualSheet: document.getElementById("qualSheet"),
+    qualSheetClose: document.getElementById("qualSheetClose"),
+    qualCategory: document.getElementById("qualCategory"),
+    qualName: document.getElementById("qualName"),
+    qualDetails: document.getElementById("qualDetails"),
+    qualExpires: document.getElementById("qualExpires"),
+    qualSaveBtn: document.getElementById("qualSaveBtn"),
+    qualCancelEditBtn: document.getElementById("qualCancelEditBtn"),
+    qualList: document.getElementById("qualList"),
+    qualCount: document.getElementById("qualCount"),
     guaranteeSheet: document.getElementById("guaranteeSheet"),
     guaranteeSheetClose: document.getElementById("guaranteeSheetClose"),
     trashList: document.getElementById("trashList"),
@@ -181,6 +192,7 @@ import { createDataIo } from "./js/data-io.js";
 
   const state = {
     projects: [],
+    qualifications: [], // v0.29.0：企业自有资质（AI 对照用）
     editingId: null,
     darkMode: localStorage.getItem(THEME_KEY) === "dark",
     user: null,
@@ -419,6 +431,7 @@ import { createDataIo } from "./js/data-io.js";
       elements.formSubtitle.textContent =
         "必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。";
     setFormExpanded(false); // v0.4.3：保存成功 / 取消后自动收起表单
+    clearFormDraft(); // v0.29.0：保存成功 / 取消后草稿作废
   };
 
   /** 表单数值解析：空字符串 / 非数字 / 负数 → null */
@@ -466,6 +479,121 @@ import { createDataIo } from "./js/data-io.js";
       base.extracted_meta = lastAiResult.extractedMeta || null;
     }
     return base;
+  };
+
+  // v0.29.0：表单草稿保护 —— 输入防抖存草稿（localStorage），页面刷新 /
+  // 会话过期后打开表单可恢复；保存成功 / 取消后清除。草稿只留一份、7 天有效。
+  const loadFormDraft = () => {
+    try {
+      const raw = localStorage.getItem(FORM_DRAFT_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+  const saveFormDraft = () => {
+    try {
+      const fields = formData();
+      if (isFormDataEmpty(fields) && !lastAiResult) {
+        localStorage.removeItem(FORM_DRAFT_KEY);
+        return;
+      }
+      localStorage.setItem(
+        FORM_DRAFT_KEY,
+        JSON.stringify({
+          v: 1,
+          editingId: state.editingId ?? null,
+          savedAt: Date.now(),
+          fields,
+          aiResult: lastAiResult ?? null,
+        })
+      );
+    } catch {
+      // 隐私模式等写失败不影响填表
+    }
+  };
+  const clearFormDraft = () => {
+    try {
+      localStorage.removeItem(FORM_DRAFT_KEY);
+    } catch {
+      // ignore
+    }
+  };
+  const debouncedSaveFormDraft = debounce(saveFormDraft, 500);
+  const applyFormDraft = (draft) => {
+    const f = draft.fields || {};
+    const set = (key, value) => {
+      if (elements.form[key]) elements.form[key].value = value ?? "";
+    };
+    set("date", f.bid_date);
+    set("type", f.project_type);
+    set("name", f.name);
+    set("biddingCompany", f.bidding_company);
+    set("tenderer", f.tenderer);
+    set("guarantee", f.guarantee);
+    set("amountValue", f.amount_value);
+    set("amountUnit", f.amount_unit || "万元");
+    set("guaranteeAmount", f.guarantee_amount);
+    set("guaranteeUnit", f.guarantee_unit || "万元");
+    set("guaranteeStatus", f.guarantee_status || "未缴纳");
+    set("registrationDeadline", f.registration_deadline);
+    set("inquiryDeadline", f.inquiry_deadline);
+    set("clarificationDeadline", f.clarification_deadline);
+    set("guaranteeDeadline", f.guarantee_deadline);
+    set("contact", f.contact);
+    set("status", f.status || "报名中");
+    set("notes", f.notes);
+    lastAiResult = draft.aiResult ?? null;
+    state.editingId = draft.editingId ?? null;
+    if (state.editingId) {
+      const p = state.projects.find(
+        (project) => project.id === state.editingId
+      );
+      elements.submitBtn.textContent = "保存修改";
+      elements.cancelBtn.classList.remove("hidden");
+      elements.formBody?.closest(".form-panel")?.classList.add("editing");
+      if (elements.formSubtitle)
+        elements.formSubtitle.textContent = `正在编辑：${String(
+          p?.name || ""
+        ).slice(0, 12)}…`;
+    } else {
+      elements.submitBtn.textContent = "新增项目";
+      elements.cancelBtn.classList.add("hidden");
+      elements.formBody?.closest(".form-panel")?.classList.remove("editing");
+      if (elements.formSubtitle)
+        elements.formSubtitle.textContent =
+          "必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。";
+    }
+    setOptionalExpanded(hasOptionalValues());
+    revealForm();
+  };
+  const maybeOfferFormDraft = async () => {
+    const draft = loadFormDraft();
+    if (!draft) return;
+    if (!isFormDraftUsable(draft, state.editingId)) {
+      // 只是 editingId 对不上时留着，等它自己的上下文再问；坏了 / 过期了才清。
+      if (isFormDraftStale(draft)) clearFormDraft();
+      return;
+    }
+    const when = new Date(draft.savedAt).toLocaleString("zh-CN", {
+      month: "numeric",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+    const restore = await ui.confirmDialog({
+      title: "恢复草稿",
+      message: `发现上次未保存的表单内容（保存于 ${when}），是否恢复？`,
+      confirmText: "恢复草稿",
+      cancelText: "放弃草稿",
+    });
+    if (restore) {
+      applyFormDraft(draft);
+      ui.showToast("草稿已恢复。");
+    } else {
+      clearFormDraft();
+    }
   };
 
   async function requestNotificationPermission() {
@@ -584,6 +712,10 @@ import { createDataIo } from "./js/data-io.js";
     elements.appView.classList.remove("hidden");
     requestNotificationPermission();
     ui.showListSkeleton();
+    // v0.29.0：登录后拉一次资质库（表未建时 projectsApi 只提示一次，不阻塞项目加载）
+    projectsApi.loadQualifications().then((list) => {
+      state.qualifications = list || [];
+    });
     projectsApi.loadProjects().then((loaded) => {
       if (!loaded) return;
       // v0.12.0：离线快照下不做任何写操作
@@ -881,6 +1013,85 @@ import { createDataIo } from "./js/data-io.js";
       if (event.key === "Escape" && guaranteeSheetOpen) closeGuaranteeSheet();
     });
     elements.guaranteeStatCard?.addEventListener("click", openGuaranteeSheet);
+
+    // v0.29.0：我的资质抽屉 —— 菜单入口打开，关闭按钮 / 遮罩 / Esc 关闭；
+    // 列表由 ui.renderQualList 渲染（按类别分组，过期与 90 天内到期标出）。
+    let qualSheetOpen = false;
+    let editingQualId = null;
+    const clearQualForm = () => {
+      editingQualId = null;
+      if (elements.qualCategory) elements.qualCategory.value = "施工资质";
+      if (elements.qualName) elements.qualName.value = "";
+      if (elements.qualDetails) elements.qualDetails.value = "";
+      if (elements.qualExpires) elements.qualExpires.value = "";
+      if (elements.qualSaveBtn) elements.qualSaveBtn.textContent = "保存资质";
+      elements.qualCancelEditBtn?.classList.add("hidden");
+    };
+    const openQualSheet = () => {
+      qualSheetOpen = true;
+      ui.renderQualList(state.qualifications);
+      elements.qualSheet?.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+      elements.qualSheetClose?.focus();
+    };
+    const closeQualSheet = () => {
+      qualSheetOpen = false;
+      elements.qualSheet?.classList.add("hidden");
+      document.body.classList.remove("sheet-open");
+      clearQualForm();
+      elements.qualMenuBtn?.focus();
+    };
+    elements.qualMenuBtn?.addEventListener("click", openQualSheet);
+    elements.qualSheetClose?.addEventListener("click", closeQualSheet);
+    elements.qualSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-qual']")) closeQualSheet();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && qualSheetOpen) closeQualSheet();
+    });
+    elements.qualSaveBtn?.addEventListener("click", async () => {
+      const btn = elements.qualSaveBtn;
+      btn.disabled = true;
+      const ok = await projectsApi.saveQualification(
+        {
+          category: elements.qualCategory?.value,
+          name: elements.qualName?.value,
+          details: elements.qualDetails?.value,
+          expires_at: elements.qualExpires?.value,
+        },
+        editingQualId
+      );
+      btn.disabled = false;
+      if (ok) {
+        clearQualForm();
+        ui.renderQualList(state.qualifications);
+      }
+    });
+    elements.qualCancelEditBtn?.addEventListener("click", clearQualForm);
+    elements.qualList?.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const id = button.dataset.id;
+      if (button.dataset.action === "qual-edit") {
+        const q = state.qualifications.find((item) => item.id === id);
+        if (!q) return;
+        editingQualId = q.id;
+        if (elements.qualCategory) elements.qualCategory.value = q.category;
+        if (elements.qualName) elements.qualName.value = q.name;
+        if (elements.qualDetails) elements.qualDetails.value = q.details || "";
+        if (elements.qualExpires) elements.qualExpires.value = q.expires_at || "";
+        if (elements.qualSaveBtn) elements.qualSaveBtn.textContent = "保存修改";
+        elements.qualCancelEditBtn?.classList.remove("hidden");
+        elements.qualName?.focus();
+      }
+      if (button.dataset.action === "qual-delete") {
+        const ok = await projectsApi.deleteQualification(id);
+        if (ok) {
+          if (editingQualId === id) clearQualForm();
+          ui.renderQualList(state.qualifications);
+        }
+      }
+    });
     elements.guaranteeStatCard?.addEventListener("keydown", (e) => {
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
@@ -964,6 +1175,10 @@ import { createDataIo } from "./js/data-io.js";
       } else btn.textContent = originalText;
     });
     elements.cancelBtn?.addEventListener("click", resetForm);
+    // v0.29.0：表单草稿 —— 输入防抖保存；切页 / 关页前再存一次，500ms 窗口也不丢。
+    elements.formBody?.addEventListener("input", debouncedSaveFormDraft);
+    elements.formBody?.addEventListener("change", debouncedSaveFormDraft);
+    window.addEventListener("beforeunload", saveFormDraft);
     // v0.4.0：搜索框 input 防抖 200ms；筛选 / 排序 change 立即渲染。
     // v0.11.0：换筛选条件即回到第一页（listLimit 复位），避免"加载更多"后的旧页数残留
     elements.search?.addEventListener("input", () => {
@@ -1168,6 +1383,7 @@ import { createDataIo } from "./js/data-io.js";
         return v !== beforeOptional[i] && String(v).trim() !== "";
       });
       if (optionalFilled) setOptionalExpanded(true);
+      saveFormDraft(); // v0.29.0：回填完即存草稿，丢了页面也能恢复
     };
 
     // v0.20.0：回填按钮挪到操作区「AI 分析」后面 —— 面板只展示结果，不再
@@ -1193,8 +1409,10 @@ import { createDataIo } from "./js/data-io.js";
       try {
         // v0.17.0：进度回调带真实百分比（摘要 10→80、最终调用 85、解析结果 95），
         // 不再全程钉死 90%。
-        const result = await aiExtract.analyzeTenderText(text, (msg, pct) =>
-          pdfParser.setParseProgress(pct ?? 90, msg)
+        const result = await aiExtract.analyzeTenderText(
+          text,
+          (msg, pct) => pdfParser.setParseProgress(pct ?? 90, msg),
+          state.qualifications
         );
         lastAiResult = result;
         // v0.19.0：分析只展示、不回填表单 —— 回填是用户在面板上点的明确动作。
@@ -1418,6 +1636,7 @@ import { createDataIo } from "./js/data-io.js";
       // v0.5.0：空状态引导按钮 → 展开新增表单
       if (button.dataset.action === "empty-add") {
         revealForm();
+        maybeOfferFormDraft(); // v0.29.0：展开空表单时问一次草稿
         return;
       }
       if (button.dataset.action === "delete") {
@@ -1638,6 +1857,7 @@ import { createDataIo } from "./js/data-io.js";
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
         enterEditMode(p);
+        maybeOfferFormDraft(); // v0.29.0：同一项目有未保存的草稿时问一次
       }
     });
 
@@ -1722,11 +1942,16 @@ import { createDataIo } from "./js/data-io.js";
     formTitle?.addEventListener("click", (event) => {
       if (event.target.closest("button, a, input, select, textarea")) return;
       setFormExpanded(!state.formExpanded);
+      // v0.29.0：展开空的新表单时，若有未保存的草稿，问一次要不要恢复。
+      if (state.formExpanded && !state.editingId && isFormDataEmpty(formData()))
+        maybeOfferFormDraft();
     });
     formTitle?.addEventListener("keydown", (event) => {
       if (event.key !== "Enter" && event.key !== " ") return;
       event.preventDefault();
       setFormExpanded(!state.formExpanded);
+      if (state.formExpanded && !state.editingId && isFormDataEmpty(formData()))
+        maybeOfferFormDraft();
     });
 
     // v0.22.0：清空回收站 —— 先取最新列表（防抽屉开着时数据已变），
@@ -1821,6 +2046,10 @@ import { createDataIo } from "./js/data-io.js";
       }
       if (guaranteeSheetOpen) {
         closeGuaranteeSheet();
+        return true;
+      }
+      if (qualSheetOpen) {
+        closeQualSheet();
         return true;
       }
       if (!elements.aiSettingsPanel?.classList.contains("hidden")) {

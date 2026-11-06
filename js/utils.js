@@ -229,6 +229,17 @@ export function normalizeEvidenceItem(raw) {
   ) {
     item.level = raw.level;
   }
+  // v0.29.0：资质对照结果 —— match（matched=满足 / missing=缺失 / unclear=待确认）
+  // 与 match_note（依据一句话）随资格条目进出库；非法值丢弃。
+  if (
+    typeof raw.match === "string" &&
+    ["matched", "missing", "unclear"].includes(raw.match)
+  ) {
+    item.match = raw.match;
+  }
+  if (typeof raw.match_note === "string" && raw.match_note.trim()) {
+    item.match_note = raw.match_note.trim().slice(0, 100);
+  }
   return item;
 }
 
@@ -267,6 +278,30 @@ export function countPdfPagesFromText(text) {
 }
 
 /** 数组归一化：非数组返回 []；过滤空项，最多保留 100 项。 */
+// v0.29.0：资质对照徽标与汇总（项目卡片与 AI 面板共用）。
+const QUAL_MATCH_LABEL = { matched: "✓ 满足", missing: "✗ 缺失", unclear: "? 待确认" };
+export function qualMatchBadge(item) {
+  if (!item || typeof item !== "object" || !QUAL_MATCH_LABEL[item.match]) return "";
+  const note =
+    typeof item.match_note === "string" && item.match_note.trim()
+      ? `<span class="qual-match-note">${escapeHtml(item.match_note.trim())}</span>`
+      : "";
+  return `<span class="qual-match ${escapeHtml(item.match)}" title="${escapeHtml(item.match_note || "")}">${QUAL_MATCH_LABEL[item.match]}</span>${note}`;
+}
+export function qualMatchSummary(items) {
+  if (!Array.isArray(items)) return "";
+  let m = 0;
+  let x = 0;
+  let u = 0;
+  for (const it of items) {
+    if (it?.match === "matched") m += 1;
+    else if (it?.match === "missing") x += 1;
+    else if (it?.match === "unclear") u += 1;
+  }
+  if (!m && !x && !u) return "";
+  return `（${m} 满足 · ${x} 缺失 · ${u} 待确认）`;
+}
+
 export function normalizeEvidenceItems(value) {
   if (!Array.isArray(value)) return [];
   const out = [];
@@ -725,6 +760,41 @@ export function buildImportCsvTemplate() {
     example.map(escapeCsvCell).join(",") +
     "\n"
   );
+}
+
+// v0.29.0：表单草稿 —— 纯函数（可单测）。
+export const FORM_DRAFT_KEY = "bid-assistant-form-draft";
+export const FORM_DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+// 表单是否"空"：只看内容字段，状态/单位等默认值不算内容。
+const FORM_DRAFT_CONTENT_FIELDS = [
+  "bid_date", "project_type", "name", "bidding_company", "tenderer",
+  "guarantee", "amount_value", "guarantee_amount",
+  "registration_deadline", "inquiry_deadline",
+  "clarification_deadline", "guarantee_deadline", "contact", "notes",
+];
+export function isFormDataEmpty(data) {
+  if (!data || typeof data !== "object") return true;
+  return FORM_DRAFT_CONTENT_FIELDS.every((k) => {
+    const v = data[k];
+    return v == null || String(v).trim() === "";
+  });
+}
+// 草稿是否可用：结构完整、7 天内、editingId 与当前表单一致
+// （新建对新建、编辑同一项目才算一致）；空草稿不可用。
+export function isFormDraftUsable(draft, editingId, now = Date.now()) {
+  if (!draft || typeof draft !== "object" || draft.v !== 1) return false;
+  if (!draft.fields || typeof draft.fields !== "object") return false;
+  if (!Number.isFinite(draft.savedAt)) return false;
+  if (now - draft.savedAt > FORM_DRAFT_TTL_MS) return false;
+  if (isFormDataEmpty(draft.fields) && !draft.aiResult) return false;
+  return (draft.editingId ?? null) === (editingId ?? null);
+}
+// 草稿是否该丢弃：结构坏了或过期了（不管 editingId 对不对得上）。
+export function isFormDraftStale(draft, now = Date.now()) {
+  if (!draft || typeof draft !== "object" || draft.v !== 1) return true;
+  if (!draft.fields || typeof draft.fields !== "object") return true;
+  if (!Number.isFinite(draft.savedAt)) return true;
+  return now - draft.savedAt > FORM_DRAFT_TTL_MS;
 }
 
 // v0.28.0：导入去重 —— 按（项目名称 + 开标时间 + 投标公司）去重。

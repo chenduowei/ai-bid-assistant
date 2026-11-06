@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createAiExtract } from "../js/ai-extract.js";
 
 const { _test } = createAiExtract({ ui: {} });
-const { normalizeBidDate, parseJsonLoose, validateExtracted, normalizeResult, splitIntoChunks, parseSseChunk } = _test;
+const { normalizeBidDate, parseJsonLoose, validateExtracted, normalizeResult, splitIntoChunks, parseSseChunk, formatQualificationsForPrompt } = _test;
 
 test("normalizeBidDate：只接受真实存在的 YYYY-MM-DD", () => {
   assert.equal(normalizeBidDate("2026-08-10"), "2026-08-10");
@@ -264,9 +264,38 @@ test("parseSseChunk：行被 TCP 切半时残段留给下次", () => {
   assert.equal(second.rest, "");
 });
 
+test("parseSseChunk：finish_reason 为 length 时标记 truncated", () => {
+  const sse =
+    'data: {"choices":[{"delta":{"content":"{"},"finish_reason":null}]}\n' +
+    'data: {"choices":[{"delta":{},"finish_reason":"length"}]}';
+  const { contents, truncated } = parseSseChunk(`${sse}\n`);
+  assert.equal(contents.join(""), "{");
+  assert.equal(truncated, true);
+});
+
+test("parseSseChunk：正常结束（finish_reason=stop）不标记 truncated", () => {
+  const sse =
+    'data: {"choices":[{"delta":{"content":"ok"},"finish_reason":"stop"}]}';
+  const { truncated } = parseSseChunk(`${sse}\n`);
+  assert.equal(truncated, false);
+});
+
 test("parseSseChunk：坏行不毁掉整段输出", () => {
   const { contents } = parseSseChunk(
     'data: 不是 JSON\n\ndata: {"choices":[{"delta":{"content":"有效"}}]}\n'
   );
   assert.deepEqual(contents, ["有效"]);
+});
+
+test("formatQualificationsForPrompt：拼成提示词片段，空表返回空", () => {
+  assert.equal(formatQualificationsForPrompt([]), "");
+  assert.equal(formatQualificationsForPrompt(null), "");
+  const out = formatQualificationsForPrompt([
+    { category: "施工资质", name: "建筑工程施工总承包壹级", details: "证书编号 123", expires_at: "2027-06-30" },
+    { category: "注册人员", name: "一级建造师 2 人", details: "", expires_at: "" },
+    { category: "业绩", name: "", details: "x" },
+  ]);
+  assert.match(out, /\[施工资质\] 建筑工程施工总承包壹级（证书编号 123），有效期至 2027-06-30/);
+  assert.match(out, /\[注册人员\] 一级建造师 2 人/);
+  assert.doesNotMatch(out, /\[业绩\]/);
 });

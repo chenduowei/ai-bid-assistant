@@ -17,6 +17,8 @@ import {
   normalizeEvidenceItem,
   normalizeEvidenceItems,
   getEvidenceState,
+  qualMatchBadge,
+  qualMatchSummary,
 } from "./utils.js";
 
 const DEFAULT_BASE = "https://api.openai.com/v1";
@@ -36,6 +38,10 @@ const MAX_RETRIES = 1;
 /** 单次模型请求超时（120 秒），防网络卡死一直转圈 */
 const AI_REQUEST_TIMEOUT_MS = 120000;
 const AI_MAX_TOKENS = 4000;
+/** v0.29.0：终稿输出上限 8000 —— 终稿 JSON 含 page+quote，条目多时 4000 会截断；
+ * 仅终稿调用用这个值，分块摘要仍用 4000。上限是封顶不是用量，短文档不会多花 token，
+ * 长文档多花的只是超出 4000 的那部分输出 token。 */
+const AI_FINAL_MAX_TOKENS = 8000;
 
 const SYSTEM_PROMPT = `你是工程建设行业招标文件分析助手。请根据用户提供的招标文件文本，提取关键投标信息，并识别废标风险与注意事项。
 必须只输出一个合法 JSON 对象，不要 Markdown 代码块，不要其它说明。JSON 结构如下：
@@ -47,7 +53,7 @@ const SYSTEM_PROMPT = `你是工程建设行业招标文件分析助手。请根
   "bid_date": "开标日期，格式 YYYY-MM-DD，不确定则空字符串",
   "guarantee": "投标保证金或保函要求原文摘要",
   "contact": "招标人或代理机构联系人/电话摘要",
-  "qualification": [{"text": "资格要求要点", "page": 18, "quote": "对应的原文摘录，尽量短"}],
+  "qualification": [{"text": "资格要求要点", "page": 18, "quote": "对应的原文摘录，尽量短", "match": "matched|missing|unclear", "match_note": "对照自有资质的依据，一句话"}],
   "invalid_bid_clauses": [{"text": "废标条款", "page": 36, "quote": "对应的原文摘录，尽量短"}],
   "risk_summary": "100字以内的整体风险摘要",
   "risk_points": [
@@ -56,6 +62,27 @@ const SYSTEM_PROMPT = `你是工程建设行业招标文件分析助手。请根
   "notes": "其它值得注意的信息（不要重复资格与废标条款）"
 }
 证据要求：每条 qualification、invalid_bid_clauses、risk_points 都必须带 page（数字，对应原文中的【第 N 页】标记）和 quote（该结论对应的原文摘录，不超过 100 字）；如果原文中找不到对应出处，page 写 null、quote 写空字符串，绝不要编造页码。`;
+
+/** v0.29.0：把用户的自有资质拼成提示词片段（纯函数，可单测）。没有资质时
+ * 返回空字符串，调用方不追加对照要求，模型只做常规提取。 */
+function formatQualificationsForPrompt(list) {
+  if (!Array.isArray(list) || !list.length) return "";
+  return list
+    .map((q) => {
+      const name = String(q?.name || "").trim();
+      if (!name) return null;
+      const category = String(q?.category || "其他").trim();
+      const details = String(q?.details || "").trim();
+      const expires = String(q?.expires_at || "").trim();
+      return (
+        "- [" + category + "] " + name +
+        (details ? "（" + details + "）" : "") +
+        (expires ? "，有效期至 " + expires : "")
+      );
+    })
+    .filter(Boolean)
+    .join("\n");
+}
 
 const CHUNK_SUMMARY_PROMPT = `你是工程建设行业招标文件分析助手。请对以下「招标文件片段」做要点摘要，重点保留：项目名称、招标单位、金额、开标时间、保证金、联系人、资格要求、废标条款、明显风险。
 只输出纯文本摘要（不要 JSON），控制在 800 字以内。摘要里保留每条信息的页码（原文【第 N 页】标记），不要丢掉出处；不同页的内容分开写，注明页码范围。`;
@@ -254,6 +281,7 @@ export function createAiExtract({ ui }) {
     const lines = String(buffer).split("\n");
     const rest = lines.pop();
     const contents = [];
+    let truncated = false;
     for (let line of lines) {
       if (line.endsWith("\r")) line = line.slice(0, -1);
       if (!line.startsWith("data:")) continue;
@@ -265,11 +293,13 @@ export function createAiExtract({ ui }) {
         if (delta) contents.push(delta);
         const msg = obj.choices?.[0]?.message?.content;
         if (msg) contents.push(msg);
+        // v0.29.0：finish_reason=length 说明输出撞到上限被截断。
+        if (obj.choices?.[0]?.finish_reason === "length") truncated = true;
       } catch {
         // 坏行跳过，不让一行脏数据毁掉整段输出
       }
     }
-    return { contents, rest };
+    return { contents, rest, truncated };
   }
 
   // 标记"中转不支持流式"：只在这种情况下回退非流式；取消、超时、HTTP 错
@@ -288,14 +318,16 @@ export function createAiExtract({ ui }) {
     const decoder = new TextDecoder();
     let buffer = "";
     let received = "";
+    let truncated = false;
     let sawSse = contentType.includes("text/event-stream");
     try {
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
-        const { contents, rest } = parseSseChunk(buffer);
+        const { contents, rest, truncated: t } = parseSseChunk(buffer);
         buffer = rest;
+        if (t) truncated = true;
         if (contents.length) sawSse = true;
         for (const c of contents) {
           received += c;
@@ -304,6 +336,7 @@ export function createAiExtract({ ui }) {
       }
       buffer += decoder.decode();
       const tail = parseSseChunk(`${buffer}\n`);
+      if (tail.truncated) truncated = true;
       for (const c of tail.contents) {
         received += c;
         onChars?.(received.length);
@@ -316,6 +349,9 @@ export function createAiExtract({ ui }) {
       }
     }
     if (!sawSse) throw new StreamUnsupportedError("中转未返回 SSE 流");
+    if (truncated) {
+      throw new Error("模型输出被截断（超出输出上限），内容未能完整输出；请缩短文档后重试。");
+    }
     if (!received) throw new Error("模型未返回有效内容。");
     return received;
   }
@@ -345,7 +381,8 @@ export function createAiExtract({ ui }) {
         // 区分取消与超时：取消信号 abort 时抛取消文案，否则报超时。
         throw new Error("模型请求超时（120 秒），请检查网络或稍后重试。");
       }
-      throw err;
+      // v0.29.0：fetch 抛错只剩网络层原因（域名不通/断网/Base URL 错），包一层中文。
+      throw new Error("网络不通：模型请求未发出，请检查网络或 Base URL 设置。");
     }
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
@@ -356,19 +393,25 @@ export function createAiExtract({ ui }) {
     return res;
   }
 
-  async function callChatNonStream(messages, signal, cfg) {
+  async function callChatNonStream(messages, signal, cfg, maxTokens = AI_MAX_TOKENS) {
     const res = await postChatCompletions(
       cfg,
       {
         model: cfg.model,
         temperature: 0.2,
-        max_tokens: AI_MAX_TOKENS,
+        max_tokens: maxTokens,
         messages,
       },
       signal
     );
     const data = await res.json();
-    const content = data.choices?.[0]?.message?.content;
+    const choice = data.choices?.[0];
+    // v0.29.0：finish_reason=length 说明输出撞到上限被截断——内容是不完整 JSON，
+    // 直接报截断，别让下游拿半截 JSON 去猜。
+    if (choice?.finish_reason === "length") {
+      throw new Error("模型输出被截断（超出输出上限），内容未能完整输出；请缩短文档后重试。");
+    }
+    const content = choice?.message?.content;
     if (!content) throw new Error("模型未返回有效内容。");
     return content;
   }
@@ -376,7 +419,7 @@ export function createAiExtract({ ui }) {
   // v0.18.2：先试流式（边收 token 边通过 onStreamChars 推进度），中转不
   // 支持流式时回退一次非流式；取消/超时/HTTP 错误直接抛，不回退。
   // onStreamChars(已收字符数) 由调用方映射到本次请求的进度带。
-  async function callChat(messages, onProgress, cancelSignal, onStreamChars) {
+  async function callChat(messages, onProgress, cancelSignal, onStreamChars, maxTokens = AI_MAX_TOKENS) {
     const cfg = getAiConfig();
     if (!cfg.apiKey) {
       throw new Error("请先在「AI 设置」中填写 API Key。");
@@ -390,7 +433,7 @@ export function createAiExtract({ ui }) {
         {
           model: cfg.model,
           temperature: 0.2,
-          max_tokens: AI_MAX_TOKENS,
+          max_tokens: maxTokens,
           stream: true,
           messages,
         },
@@ -400,7 +443,7 @@ export function createAiExtract({ ui }) {
         return await readStreamContent(streamRes, signal, onStreamChars);
       } catch (err) {
         if (err instanceof StreamUnsupportedError) {
-          return await callChatNonStream(messages, signal, cfg);
+          return await callChatNonStream(messages, signal, cfg, maxTokens);
         }
         throw err;
       }
@@ -524,9 +567,19 @@ export function createAiExtract({ ui }) {
     return summaries.join("\n\n");
   }
 
-  async function analyzeOnce(textForModel, onProgress, cancelSignal) {
+  async function analyzeOnce(textForModel, onProgress, cancelSignal, qualifications) {
     if (cancelSignal?.aborted) throw new Error(CANCELLED_MESSAGE);
     onProgress?.("正在调用大模型分析…", 85);
+    // v0.29.0：资质对照 —— 把自有资质拼进终稿提示词，让模型逐条判断
+    // （壹级 = 一级这类同义，本地字符串比对做不了，只能靠模型理解）。
+    const qualBlock = formatQualificationsForPrompt(qualifications);
+    const qualInstruction = qualBlock
+      ? `
+
+投标人自有资质（用于对照资格要求）：
+${qualBlock}
+对照要求：对每条 qualification 增加 match 字段（matched=自有资质满足、missing=自有资质不满足或缺失、unclear=无法判断）和 match_note 字段（一句话说明依据，如“自有壹级满足要求”）；没有提供自有资质时 match 写 unclear、match_note 写“未录入自有资质”。`
+      : "";
     // v0.18.2：最终调用也走流式进度 —— 在 85→95 的带子里按已收字符推进，
     // 收到期望量卡在 94%，出结果再跳 95%；中转不支持流式时进度仍停在 85，
     // 与 v0.17.0 行为一致，不会更差。
@@ -535,7 +588,7 @@ export function createAiExtract({ ui }) {
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `请分析以下招标文件文本并按要求输出 JSON：\n\n${textForModel}`,
+          content: `请分析以下招标文件文本并按要求输出 JSON：\n\n${textForModel}${qualInstruction}`,
         },
       ],
       onProgress,
@@ -543,7 +596,8 @@ export function createAiExtract({ ui }) {
       (received) => {
         const frac = Math.min(received / EXPECTED_FINAL_CHARS, 0.9);
         onProgress?.("正在调用大模型分析…", 85 + Math.round(frac * 10));
-      }
+      },
+      AI_FINAL_MAX_TOKENS
     );
     onProgress?.("正在解析结构化结果…", 95);
     const parsed = parseJsonLoose(content);
@@ -552,7 +606,7 @@ export function createAiExtract({ ui }) {
     return normalizeResult(parsed);
   }
 
-  async function analyzeTenderText(fullText, onProgress) {
+  async function analyzeTenderText(fullText, onProgress, qualifications) {
     if (!fullText || !String(fullText).trim()) {
       throw new Error("没有可分析的文本。");
     }
@@ -584,12 +638,24 @@ export function createAiExtract({ ui }) {
         try {
           if (attempt > 0)
             onProgress?.(`结果校验失败，正在重试（${attempt}/${MAX_RETRIES}）…`, 85);
-          return await analyzeOnce(textForModel, onProgress, cancelSignal);
+          return await analyzeOnce(
+            textForModel,
+            onProgress,
+            cancelSignal,
+            qualifications
+          );
         } catch (err) {
           // 取消不重试：直接把“已终止分析”抛出去，别让重试把它盖掉。
           if (err?.message === CANCELLED_MESSAGE) throw err;
+          // v0.29.0：密钥错 / 模型名错 / 输出截断重试也没用，直接抛，别白白等一次。
+          // 其余错误（429 / 5xx / 超时 / 网络闪断 / JSON 校验失败）仍重试一次。
+          if (
+            /模型请求失败（(401|403|404|400)）/.test(err?.message || "") ||
+            /输出被截断/.test(err?.message || "")
+          ) {
+            throw err;
+          }
           lastError = err;
-          // 网络/HTTP 错误也允许重试一次
           if (attempt >= MAX_RETRIES) break;
         }
       }
@@ -700,7 +766,8 @@ export function createAiExtract({ ui }) {
       const quote = it.quote
         ? `<span class="evidence-quote" title="${escape(it.quote)}">“${escape(it.quote)}”</span>`
         : "";
-      return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span></div>`;
+      // v0.29.0：资质对照徽标（只在资格要求条目上；面板是只读预览，徽标与卡片共用）。
+      return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${qualMatchBadge(it)}</div>`;
     };
     const points = (result.riskPoints || [])
       .map(
@@ -711,6 +778,7 @@ export function createAiExtract({ ui }) {
     const qual = (result.qualification || [])
       .map((q) => `<li><div>${escape(q.text ?? q)}</div>${evidenceMeta(q)}</li>`)
       .join("");
+    const qualSummary = qualMatchSummary(result.qualification);
     const invalid = (result.invalidBidClauses || [])
       .map((c) => `<li><div>${escape(c.text ?? c)}</div>${evidenceMeta(c)}</li>`)
       .join("");
@@ -729,7 +797,7 @@ export function createAiExtract({ ui }) {
         <p class="risk-summary">${escape(result.riskSummary || "无摘要")}</p>
         ${
           qual
-            ? `<div class="ai-section"><strong>资格要求</strong><ul class="struct-list">${qual}</ul></div>`
+            ? `<div class="ai-section"><strong>资格要求</strong>${qualSummary ? `<span class="struct-summary">${escape(qualSummary)}</span>` : ""}<ul class="struct-list">${qual}</ul></div>`
             : ""
         }
         ${
@@ -771,6 +839,7 @@ export function createAiExtract({ ui }) {
     loadAiConfigToForm,
     // 便于测试
     _test: {
+      formatQualificationsForPrompt,
       splitIntoChunks,
       parseJsonLoose,
       validateExtracted,

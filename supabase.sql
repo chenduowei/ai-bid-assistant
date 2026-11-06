@@ -237,3 +237,46 @@ exception
   when others then null;
 end;
 $$;
+
+-- 9) v0.29.0：企业资质库（投标人自有资质 / 注册人员 / 业绩，供 AI 对照招标文件资格要求）
+-- 资质库是企业档案，不属于项目数据：备份 / 恢复 / 重置账户均不碰它。
+-- 已有旧库需执行本段一次（幂等）；新建库在 CREATE TABLE 阶段已包含本表。
+create table if not exists public.qualifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  category text not null,
+  name text not null,
+  details text,
+  expires_at date,
+  created_at timestamptz not null default now()
+);
+alter table public.qualifications enable row level security;
+
+drop policy if exists "Users can read their own qualifications" on public.qualifications;
+create policy "Users can read their own qualifications"
+on public.qualifications for select to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can create their own qualifications" on public.qualifications;
+create policy "Users can create their own qualifications"
+on public.qualifications for insert to authenticated
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update their own qualifications" on public.qualifications;
+create policy "Users can update their own qualifications"
+on public.qualifications for update to authenticated
+using ((select auth.uid()) = user_id)
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can delete their own qualifications" on public.qualifications;
+create policy "Users can delete their own qualifications"
+on public.qualifications for delete to authenticated
+using ((select auth.uid()) = user_id);
+
+grant select, insert, update, delete on public.qualifications to authenticated;
+
+-- 类别固定五档（与前端下拉一致）；非法值拒绝写入。
+do $$ begin
+  alter table public.qualifications add constraint qualifications_category_check
+    check (category in ('施工资质', '安全生产', '注册人员', '业绩', '其他'));
+exception when duplicate_object then null; end $$;

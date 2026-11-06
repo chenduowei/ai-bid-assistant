@@ -72,7 +72,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.28.0</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.29.0</span></div>
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">内容</span>
         <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
@@ -83,6 +83,7 @@
         <button id="restoreBtn" class="btn secondary" type="button">♻️ 从备份恢复</button>
         <button id="trashMenuBtn" class="btn secondary" type="button">🗑️ 回收站</button>
         <button id="guaranteeMenuBtn" class="btn secondary" type="button">💰 保证金待退还</button>
+        <button id="qualMenuBtn" class="btn secondary" type="button">🏅 我的资质</button>
         <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
         <input id="importFileInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
         <span class="menu-label">系统</span>
@@ -422,6 +423,49 @@
         <button id="guaranteeSheetClose" class="btn secondary" type="button" aria-label="关闭保证金清单">✕</button>
       </div>
       <div id="guaranteeList" class="guarantee-list"></div>
+    </div>
+  </div>
+
+  <!-- v0.29.0：我的资质抽屉 —— 录入企业自有资质 / 人员 / 业绩，AI 分析招标文件时逐条对照资格要求 -->
+  <div id="qualSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="qualSheetTitle">
+    <div class="sheet-backdrop" data-action="close-qual"></div>
+    <div class="sheet-panel card">
+      <div class="sheet-head">
+        <div>
+          <h2 id="qualSheetTitle">我的资质</h2>
+          <p>录入企业自有资质、人员与业绩，AI 分析招标文件时会自动对照每条资格要求。<span id="qualCount"></span></p>
+        </div>
+        <button id="qualSheetClose" class="btn secondary" type="button" aria-label="关闭我的资质">✕</button>
+      </div>
+      <div class="qual-form">
+        <div class="field">
+          <label for="qualCategory">类别</label>
+          <select id="qualCategory">
+            <option value="施工资质">施工资质</option>
+            <option value="安全生产">安全生产</option>
+            <option value="注册人员">注册人员</option>
+            <option value="业绩">业绩</option>
+            <option value="其他">其他</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="qualName">名称</label>
+          <input id="qualName" type="text" placeholder="如：建筑工程施工总承包壹级" maxlength="100" />
+        </div>
+        <div class="field">
+          <label for="qualDetails">补充说明</label>
+          <input id="qualDetails" type="text" placeholder="证书编号、等级等（选填）" maxlength="200" />
+        </div>
+        <div class="field">
+          <label for="qualExpires">有效期至</label>
+          <input id="qualExpires" type="date" />
+        </div>
+        <div class="qual-form-actions">
+          <button id="qualSaveBtn" class="btn primary" type="button">保存资质</button>
+          <button id="qualCancelEditBtn" class="btn secondary hidden" type="button">取消编辑</button>
+        </div>
+      </div>
+      <div id="qualList" class="qual-list"></div>
     </div>
   </div>
 

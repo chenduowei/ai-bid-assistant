@@ -21,6 +21,12 @@ import {
   parseBackupPayload,
   splitRestoreRows,
   dedupeImportRows,
+  FORM_DRAFT_TTL_MS,
+  isFormDataEmpty,
+  isFormDraftUsable,
+  isFormDraftStale,
+  qualMatchBadge,
+  qualMatchSummary,
   normalizeEvidencePage,
   normalizeEvidenceItem,
   normalizeEvidenceItems,
@@ -560,4 +566,78 @@ test("dedupeImportRows：空输入与空库返回原样", () => {
   assert.deepEqual(dedupeImportRows(null, null), { fresh: [], duplicates: 0 });
   const rows = [{ name: "X", bid_date: "2026-12-01", bidding_company: "乙公司" }];
   assert.equal(dedupeImportRows(rows, null).fresh.length, 1);
+});
+
+test("isFormDataEmpty：只看内容字段，状态/单位默认值不算内容", () => {
+  assert.equal(isFormDataEmpty(null), true);
+  assert.equal(isFormDataEmpty({}), true);
+  assert.equal(
+    isFormDataEmpty({ status: "报名中", amount_unit: "万元", guarantee_status: "未缴纳" }),
+    true
+  );
+  assert.equal(isFormDataEmpty({ name: "  " }), true);
+  assert.equal(isFormDataEmpty({ name: "A 项目" }), false);
+  assert.equal(isFormDataEmpty({ amount_value: 10 }), false);
+  assert.equal(isFormDataEmpty({ amount_value: null, notes: "" }), true);
+});
+
+test("isFormDraftUsable：新建对新建、编辑同一项目才可用，过期/结构坏不可用", () => {
+  const now = Date.now();
+  const base = { v: 1, savedAt: now - 1000, fields: { name: "A" }, aiResult: null };
+  assert.equal(isFormDraftUsable({ ...base, editingId: null }, null, now), true);
+  assert.equal(isFormDraftUsable({ ...base, editingId: "x1" }, "x1", now), true);
+  assert.equal(isFormDraftUsable({ ...base, editingId: "x1" }, null, now), false);
+  assert.equal(isFormDraftUsable({ ...base, editingId: null }, "x1", now), false);
+  assert.equal(
+    isFormDraftUsable({ ...base, savedAt: now - FORM_DRAFT_TTL_MS - 1 }, null, now),
+    false
+  );
+  assert.equal(isFormDraftUsable({ ...base, v: 2 }, null, now), false);
+  assert.equal(isFormDraftUsable({ ...base, fields: null }, null, now), false);
+  assert.equal(
+    isFormDraftUsable({ ...base, fields: { status: "报名中" } }, null, now),
+    false
+  );
+});
+
+test("isFormDraftStale：坏结构/过期为真，editingId 对不上不算过期", () => {
+  const now = Date.now();
+  assert.equal(isFormDraftStale(null, now), true);
+  assert.equal(isFormDraftStale({ v: 1, savedAt: now - 1000, fields: {} }, now), false);
+  assert.equal(
+    isFormDraftStale({ v: 1, savedAt: now - FORM_DRAFT_TTL_MS - 1, fields: {} }, now),
+    true
+  );
+});
+
+test("normalizeEvidenceItem：match / match_note 只留合法值", () => {
+  const ok = normalizeEvidenceItem({
+    text: "须具备建筑工程施工总承包壹级",
+    match: "matched",
+    match_note: "自有壹级满足要求",
+  });
+  assert.equal(ok.match, "matched");
+  assert.equal(ok.match_note, "自有壹级满足要求");
+  const bad = normalizeEvidenceItem({ text: "x", match: "yes", match_note: "  " });
+  assert.equal(bad.match, undefined);
+  assert.equal(bad.match_note, undefined);
+});
+
+test("qualMatchBadge：三种状态出徽标，无 match 出空", () => {
+  assert.match(qualMatchBadge({ match: "matched", match_note: "自有壹级" }), /✓ 满足/);
+  assert.match(qualMatchBadge({ match: "missing" }), /✗ 缺失/);
+  assert.match(qualMatchBadge({ match: "unclear" }), /\? 待确认/);
+  assert.equal(qualMatchBadge({ text: "x" }), "");
+  assert.equal(qualMatchBadge(null), "");
+  assert.match(qualMatchBadge({ match: "matched", match_note: "自有壹级" }), /自有壹级/);
+});
+
+test("qualMatchSummary：计数汇总，无对照结果时为空", () => {
+  assert.equal(
+    qualMatchSummary([{ match: "matched" }, { match: "matched" }, { match: "missing" }, { match: "unclear" }, {}]),
+    "（2 满足 · 1 缺失 · 1 待确认）"
+  );
+  assert.equal(qualMatchSummary([{ text: "x" }]), "");
+  assert.equal(qualMatchSummary([]), "");
+  assert.equal(qualMatchSummary(null), "");
 });

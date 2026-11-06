@@ -2,6 +2,8 @@
 
 import {
   escapeHtml,
+  qualMatchBadge,
+  qualMatchSummary,
   formatDateDisplay,
   getDaysUntilBid,
   getStatusClass,
@@ -188,7 +190,9 @@ export function createUi(elements, getState) {
     const del = project
       ? `<button class="btn secondary evidence-del" type="button" data-action="delete-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" title="删除这条结论">×</button>`
       : "";
-    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${toggle}${del}</div>`;
+    // v0.29.0：资质对照徽标（只在资格要求条目上）。
+    const matchBadge = kind === "qualification" ? qualMatchBadge(item) : "";
+    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${matchBadge}${toggle}${del}</div>`;
   };
 
   const renderStructList = (title, items, project, kind) => {
@@ -199,7 +203,9 @@ export function createUi(elements, getState) {
           `<li><div>${escapeHtml(typeof item === "string" ? item : item.text || "")}</div>${evidenceMeta(item, project, kind, i)}</li>`
       )
       .join("");
-    return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}</div><ul class="struct-list">${lis}</ul></div>`;
+    // v0.29.0：资格要求标题后附对照汇总（满足 / 缺失 / 待确认）。
+    const summary = kind === "qualification" ? qualMatchSummary(items) : "";
+    return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}${summary ? `<span class="struct-summary">${escapeHtml(summary)}</span>` : ""}</div><ul class="struct-list">${lis}</ul></div>`;
   };
 
   const sanitizeLevel = (level) =>
@@ -472,11 +478,15 @@ export function createUi(elements, getState) {
       return;
     }
     item.scrollIntoView({ behavior: "smooth", block: "center" });
+    // v0.29.0：定位残留闪的根因——render() 后目标卡片会重播入场动画（淡入 + 上移），
+    // 与滚动、高亮三重叠加看着像闪。定位时跳过这次入场动画，动画结束后再摘掉。
+    item.classList.add("no-enter");
     // v0.27.0：iOS 风格——高亮不再一上来就满格（那是闪一下的根源），
     // 等 300ms（列表入场动画落定、滚动已起步）再挂类，动画本身先淡入后淡出。
     locateTimers = [
       setTimeout(() => item.classList.add("project-highlight"), 300),
       setTimeout(() => item.classList.remove("project-highlight"), 2300),
+      setTimeout(() => item.classList.remove("no-enter"), 2300),
     ];
   };
 
@@ -636,6 +646,48 @@ export function createUi(elements, getState) {
     renderCalendar(state.projects, filters);
   };
 
+  // v0.29.0：我的资质列表 —— 按类别分组；过期 / 90 天内到期标出来（日期只比 YYYY-MM-DD 字符串，不碰时区）。
+  const QUAL_CATEGORY_ORDER = ["施工资质", "安全生产", "注册人员", "业绩", "其他"];
+  const renderQualList = (qualifications) => {
+    const el = elements.qualList;
+    if (!el) return;
+    const list = Array.isArray(qualifications) ? qualifications : [];
+    const countEl = elements.qualCount;
+    if (countEl) countEl.textContent = list.length ? `（共 ${list.length} 条）` : "";
+    if (!list.length) {
+      el.innerHTML = `<div class="qual-empty">还没有录入资质。在上方添加一条，AI 分析招标文件时会自动对照。</div>`;
+      return;
+    }
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const daysUntil = (d) => {
+      if (!d) return null;
+      const t = new Date(`${d}T00:00:00`).getTime();
+      const base = new Date(`${today}T00:00:00`).getTime();
+      if (!Number.isFinite(t)) return null;
+      return Math.ceil((t - base) / 86400000);
+    };
+    el.innerHTML = QUAL_CATEGORY_ORDER.map((cat) => {
+      const rows = list.filter((q) => q.category === cat);
+      if (!rows.length) return "";
+      return `<div class="qual-group"><div class="qual-group-title">${escapeHtml(cat)}（${rows.length}）</div>${rows
+        .map((q) => {
+          const days = daysUntil(q.expires_at);
+          const expiryTag =
+            days !== null && days < 0
+              ? `<span class="qual-expired">已过期</span>`
+              : days !== null && days <= 90
+                ? `<span class="qual-expiring">${days === 0 ? "今日到期" : `${days} 天后到期`}</span>`
+                : "";
+          const sub = [q.details, q.expires_at ? `有效期至 ${formatDateDisplay(q.expires_at)}` : ""]
+            .filter(Boolean)
+            .join(" · ");
+          return `<div class="qual-row"><div class="qual-main"><div class="qual-name">${escapeHtml(q.name)}${expiryTag}</div>${sub ? `<div class="qual-sub">${escapeHtml(sub)}</div>` : ""}</div><span class="qual-actions"><button class="btn secondary" type="button" data-action="qual-edit" data-id="${escapeHtml(q.id)}">编辑</button><button class="btn secondary" type="button" data-action="qual-delete" data-id="${escapeHtml(q.id)}">删除</button></span></div>`;
+        })
+        .join("")}</div>`;
+    }).join("");
+  };
+
   // v0.12.0：离线快照横幅——快照模式下常驻提示（含快照保存时间），联网恢复后消失
   const renderOfflineBanner = (state) => {
     const el = elements.offlineBanner;
@@ -769,6 +821,7 @@ export function createUi(elements, getState) {
     applyTheme,
     render,
     renderTrashList,
+    renderQualList,
     getCurrentFilteredProjects,
     updateCountdowns,
     highlightFormPanel,

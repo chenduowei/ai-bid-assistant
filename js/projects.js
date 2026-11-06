@@ -1021,6 +1021,115 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     }
   };
 
+  // v0.29.0：企业资质库 —— 读 / 增改 / 删。资质库是企业档案，不进备份与重置。
+  const QUAL_CATEGORIES = ["施工资质", "安全生产", "注册人员", "业绩", "其他"];
+  // 表未建时（用户还没执行 supabase.sql 第 9 节）只提示一次，别每次登录都弹。
+  let qualMissingToastShown = false;
+  async function loadQualifications() {
+    const client = getClient();
+    const state = getState();
+    const uid = state.user?.id;
+    if (!uid) return [];
+    const { data, error } = await client
+      .from("qualifications")
+      .select("*")
+      .eq("user_id", uid)
+      .order("category", { ascending: true })
+      .order("created_at", { ascending: true });
+    if (error) {
+      if (error.code === "42P01") {
+        if (!qualMissingToastShown) {
+          qualMissingToastShown = true;
+          ui.showToast(
+            "资质库未就绪：请在 Supabase SQL Editor 执行 supabase.sql 第 9 节。"
+          );
+        }
+        return [];
+      }
+      ui.showToast(`资质库加载失败：${error.message}`);
+      return [];
+    }
+    return (data || []).map((row) => ({
+      id: row.id,
+      category: row.category,
+      name: row.name,
+      details: row.details || "",
+      expires_at: row.expires_at || "",
+    }));
+  }
+  async function saveQualification(qual, editingId) {
+    const state = getState();
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能保存资质。");
+      return false;
+    }
+    const category = String(qual?.category || "").trim();
+    const name = String(qual?.name || "").trim().slice(0, 100);
+    const details = String(qual?.details || "").trim().slice(0, 200);
+    const expires_at = String(qual?.expires_at || "").trim() || null;
+    if (!QUAL_CATEGORIES.includes(category)) {
+      ui.showToast("请选择资质类别。");
+      return false;
+    }
+    if (!name) {
+      ui.showToast("请填写资质名称。");
+      return false;
+    }
+    const payload = { category, name, details: details || null, expires_at };
+    const query = editingId
+      ? getClient()
+          .from("qualifications")
+          .update(payload)
+          .eq("id", editingId)
+          .eq("user_id", state.user.id)
+      : getClient()
+          .from("qualifications")
+          .insert({ ...payload, user_id: state.user.id })
+          .select("id")
+          .single();
+    const { data, error } = await query;
+    if (error) {
+      if (error.code === "42P01") {
+        ui.showToast(
+          "资质库未就绪：请在 Supabase SQL Editor 执行 supabase.sql 第 9 节。"
+        );
+      } else {
+        ui.showToast(`保存失败：${error.message}`);
+      }
+      return false;
+    }
+    const list = await loadQualifications();
+    setState({ qualifications: list });
+    ui.showToast(editingId ? "资质已更新。" : "资质已添加。");
+    return editingId || data?.id || false;
+  }
+  async function deleteQualification(id) {
+    const state = getState();
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能删除资质。");
+      return false;
+    }
+    const ok = await ui.confirmDialog({
+      title: "删除资质",
+      message: "确定删除这条资质吗？已用它对照过的分析结果不受影响。",
+      confirmText: "删除",
+      cancelText: "取消",
+    });
+    if (!ok) return false;
+    const { error } = await getClient()
+      .from("qualifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", state.user.id);
+    if (error) {
+      ui.showToast(`删除失败：${error.message}`);
+      return false;
+    }
+    const list = await loadQualifications();
+    setState({ qualifications: list });
+    return true;
+  }
+
   return {
     loadProjects,
     loadDeletedProjects,
@@ -1040,6 +1149,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     exportCsv,
     exportBackup,
     restoreBackup,
+    loadQualifications,
+    saveQualification,
+    deleteQualification,
     toUiProject,
     validate,
   };
