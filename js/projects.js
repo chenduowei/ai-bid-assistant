@@ -1258,6 +1258,77 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return true;
   }
 
+  // v0.33.0：日历订阅令牌 —— 令牌即钥匙，凭令牌只读该用户的待开标项目。
+  // 表未建时（用户还没执行 supabase.sql 第 10 节）只提示一次，别每次打开都弹。
+  let calendarMissingToastShown = false;
+  const calendarTableMissing = (error) => {
+    if (error?.code !== "42P01") return false;
+    if (!calendarMissingToastShown) {
+      calendarMissingToastShown = true;
+      ui.showToast(
+        "日历订阅未就绪：请先在 Supabase SQL Editor 执行 supabase.sql 第 10 节。"
+      );
+    }
+    return true;
+  };
+  async function getCalendarToken() {
+    const state = getState();
+    const uid = state.user?.id;
+    if (!uid) return null;
+    const { data, error } = await getClient()
+      .from("calendar_tokens")
+      .select("token, created_at")
+      .eq("user_id", uid)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) {
+      if (calendarTableMissing(error)) return null;
+      ui.showToast(`订阅链接读取失败：${error.message}`);
+      return null;
+    }
+    return data?.[0]?.token || null;
+  }
+  async function createCalendarToken() {
+    const state = getState();
+    const uid = state.user?.id;
+    if (!uid) return null;
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能生成订阅链接。");
+      return null;
+    }
+    const token =
+      globalThis.crypto?.randomUUID?.() ||
+      `cal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const { error } = await getClient()
+      .from("calendar_tokens")
+      .insert({ user_id: uid, token });
+    if (error) {
+      if (calendarTableMissing(error)) return null;
+      ui.showToast(`订阅链接生成失败：${error.message}`);
+      return null;
+    }
+    return token;
+  }
+  async function revokeCalendarTokens() {
+    const state = getState();
+    const uid = state.user?.id;
+    if (!uid) return false;
+    if (state.offlineSnapshot) {
+      ui.showToast("当前为离线快照，联网后才能停用订阅。");
+      return false;
+    }
+    const { error } = await getClient()
+      .from("calendar_tokens")
+      .delete()
+      .eq("user_id", uid);
+    if (error) {
+      if (calendarTableMissing(error)) return false;
+      ui.showToast(`停用订阅失败：${error.message}`);
+      return false;
+    }
+    return true;
+  }
+
   return {
     loadProjects,
     loadDeletedProjects,
@@ -1281,6 +1352,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     loadQualifications,
     saveQualification,
     deleteQualification,
+    getCalendarToken,
+    createCalendarToken,
+    revokeCalendarTokens,
+    isCalendarTableMissing: () => calendarMissingToastShown,
     toUiProject,
     validate,
   };

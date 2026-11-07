@@ -280,3 +280,62 @@ do $$ begin
   alter table public.qualifications add constraint qualifications_category_check
     check (category in ('施工资质', '安全生产', '注册人员', '业绩', '其他'));
 exception when duplicate_object then null; end $$;
+
+-- 10) v0.33.0：日历订阅令牌（.ics 订阅链接）—— 令牌即钥匙，凭令牌只读该用户的待开标项目。
+-- 订阅链接形如 https://chenduowei.vercel.app/api/calendar?token=xxx；令牌可随时吊销重生成。
+-- 已有旧库需执行本段一次（幂等）；新建库在 CREATE TABLE 阶段已包含本表。
+create table if not exists public.calendar_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  token text not null unique,
+  created_at timestamptz not null default now()
+);
+alter table public.calendar_tokens enable row level security;
+
+drop policy if exists "Users can read their own calendar tokens" on public.calendar_tokens;
+create policy "Users can read their own calendar tokens"
+on public.calendar_tokens for select to authenticated
+using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can create their own calendar tokens" on public.calendar_tokens;
+create policy "Users can create their own calendar tokens"
+on public.calendar_tokens for insert to authenticated
+with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can delete their own calendar tokens" on public.calendar_tokens;
+create policy "Users can delete their own calendar tokens"
+on public.calendar_tokens for delete to authenticated
+using ((select auth.uid()) = user_id);
+
+grant select, insert, delete on public.calendar_tokens to authenticated;
+
+-- 只读函数：凭令牌返回该用户的待开标项目（未删除、开标日 >= 今天，按开标日升序）。
+-- SECURITY DEFINER：函数以属主身份执行，不受调用方 RLS 限制；令牌本身就是鉴权凭证。
+-- 令牌无效时返回空集，不报错（避免向外暴露令牌是否存在）。
+create or replace function public.get_calendar_projects(p_token text)
+returns table (
+  id uuid,
+  name text,
+  bid_date date,
+  project_type text,
+  bidding_company text,
+  tenderer text,
+  contact text,
+  notes text
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select p.id, p.name, p.bid_date, p.project_type, p.bidding_company,
+         p.tenderer, p.contact, p.notes
+  from public.projects p
+  join public.calendar_tokens t on t.user_id = p.user_id
+  where t.token = p_token
+    and p.deleted_at is null
+    and p.bid_date >= current_date
+  order by p.bid_date asc;
+$$;
+
+grant execute on function public.get_calendar_projects(text) to anon, authenticated;

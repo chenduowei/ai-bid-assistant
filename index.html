@@ -72,7 +72,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.32.0</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.33.0</span></div>
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">内容</span>
         <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
@@ -84,6 +84,7 @@
         <button id="trashMenuBtn" class="btn secondary" type="button">🗑️ 回收站</button>
         <button id="guaranteeMenuBtn" class="btn secondary" type="button">💰 保证金待退还</button>
         <button id="qualMenuBtn" class="btn secondary" type="button">🏅 我的资质</button>
+        <button id="calendarMenuBtn" class="btn secondary" type="button">📅 日历订阅</button>
         <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
         <input id="importFileInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
         <span class="menu-label">系统</span>
@@ -467,6 +468,37 @@
         </div>
       </div>
       <div id="qualList" class="qual-list"></div>
+    </div>
+  </div>
+
+  <!-- v0.33.0：日历订阅抽屉 —— 生成带令牌的 .ics 订阅链接，复制到系统日历即可自动同步开标日 -->
+  <div id="calendarSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="calendarSheetTitle">
+    <div class="sheet-backdrop" data-action="close-calendar"></div>
+    <div class="sheet-panel card">
+      <div class="sheet-head">
+        <div>
+          <h2 id="calendarSheetTitle">📅 日历订阅</h2>
+          <p>把开标日自动同步到手机系统日历，每个项目在开标前一天早上 9 点和当天早上 8 点各提醒一次。</p>
+        </div>
+        <button id="calendarSheetClose" class="btn secondary" type="button" aria-label="关闭日历订阅">✕</button>
+      </div>
+      <div id="calendarEmpty" class="calendar-empty">
+        <p>还没有订阅链接，生成后复制到日历 App 即可订阅。</p>
+        <p id="calendarSetupHint" class="field-hint hidden">订阅表还没建：请先在 Supabase SQL Editor 执行 supabase.sql 第 10 节，执行完刷新页面再生成。</p>
+        <button id="calendarGenerateBtn" class="btn primary" type="button">生成订阅链接</button>
+      </div>
+      <div id="calendarActive" class="calendar-active hidden">
+        <div class="field">
+          <label for="calendarUrlInput">订阅链接（别外传，拿到链接就能看到你的开标日程）</label>
+          <input id="calendarUrlInput" type="text" readonly />
+        </div>
+        <div class="calendar-actions">
+          <button id="calendarCopyBtn" class="btn primary" type="button">复制链接</button>
+          <button id="calendarRegenBtn" class="btn secondary" type="button">重新生成</button>
+          <button id="calendarRevokeBtn" class="btn secondary" type="button">停用订阅</button>
+        </div>
+        <p class="field-hint">苹果日历：设置 → 日历 → 添加日历 → 添加订阅日历，粘贴链接。同步频率由日历 App 决定（苹果日历默认每周拉取一次，也可手动刷新）。</p>
+      </div>
     </div>
   </div>
 

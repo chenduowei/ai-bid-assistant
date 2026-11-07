@@ -1,14 +1,14 @@
 {
   "name": "ai-bid-assistant",
   "private": true,
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "工程建设行业智能投标工作台",
   "scripts": {
     "build": "node scripts/generate-config.mjs",
     "check:version": "node scripts/check-version.mjs",
     "check:css": "node scripts/check-css.mjs",
     "generate-config": "node scripts/generate-config.mjs",
-    "test": "node --test tests/ai-extract.test.js tests/ai-extract-stream.test.js tests/utils.test.js tests/pagination.test.js tests/snapshot.test.js tests/lazy-loading.test.js tests/list-sync.test.js"
+    "test": "node --test tests/ai-extract.test.js tests/ai-extract-stream.test.js tests/utils.test.js tests/pagination.test.js tests/snapshot.test.js tests/lazy-loading.test.js tests/list-sync.test.js tests/ics.test.js"
   },
   "type": "module"
 }

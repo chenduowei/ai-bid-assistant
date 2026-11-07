@@ -1268,6 +1268,12 @@ body.dark .sort-select {
 }
 .btn-text:active { opacity: 0.6; }
 .btn-text:disabled { opacity: 0.35; cursor: default; }
+/* v0.33.0：日历订阅抽屉 */
+.calendar-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: var(--sp-3); }
+.calendar-actions .btn { flex: 1; white-space: nowrap; }
+.calendar-active input { font-size: var(--fs-sm); }
+.calendar-empty p { color: var(--muted); line-height: 1.6; margin: 0 0 var(--sp-4); }
+.calendar-active .field-hint, .calendar-empty .field-hint { font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; margin: 0 0 var(--sp-3); }
 .select-bar {
   display: flex;
   align-items: center;

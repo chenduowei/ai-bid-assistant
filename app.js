@@ -110,6 +110,17 @@ import { createDataIo } from "./js/data-io.js";
     guaranteeStatCard: document.getElementById("guaranteeStatCard"),
     guaranteeMenuBtn: document.getElementById("guaranteeMenuBtn"),
     qualMenuBtn: document.getElementById("qualMenuBtn"),
+    calendarMenuBtn: document.getElementById("calendarMenuBtn"),
+    calendarSheet: document.getElementById("calendarSheet"),
+    calendarSheetClose: document.getElementById("calendarSheetClose"),
+    calendarEmpty: document.getElementById("calendarEmpty"),
+    calendarActive: document.getElementById("calendarActive"),
+    calendarUrlInput: document.getElementById("calendarUrlInput"),
+    calendarCopyBtn: document.getElementById("calendarCopyBtn"),
+    calendarRegenBtn: document.getElementById("calendarRegenBtn"),
+    calendarRevokeBtn: document.getElementById("calendarRevokeBtn"),
+    calendarGenerateBtn: document.getElementById("calendarGenerateBtn"),
+    calendarSetupHint: document.getElementById("calendarSetupHint"),
     qualSheet: document.getElementById("qualSheet"),
     qualSheetClose: document.getElementById("qualSheetClose"),
     qualCategory: document.getElementById("qualCategory"),
@@ -1100,6 +1111,102 @@ import { createDataIo } from "./js/data-io.js";
       }
     });
     elements.qualCancelEditBtn?.addEventListener("click", clearQualForm);
+
+    // v0.33.0：日历订阅抽屉 —— 生成带令牌的 .ics 订阅链接；复制、重新生成、停用。
+    // 令牌存在 calendar_tokens 表（supabase.sql 第 10 节）；表未建时读不到链接，抽屉里提示执行第 10 节。
+    let calendarSheetOpen = false;
+    let calendarToken = null;
+    const calendarUrl = (token) =>
+      `${window.location.origin}/api/calendar?token=${token}`;
+    const renderCalendarSheet = () => {
+      const hasToken = Boolean(calendarToken);
+      elements.calendarEmpty?.classList.toggle("hidden", hasToken);
+      elements.calendarActive?.classList.toggle("hidden", !hasToken);
+      // 表未建时提示执行第 10 节（否则点生成没反应，用户不知道为什么）。
+      elements.calendarSetupHint?.classList.toggle(
+        "hidden",
+        hasToken || !projectsApi.isCalendarTableMissing()
+      );
+      if (hasToken && elements.calendarUrlInput)
+        elements.calendarUrlInput.value = calendarUrl(calendarToken);
+    };
+    const openCalendarSheet = async () => {
+      calendarSheetOpen = true;
+      calendarToken = await projectsApi.getCalendarToken();
+      renderCalendarSheet();
+      elements.calendarSheet?.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+      ui.trapFocusIn(elements.calendarSheet);
+      elements.calendarSheetClose?.focus();
+    };
+    const closeCalendarSheet = () => {
+      calendarSheetOpen = false;
+      ui.releaseFocusTrap(elements.calendarSheet);
+      elements.calendarSheet?.classList.add("hidden");
+      document.body.classList.remove("sheet-open");
+      elements.calendarMenuBtn?.focus();
+    };
+    elements.calendarMenuBtn?.addEventListener("click", openCalendarSheet);
+    elements.calendarSheetClose?.addEventListener("click", closeCalendarSheet);
+    elements.calendarSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-calendar']"))
+        closeCalendarSheet();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && calendarSheetOpen) closeCalendarSheet();
+    });
+    elements.calendarGenerateBtn?.addEventListener("click", async () => {
+      const btn = elements.calendarGenerateBtn;
+      btn.disabled = true;
+      const token = await projectsApi.createCalendarToken();
+      btn.disabled = false;
+      if (!token) return;
+      calendarToken = token;
+      renderCalendarSheet();
+      ui.showToast("订阅链接已生成，复制到日历 App 即可订阅。");
+    });
+    elements.calendarCopyBtn?.addEventListener("click", async () => {
+      const url = elements.calendarUrlInput?.value || "";
+      if (!url) return;
+      try {
+        await navigator.clipboard.writeText(url);
+      } catch {
+        elements.calendarUrlInput?.select();
+        document.execCommand("copy");
+      }
+      ui.showToast("订阅链接已复制。");
+    });
+    elements.calendarRegenBtn?.addEventListener("click", async () => {
+      const ok = await ui.confirmDialog({
+        title: "重新生成订阅链接",
+        message: "旧链接会立即失效，日历 App 里需要重新粘贴新链接。确定重新生成吗？",
+        confirmText: "重新生成",
+        cancelText: "取消",
+      });
+      if (!ok) return;
+      const revoked = await projectsApi.revokeCalendarTokens();
+      if (!revoked) return;
+      const token = await projectsApi.createCalendarToken();
+      if (!token) return;
+      calendarToken = token;
+      renderCalendarSheet();
+      ui.showToast("已生成新订阅链接，旧链接已失效。");
+    });
+    elements.calendarRevokeBtn?.addEventListener("click", async () => {
+      const ok = await ui.confirmDialog({
+        title: "停用订阅",
+        message: "停用后日历 App 将不再同步新的开标日程，已同步的日程不受影响。确定停用吗？",
+        confirmText: "停用订阅",
+        cancelText: "取消",
+        danger: true,
+      });
+      if (!ok) return;
+      const revoked = await projectsApi.revokeCalendarTokens();
+      if (!revoked) return;
+      calendarToken = null;
+      renderCalendarSheet();
+      ui.showToast("订阅已停用。");
+    });
     elements.qualList?.addEventListener("click", async (event) => {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
