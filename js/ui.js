@@ -48,7 +48,9 @@ export function createUi(elements, getState) {
   const applyTheme = (darkMode) => {
     document.body.classList.toggle("dark", darkMode);
     if (elements.themeBtn) {
-      elements.themeBtn.textContent = darkMode ? "☀️ 浅色" : "🌙 深色";
+      // v0.34.0：主题按钮搬进了设置页的「外观」行 —— 文案改成动作（切换为深色 / 浅色），
+      // 不会再把「⏿ 深色」误读成当前就是深色。
+      elements.themeBtn.textContent = darkMode ? "☀️ 切换为浅色" : "🌙 切换为深色";
     }
   };
 
