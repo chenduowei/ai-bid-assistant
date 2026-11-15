@@ -87,6 +87,103 @@ function formatQualificationsForPrompt(list) {
 const CHUNK_SUMMARY_PROMPT = `你是工程建设行业招标文件分析助手。请对以下「招标文件片段」做要点摘要，重点保留：项目名称、招标单位、金额、开标时间、保证金、联系人、资格要求、废标条款、明显风险。
 只输出纯文本摘要（不要 JSON），控制在 800 字以内。摘要里保留每条信息的页码（原文【第 N 页】标记），不要丢掉出处；不同页的内容分开写，注明页码范围。`;
 
+/* ========== v0.34.0：分块摘要缓存 ==========
+ * 长文档一块一次请求，最贵的就是分块摘要。后段某块失败、或终稿校验失败要重试时，
+ * 已经拿到的摘要不该再做一遍：按「文档全文哈希 + 模型 + 提示词版本 + 块号」缓存，
+ * 重试（包括关页后再打开同一份文件）直接复用。存 sessionStorage：关标签页即清，
+ * 不占长期空间；私密模式或配额满时静默降级成不缓存，不影响分析本身。
+ * 改 CHUNK_SUMMARY_PROMPT 时把 CHUNK_CACHE_VERSION +1，旧摘要自动失效。 */
+const CHUNK_CACHE_VERSION = "1";
+const CHUNK_CACHE_PREFIX = "bidai:chunk:";
+const CHUNK_CACHE_INDEX = "bidai:chunk-index";
+const CHUNK_CACHE_MAX_ENTRIES = 40;
+
+/** 快哈希（两条 32 位 FNV-1a 混合，拼成 64 位 base36）：只做缓存键，
+ * 不求密码学强度；十几万字的文档算一遍是毫秒级，不会拖慢分析。 */
+export function fastHash(text) {
+  const s = String(text ?? "");
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < s.length; i += 1) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b);
+  }
+  return (h1 >>> 0).toString(36) + (h2 >>> 0).toString(36);
+}
+
+/** 一块摘要的缓存键：模型或提示词版本一变就不命中，避免拿旧口径的摘要拼新终稿。
+ * chunkHash 是这一块正文自己的哈希 —— 文档没变但分块参数变了（块边界挪了位置）时，
+ * 同一块号对应的正文已经不同，靠它拒绝旧摘要。 */
+export function chunkCacheKey({
+  docHash,
+  chunkIndex,
+  model,
+  chunkHash = "",
+  promptVersion = CHUNK_CACHE_VERSION,
+}) {
+  return `${CHUNK_CACHE_PREFIX}${promptVersion}:${model || ""}:${docHash}:${chunkIndex}${chunkHash ? `:${chunkHash}` : ""}`;
+}
+
+/** 记写入顺序，超出上限从最旧的开始淘汰（同一标签页里连着分析多份长文档也不会吃满配额）。 */
+function touchChunkCacheIndex(storage, key, max = CHUNK_CACHE_MAX_ENTRIES) {
+  let keys = [];
+  try {
+    const parsed = JSON.parse(storage.getItem(CHUNK_CACHE_INDEX) || "[]");
+    if (Array.isArray(parsed)) keys = parsed.filter((k) => typeof k === "string");
+  } catch {
+    keys = [];
+  }
+  const next = keys.filter((k) => k !== key);
+  next.push(key);
+  while (next.length > max) {
+    const oldest = next.shift();
+    try {
+      storage.removeItem(oldest);
+    } catch {
+      // 删不掉就留着，下次写入再试
+    }
+  }
+  try {
+    storage.setItem(CHUNK_CACHE_INDEX, JSON.stringify(next));
+  } catch {
+    // 索引写不进不影响读写单条摘要
+  }
+}
+
+/** 包一层 storage：传入 null（没有 sessionStorage）或读写抛错时静默降级，
+ * 调用方只看到 get 返 null、set 返 false，分析流程照跑。 */
+export function createChunkSummaryCache(storage) {
+  const get = (key) => {
+    if (!storage || !key) return null;
+    try {
+      return storage.getItem(key) || null;
+    } catch {
+      return null;
+    }
+  };
+  const set = (key, value) => {
+    if (!storage || !key || typeof value !== "string") return false;
+    try {
+      storage.setItem(key, value);
+    } catch {
+      return false;
+    }
+    touchChunkCacheIndex(storage, key);
+    return true;
+  };
+  return { get, set };
+}
+
+function resolveSessionStorage() {
+  try {
+    // 隐私模式下甚至连访问 sessionStorage 都会抛，统一兜住
+    return typeof sessionStorage !== "undefined" ? sessionStorage : null;
+  } catch {
+    return null;
+  }
+}
+
 function getAiConfig() {
   return {
     apiKey: localStorage.getItem(AI_KEY_STORAGE) || "",
@@ -249,6 +346,8 @@ function validateExtracted(raw) {
 export function createAiExtract({ ui }) {
   // v0.16.0：AI 结果面板折叠态（内存，同一轮分析内重渲染保持；换一份新结果时恢复展开）。
   let aiPanelCollapsed = false;
+  // v0.34.0：分块摘要缓存（sessionStorage；不可用时自动降级为不缓存）
+  const chunkCache = createChunkSummaryCache(resolveSessionStorage());
   let lastPanelResult = null;
   // v0.17.0：分析取消 —— 用户点“终止分析”时 abort 当前请求与后续分块。
   // 每次分析新建一个 controller；分析中再点分析先拦下，避免两路并发。
@@ -464,12 +563,14 @@ export function createAiExtract({ ui }) {
   // 失败处理：限流/服务端错先退避重试一次，再失败进失败清单；并行跑完后，
   // 失败的块逐块串行再试一次（中转限流下串行更容易过），还失败才整体报错。
   // 取消与 401 这类不可重试错误不进失败清单，直接抛出去，不白费重试。
-  async function summarizeChunks(chunks, onProgress, cancelSignal) {
+  async function summarizeChunks(chunks, onProgress, cancelSignal, cacheCtx = null) {
     const n = chunks.length;
     const summaries = new Array(n);
     const fracs = new Array(n).fill(0);
     const startedAt = Date.now();
     let done = 0;
+    // v0.34.0：复用了几块（失败重试 / 关页重开时的提示用）
+    let reused = 0;
     let lastReportAt = 0;
     let lastPct = -1;
     const report = (force = false) => {
@@ -487,7 +588,7 @@ export function createAiExtract({ ui }) {
         Math.round((avgMs * (n - done)) / SUMMARY_CONCURRENCY / 1000)
       );
       onProgress?.(
-        `长文档分块摘要中（${done}/${n}）· 已用 ${elapsed} 秒${done > 0 ? `，预计还剩 ${remain} 秒` : ""}…`,
+        `长文档分块摘要中（${done}/${n}）${reused > 0 ? ` · ${reused} 块复用上次摘要` : ""} · 已用 ${elapsed} 秒${done > 0 ? `，预计还剩 ${remain} 秒` : ""}…`,
         pct
       );
     };
@@ -505,6 +606,24 @@ export function createAiExtract({ ui }) {
       const label = range
         ? `【片段 ${i + 1}/${n} · ${range}】`
         : `【片段 ${i + 1}/${n}】`;
+      // v0.34.0：同一份文档、同一个模型与提示词版本的这块摘要已经拿过就直接用
+      const cacheKey = cacheCtx
+        ? chunkCacheKey({
+            docHash: cacheCtx.docHash,
+            chunkIndex: i,
+            model: cacheCtx.model,
+            chunkHash: fastHash(chunk.text),
+          })
+        : "";
+      const cached = chunkCache.get(cacheKey);
+      if (cached) {
+        summaries[i] = cached;
+        fracs[i] = 1;
+        done += 1;
+        reused += 1;
+        report(true);
+        return;
+      }
       let lastError = null;
       for (let attempt = 1; attempt <= attempts; attempt++) {
         try {
@@ -522,6 +641,8 @@ export function createAiExtract({ ui }) {
             }
           );
           summaries[i] = `【片段 ${i + 1} 摘要${range ? ` · ${range}` : ""}】\n${content.trim()}`;
+          // v0.34.0：这一块成功了就落缓存 —— 后段失败时重试不必重做
+          if (cacheKey) chunkCache.set(cacheKey, summaries[i]);
           fracs[i] = 1;
           done += 1;
           report(true);
@@ -627,7 +748,11 @@ ${qualBlock}
           `文档较长（约 ${Math.round(text.length / 1000)}k 字），将分 ${chunks.length} 块摘要后汇总…`,
           10
         );
-        textForModel = await summarizeChunks(chunks, onProgress, cancelSignal);
+        // v0.34.0：缓存键用整篇原文的哈希 + 当前模型（同一份文件重试或重开时命中）
+        textForModel = await summarizeChunks(chunks, onProgress, cancelSignal, {
+          docHash: fastHash(text),
+          model: getAiConfig().model,
+        });
         textForModel =
           textForModel +
           "\n\n[以上为分块摘要汇总，请基于这些摘要完成最终 JSON 抽取。]";
@@ -846,6 +971,11 @@ ${qualBlock}
       normalizeResult,
       normalizeBidDate,
       parseSseChunk,
+      // v0.34.0：分块摘要缓存的三个纯函数
+      fastHash,
+      chunkCacheKey,
+      createChunkSummaryCache,
+      CHUNK_CACHE_VERSION,
     },
   };
 }
