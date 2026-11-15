@@ -258,7 +258,8 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 /* ---------- 统计：单分组卡片 + hairline 分隔 ---------- */
 .stats {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  /* v0.34.0：6 张卡（新增「即将开标」） */
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -266,24 +267,35 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   overflow: hidden;
   margin-bottom: var(--sp-5);
 }
+/* v0.34.0：卡片改成原生 <button> —— 清掉按钮默认样式，文字仍按卡片排版；
+   v0.7.0 起卡片就可点（筛选 / 跳转），v0.34.0 补选中态与键盘焦点 */
 .stat-card {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
   background: transparent;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   padding: var(--sp-4);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .stat-card + .stat-card { border-left: 1px solid var(--border); }
-.stat-card .label { font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--sp-2); }
-.stat-card .value { font-size: var(--fs-3xl); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
-/* v0.7.0：前 4 张统计卡片可点击筛选 */
-.stat-card[role="button"] {
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
-}
-.stat-card[role="button"]:hover { background: var(--accent-soft); }
-.stat-card[role="button"]:active { transform: scale(0.97); }
-.stat-card[role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.stat-card .label { display: block; font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--sp-2); }
+.stat-card .value { display: block; font-size: var(--fs-3xl); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+.stat-card:hover { background: var(--accent-soft); }
+.stat-card:active { transform: scale(0.97); }
+.stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* 当前筛选：浅色底 + 顶部一条品牌色指示线 + 数值换品牌色 */
+.stat-card.active { background: var(--accent-soft); box-shadow: inset 0 2px 0 var(--accent); }
+.stat-card.active .value { color: var(--accent); }
+.stat-card.active .label { color: var(--text); font-weight: 600; }
 
 /* ---------- 面板 ---------- */
 .panel { padding: var(--sp-5); margin-bottom: var(--sp-5); }
@@ -1194,10 +1206,11 @@ body.dark .sort-select {
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 980px) {
-  /* v0.23.0：窄屏统计卡片各自成卡——独立边框 + 圆角 + 间距，第 5 张（在途保证金）通栏 */
+  /* v0.23.0：窄屏统计卡片各自成卡——独立边框 + 圆角 + 间距
+     v0.34.0：6 张卡两列排成 3 行，与之前 5 张（末张通栏）的行数一致；取消通栏规则 */
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
   .stat-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
-  .stat-card:nth-child(5) { grid-column: span 2; }
+  .stat-card.active { box-shadow: inset 0 2px 0 var(--accent), var(--shadow); }
 }
 @media (max-width: 900px) {
   .auth-shell { padding: var(--sp-4); }
@@ -1826,3 +1839,50 @@ body.sheet-open { overflow: hidden; }
 .qual-expiring { color: var(--tint-orange-text); font-weight: 700; font-size: var(--fs-xs); margin-left: 6px; }
 .qual-actions { display: flex; flex: none; gap: 8px; }
 .qual-empty { text-align: center; color: var(--muted); font-size: var(--fs-md); padding: var(--sp-4) var(--sp-2); line-height: 1.6; }
+
+/* ========== v0.34.0 ========== */
+
+/* —— 设置弹窗：桌面居中弹窗 / 移动端底部抽屉（复用 .sheet 骨架），分组卡片排版 —— */
+.settings-panel { width: min(560px, 100%); }
+.settings-group {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+.settings-group-title {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  margin-bottom: var(--sp-2);
+}
+.settings-group .field + .field { margin-top: var(--sp-3); }
+.settings-group .field input { background: var(--surface); }
+.settings-panel .field-hint { display: block; font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; margin: var(--sp-2) 0 0; }
+/* 说明 + 按钮一行：按钮不吃换行，说明先压缩 */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+.settings-row + .settings-row { border-top: 1px solid var(--border); }
+.settings-row-main { flex: 1; min-width: 0; }
+.settings-row-label { font-size: var(--fs-base); font-weight: 600; }
+.settings-row-desc { font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; margin-top: 2px; }
+.settings-row .btn { flex: none; white-space: nowrap; }
+.settings-save-row { margin-top: 0; margin-bottom: var(--sp-3); }
+.settings-panel .danger-zone { background: var(--tint-red-bg); border-color: var(--tint-red-text); }
+.settings-panel .danger-title { color: var(--tint-red-text); }
+body.dark .settings-panel .danger-title { color: #FF453A; }
+@media (max-width: 480px) {
+  /* 窄屏：按钮换到下一行通栏，说明不被挤成一列字 */
+  .settings-row { flex-wrap: wrap; }
+  .settings-row .btn { width: 100%; }
+}
+
+/* —— 统计卡片「即将开标」跳转时闪一下目标面板，指出位置 —— */
+.panel-flash { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }

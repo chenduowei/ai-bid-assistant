@@ -48,7 +48,9 @@ export function createUi(elements, getState) {
   const applyTheme = (darkMode) => {
     document.body.classList.toggle("dark", darkMode);
     if (elements.themeBtn) {
-      elements.themeBtn.textContent = darkMode ? "☀️ 浅色" : "🌙 深色";
+      // v0.34.0：主题按钮搬进了设置页的「外观」行 —— 文案改成动作（切换为深色 / 浅色），
+      // 不会再把「⏿ 深色」误读成当前就是深色。
+      elements.themeBtn.textContent = darkMode ? "☀️ 切换为浅色" : "🌙 切换为深色";
     }
   };
 
@@ -109,6 +111,16 @@ export function createUi(elements, getState) {
     if (elements.inTransitGuarantee) {
       const { inTransit } = getGuaranteeTotals(projects);
       tweenStat(elements.inTransitGuarantee, "guarantee", inTransit, 2);
+    }
+    // v0.34.0：即将开标 —— 开标日落在未来 N 天（提醒窗口）内的未开标项目数；
+    // 复用 getUpcomingDeadlines 的口径（只看 key=date 的开标日，不把报名/质疑截止算进来）。
+    if (elements.upcomingCount) {
+      const bidIds = new Set(
+        getUpcomingDeadlines(projects, getReminderDays())
+          .filter((item) => item.key === "date")
+          .map((item) => item.project.id)
+      );
+      tweenStat(elements.upcomingCount, "upcoming", bidIds.size, 0);
     }
     // v0.13.1：页头副标题固定为口号，不再被统计句覆盖。
     // 此前 renderStats 每次渲染都把副标题重写成"X 个进行中 · Y 个临近"，
@@ -992,7 +1004,12 @@ export function createUi(elements, getState) {
         pendingConfirmCancel = null;
         releaseFocusTrap(dialog);
         dialog.classList.add("hidden");
-        document.body.classList.remove("sheet-open");
+        // v0.34.0：确认框可能盖在抽屉 / 设置弹窗上 —— 下面还有打开的浮层时
+        // 不能把滚动锁拿掉，否则背景页面会在遮罩下跟着滚。
+        const layerBelow = [...document.querySelectorAll(".sheet")].some(
+          (el) => el !== dialog && !el.classList.contains("hidden")
+        );
+        if (!layerBelow) document.body.classList.remove("sheet-open");
         dialog.onclick = null;
         if (okBtn) {
           okBtn.onclick = null;

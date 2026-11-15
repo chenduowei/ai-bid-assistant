@@ -8,7 +8,9 @@ import {
   icsDateTimeUtc,
   foldIcsLine,
   buildCalendarIcs,
+  isValidCalendarToken,
 } from "../js/ics.js";
+import handler from "../api/calendar.js";
 
 test("escapeIcsText：转义 \\ ; , 与换行", () => {
   assert.equal(escapeIcsText("a,b;c\\d\ne"), "a\\,b\\;c\\\\d\\ne");
@@ -98,4 +100,53 @@ test("buildCalendarIcs：空列表与无效行", () => {
   ]);
   assert.equal((mixed.match(/BEGIN:VEVENT/g) || []).length, 1);
   assert.ok(mixed.includes("SUMMARY:开标：正常"));
+});
+
+test("isValidCalendarToken：合法 UUID / 兑底形态通过，空与怪串拒绝", () => {
+  assert.equal(isValidCalendarToken("1f0f9a52-8f3c-4a1c-9a8e-2a6c0b7d5e11"), true);
+  assert.equal(isValidCalendarToken("cal-1763200000000-ab12cd34"), true);
+  assert.equal(isValidCalendarToken("  cal-1763200000000-ab12cd34  "), true);
+  assert.equal(isValidCalendarToken(""), false);
+  assert.equal(isValidCalendarToken("short"), false);
+  assert.equal(isValidCalendarToken("tok en-in-here"), false);
+  assert.equal(isValidCalendarToken("x".repeat(129)), false);
+  assert.equal(isValidCalendarToken(null), false);
+  assert.equal(isValidCalendarToken(["a"]), false);
+});
+
+// v0.34.0：api/calendar.js 先验令牌格式，明显不合法的不打 Supabase。
+function fakeRes() {
+  return {
+    statusCode: 0,
+    headers: {},
+    body: "",
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    setHeader(k, v) {
+      this.headers[k] = v;
+    },
+    send(body) {
+      this.body = body;
+      return this;
+    },
+  };
+}
+
+test("api/calendar：缺令牌 400，格式不对 400", async () => {
+  const missing = fakeRes();
+  await handler({ query: {} }, missing);
+  assert.equal(missing.statusCode, 400);
+  assert.equal(missing.body, "missing token");
+
+  const bad = fakeRes();
+  await handler({ query: { token: "not a token!!" } }, bad);
+  assert.equal(bad.statusCode, 400);
+  assert.equal(bad.body, "invalid token");
+
+  // 数组型 query（?token=a&token=b）也当不合法，不能拼进 RPC
+  const arr = fakeRes();
+  await handler({ query: { token: ["abc", "def"] } }, arr);
+  assert.equal(arr.statusCode, 400);
 });

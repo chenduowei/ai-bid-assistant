@@ -18,6 +18,9 @@ const APP_SHELL = [
   "./js/data-io.js",
   "./js/pdf-parser.js",
   "./js/ai-extract.js",
+  // v0.34.0：js/ics.js 之前漏在壳外（目前只被 api/calendar.js 引入，浏览器侧暂未 import，
+  // 但补上后 APP_SHELL 与 js/ 目录一一对应；将来客户端直接 import 也不会离线断）。
+  "./js/ics.js",
   "./favicon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

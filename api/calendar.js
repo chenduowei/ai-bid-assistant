@@ -4,7 +4,7 @@
 // 服务端凭令牌调 SECURITY DEFINER 函数 get_calendar_projects（supabase.sql 第 10 节）。
 // 路由注意：vercel.json 把 /(.*) 重写到 /index.html，但 Vercel 先匹配文件系统
 // （api/ 下的函数优先于重写），/api/calendar 仍会走到本函数；上线后用 curl 验。
-import { buildCalendarIcs } from "../js/ics.js";
+import { buildCalendarIcs, isValidCalendarToken } from "../js/ics.js";
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -18,9 +18,15 @@ const ANON_KEY =
   "";
 
 export default async function handler(req, res) {
-  const token = req.query?.token;
-  if (!token || typeof token !== "string") {
+  const rawToken = req.query?.token;
+  const token = typeof rawToken === "string" ? rawToken.trim() : "";
+  if (!token) {
     return res.status(400).send("missing token");
+  }
+  // v0.34.0：先验格式 —— 空串 / 超长 / 带空格或怪字符的请求直接 400，
+  // 不必为一声垃圾请求打一趟 Supabase（也免得把任人长的串拼进 RPC 参数）。
+  if (!isValidCalendarToken(token)) {
+    return res.status(400).send("invalid token");
   }
   if (!SUPABASE_URL || !ANON_KEY) {
     return res.status(500).send("server not configured");
@@ -46,6 +52,8 @@ export default async function handler(req, res) {
   const rows = await rpc.json();
   const ics = buildCalendarIcs(Array.isArray(rows) ? rows : []);
   res.setHeader("Content-Type", "text/calendar; charset=utf-8");
-  res.setHeader("Cache-Control", "no-cache");
+  // v0.34.0：允客户端短缓存 5 分钟（日历 App 轮询时少打几趟函数）。
+  // 只能 private：令牌就在 URL 里，交给共享缓存等于把别人的开标日程留在边缘节点。
+  res.setHeader("Cache-Control", "private, max-age=300");
   return res.status(200).send(ics);
 }
