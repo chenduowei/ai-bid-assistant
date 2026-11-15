@@ -19,7 +19,7 @@
 - API Key 只存在本机浏览器 localStorage，不经过本项目后端。项目数据存 Supabase，以 Row Level Security 按用户隔离。
 - 需自备 Supabase、API Key、API Base URL 与模型名，不提供统一模型服务。
 - 扫描版 / 图片 PDF 没有文本层，工具会提示先用 OCR 转文字，暂不内置 OCR。
-- 浏览器通知只在页面打开时生效。关页提醒与 .ics 日历提醒暂不提供。
+- 浏览器通知只在页面打开时生效。需要关页也提醒，用菜单「数据」→「📅 日历订阅」：把待开标项目同步到手机系统日历，开标前一天 9 点与当天 8 点各提醒一次。订阅为全天事件（只知道开标日期），同步频率由日历 App 决定；订阅链接带令牌，拿到链接就能只读该账户的待开标项目（名称、开标日、类型、公司、联系人、备注），别外传。
 
 ## 🚀 本地运行
 
@@ -41,12 +41,15 @@ cp supabase-config.example.js supabase-config.js
 
 在 Supabase Authentication → URL Configuration 里配置 Site URL 与 Redirect URLs（Vercel 地址与本地开发地址）。
 
+日历订阅复用上面两个环境变量，不用额外配置；在 Supabase SQL Editor 执行 `supabase.sql` 第 10 节（`calendar_tokens` 令牌表 + 只读函数）后，登录 App 打开「📅 日历订阅」生成链接即可。表没建时抽屉里会提示先执行第 10 节。
+
 ## 🗂️ 项目结构
 
 ```
 index.html / app.js / styles.css   页面入口、状态与事件、样式
-js/                                业务模块（auth、projects、pdf-parser、ai-extract、data-io、ui、utils）
-tests/                             测试（AI 抽取、流式、分块、分页、快照、懒加载、工具函数）
+js/                                业务模块（auth、projects、pdf-parser、ai-extract、data-io、ui、utils、ics）
+api/                               服务端函数（calendar.js：.ics 日历订阅端点）
+tests/                             测试（AI 抽取、流式、分块、分页、快照、懒加载、日历订阅、工具函数）
 .github/workflows/ci.yml           每次推送自动跑测试与版本、样式校验
 supabase.sql                       数据库结构、RLS、安全策略
 scripts/                           部署配置生成、版本与样式校验
@@ -57,6 +60,8 @@ docs/                              changelog 与维护说明
 
 - [changelog](docs/changelog.md)：版本变化记录
 - [notes](docs/notes.md)：模块说明与维护记录
+- [reminders](docs/reminders.md)：开标提醒的现状与可选做法
+- [todo](docs/todo.md)：待办与暂不做
 
 ## License
 

@@ -113,7 +113,7 @@
               <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
             </div>
             <div class="field settings-hint">
-              <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。如需关页也提醒，需按 docs/reminders.md 部署 Edge Function。</span>
+              <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。需要关页也提醒，用菜单「数据」里的「📅 日历订阅」把开标日同步到手机系统日历（开标前一天 9 点与当天 8 点各提醒一次，需先在 Supabase 执行 supabase.sql 第 10 节）。</span>
             </div>
           </div>
         </div>
