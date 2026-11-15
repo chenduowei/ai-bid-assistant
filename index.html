@@ -73,22 +73,20 @@
         </div>
       </div>
       <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.33.0</span></div>
+      <!-- v0.34.0：菜单只留内容与视图动作 —— 导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，
+           菜单项从 12 个收到 9 个，找东西不用先在一长串里挑。 -->
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">内容</span>
         <button id="importBtn" class="btn secondary" type="button">📥 导入</button>
         <button id="downloadTemplateBtn" class="btn secondary" type="button">下载导入模板</button>
         <button id="exportBtn" class="btn secondary" type="button">📤 导出</button>
-        <span class="menu-label">数据</span>
-        <button id="backupBtn" class="btn secondary" type="button">💾 导出备份</button>
-        <button id="restoreBtn" class="btn secondary" type="button">♻️ 从备份恢复</button>
+        <span class="menu-label">视图</span>
         <button id="trashMenuBtn" class="btn secondary" type="button">🗑️ 回收站</button>
         <button id="guaranteeMenuBtn" class="btn secondary" type="button">💰 保证金待退还</button>
         <button id="qualMenuBtn" class="btn secondary" type="button">🏅 我的资质</button>
         <button id="calendarMenuBtn" class="btn secondary" type="button">📅 日历订阅</button>
-        <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
         <input id="importFileInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
         <span class="menu-label">系统</span>
-        <button id="themeBtn" class="btn secondary" type="button">🌙 深色</button>
         <button id="aiSettingsBtn" class="btn secondary" type="button">⚙️ 设置</button>
         <button id="signOutBtn" class="btn secondary" type="button">退出</button>
       </div>
@@ -97,79 +95,33 @@
     <!-- v0.12.0：离线快照横幅（仅快照模式下显示，见 ui.renderOfflineBanner） -->
     <div id="offlineBanner" class="offline-banner hidden" role="status"></div>
 
-    <section id="aiSettingsPanel" class="card panel hidden">
-      <div class="panel-title">
-        <div>
-          <h2>偏好与 AI 设置</h2>
-          <p>提醒天数存本机；API Key 仅存本机浏览器。支持 OpenAI 兼容接口。</p>
-        </div>
-      </div>
-      <div class="form-grid">
-        <div class="form-section">
-          <div class="form-section-title">提醒</div>
-          <div class="form-group">
-            <div class="field">
-              <label for="reminderDays">开标提醒天数</label>
-              <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
-            </div>
-            <div class="field settings-hint">
-              <span class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。需要关页也提醒，用菜单「数据」里的「📅 日历订阅」把开标日同步到手机系统日历（开标前一天 9 点与当天 8 点各提醒一次，需先在 Supabase 执行 supabase.sql 第 10 节）。</span>
-            </div>
-          </div>
-        </div>
-        <div class="form-section">
-          <div class="form-section-title">AI 接口（OpenAI 兼容）</div>
-          <div class="form-group">
-            <div class="field">
-              <label for="aiApiKey">API Key</label>
-              <input id="aiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
-            </div>
-            <div class="field">
-              <label for="aiBaseUrl">API Base URL</label>
-              <input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1" />
-            </div>
-            <div class="field">
-              <label for="aiModel">模型</label>
-              <input id="aiModel" type="text" placeholder="gpt-4o-mini" />
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="action-row form-actions">
-        <button id="aiSaveSettings" class="btn primary btn-block" type="button">保存设置</button>
-      </div>
-      <div class="form-section danger-zone">
-        <div class="form-section-title danger-title">危险区</div>
-        <div class="form-group">
-          <div class="field">
-            <span class="field-hint">删除该账户下全部项目（含回收站）与通知记录，不可恢复。</span>
-            <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section class="stats">
-      <div class="stat-card" role="button" tabindex="0" data-stat-filter="all" title="查看全部项目">
-        <div class="label">项目总数</div>
-        <div class="value" id="totalCount">0</div>
-      </div>
-      <div class="stat-card" role="button" tabindex="0" data-stat-filter="报名中" title="筛选报名中的项目">
-        <div class="label">报名中</div>
-        <div class="value" id="registeringCount">0</div>
-      </div>
-      <div class="stat-card" role="button" tabindex="0" data-stat-filter="制作中" title="筛选制作中的项目">
-        <div class="label">制作中</div>
-        <div class="value" id="makingCount">0</div>
-      </div>
-      <div class="stat-card" role="button" tabindex="0" data-stat-filter="已开标" title="筛选已开标的项目">
-        <div class="label">已开标</div>
-        <div class="value" id="openedCount">0</div>
-      </div>
-      <div class="stat-card" id="guaranteeStatCard" role="button" tabindex="0" title="查看待退还保证金清单">
-        <div class="label">在途保证金（万元）</div>
-        <div class="value" id="inTransitGuarantee">0.00</div>
-      </div>
+    <!-- v0.34.0：统计卡片改成原生按钮 —— 点一下就筛选（aria-pressed 反映当前筛选），
+         键盘 Tab / Enter / 空格走浏览器原生行为，不用再开 ☰ 菜单。 -->
+    <section class="stats" aria-label="项目统计与快捷筛选">
+      <button type="button" class="stat-card active" data-stat-filter="all" aria-pressed="true" title="查看全部项目">
+        <span class="label">项目总数</span>
+        <span class="value" id="totalCount">0</span>
+      </button>
+      <button type="button" class="stat-card" data-stat-filter="报名中" aria-pressed="false" title="只看报名中的项目">
+        <span class="label">报名中</span>
+        <span class="value" id="registeringCount">0</span>
+      </button>
+      <button type="button" class="stat-card" data-stat-filter="制作中" aria-pressed="false" title="只看制作中的项目">
+        <span class="label">制作中</span>
+        <span class="value" id="makingCount">0</span>
+      </button>
+      <button type="button" class="stat-card" data-stat-filter="已开标" aria-pressed="false" title="只看已开标的项目">
+        <span class="label">已开标</span>
+        <span class="value" id="openedCount">0</span>
+      </button>
+      <button type="button" class="stat-card" id="upcomingStatCard" title="跳到即将开标项目">
+        <span class="label">即将开标</span>
+        <span class="value" id="upcomingCount">0</span>
+      </button>
+      <button type="button" class="stat-card" id="guaranteeStatCard" aria-haspopup="dialog" title="查看待退还保证金清单">
+        <span class="label">在途保证金（万元）</span>
+        <span class="value" id="inTransitGuarantee">0.00</span>
+      </button>
     </section>
 
     <section class="card upcoming-panel">
@@ -394,6 +346,88 @@
     <button id="backToTopBtn" class="float-btn back-to-top" type="button" aria-label="回到顶部">↑</button>
     <button id="goToBottomBtn" class="float-btn go-to-bottom" type="button" aria-label="回到底部">↓</button>
   </div>
+  <!-- v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内一块面板，
+       一点设置就把下面的项目列表整块推下去，很容易迷失位置；现在盖在页面上，
+       遮罩点击 / Esc / ✕ 都能关，焦点锁在层内，关后焦点回到菜单按钮。
+       主题切换与备份 / 恢复也搬到这里（菜单只留内容与视图动作）。 -->
+  <div id="settingsSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="settingsSheetTitle">
+    <div class="sheet-backdrop" data-action="close-settings"></div>
+    <section id="aiSettingsPanel" class="sheet-panel settings-panel card">
+      <div class="sheet-head">
+        <div>
+          <h2 id="settingsSheetTitle">⚙️ 设置</h2>
+          <p>提醒天数、主题与 API Key 都存本机浏览器，不上传云端；支持 OpenAI 兼容接口。</p>
+        </div>
+        <button id="settingsSheetClose" class="btn secondary" type="button" aria-label="关闭设置">✕</button>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">外观</div>
+        <div class="settings-row">
+          <div class="settings-row-main">
+            <div class="settings-row-label">主题</div>
+            <div class="settings-row-desc">深色适合夜间核对招标文件；选择记在本机。</div>
+          </div>
+          <button id="themeBtn" class="btn secondary" type="button">🌙 深色</button>
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">提醒</div>
+        <div class="field">
+          <label for="reminderDays">开标提醒天数</label>
+          <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
+        </div>
+        <p class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。需要关页也提醒，用 ☰ 菜单里的「📅 日历订阅」把开标日同步到手机系统日历（开标前一天 9 点与当天 8 点各提醒一次，需先在 Supabase 执行 supabase.sql 第 10 节）。</p>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">AI 接口（OpenAI 兼容）</div>
+        <div class="field">
+          <label for="aiApiKey">API Key</label>
+          <input id="aiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
+        </div>
+        <div class="field">
+          <label for="aiBaseUrl">API Base URL</label>
+          <input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1" />
+        </div>
+        <div class="field">
+          <label for="aiModel">模型</label>
+          <input id="aiModel" type="text" placeholder="gpt-4o-mini" />
+        </div>
+      </div>
+
+      <div class="settings-group">
+        <div class="settings-group-title">数据与备份</div>
+        <div class="settings-row">
+          <div class="settings-row-main">
+            <div class="settings-row-label">导出备份</div>
+            <div class="settings-row-desc">把全部项目（含回收站）导成一个 JSON 文件存到本机。</div>
+          </div>
+          <button id="backupBtn" class="btn secondary" type="button">💾 导出备份</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-main">
+            <div class="settings-row-label">从备份恢复</div>
+            <div class="settings-row-desc">备份与云端合并：已有的可选用备份覆盖，库里多出来的项目不会被删。</div>
+          </div>
+          <button id="restoreBtn" class="btn secondary" type="button">♻️ 从备份恢复</button>
+          <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
+        </div>
+      </div>
+
+      <div class="action-row form-actions settings-save-row">
+        <button id="aiSaveSettings" class="btn primary btn-block" type="button">保存设置</button>
+      </div>
+
+      <div class="settings-group danger-zone">
+        <div class="settings-group-title danger-title">危险区</div>
+        <p class="field-hint">删除该账户下全部项目（含回收站）与通知记录，不可恢复。</p>
+        <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
+      </div>
+    </section>
+  </div>
+
   <!-- v0.9.0：回收站抽屉 —— 从主界面移入菜单，点菜单按钮打开，不再占用主界面空间 -->
   <div id="trashSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="trashSheetTitle">
     <div class="sheet-backdrop" data-action="close-trash"></div>

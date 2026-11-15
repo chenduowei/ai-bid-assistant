@@ -76,6 +76,8 @@ import { createDataIo } from "./js/data-io.js";
     aiResultPanel: document.getElementById("aiResultPanel"),
     aiSettingsBtn: document.getElementById("aiSettingsBtn"),
     aiSettingsPanel: document.getElementById("aiSettingsPanel"),
+    settingsSheet: document.getElementById("settingsSheet"),
+    settingsSheetClose: document.getElementById("settingsSheetClose"),
     aiApiKey: document.getElementById("aiApiKey"),
     aiBaseUrl: document.getElementById("aiBaseUrl"),
     aiModel: document.getElementById("aiModel"),
@@ -108,6 +110,8 @@ import { createDataIo } from "./js/data-io.js";
     guaranteeList: document.getElementById("guaranteeList"),
     guaranteeCount: document.getElementById("guaranteeCount"),
     guaranteeStatCard: document.getElementById("guaranteeStatCard"),
+    upcomingStatCard: document.getElementById("upcomingStatCard"),
+    upcomingCount: document.getElementById("upcomingCount"),
     guaranteeMenuBtn: document.getElementById("guaranteeMenuBtn"),
     qualMenuBtn: document.getElementById("qualMenuBtn"),
     calendarMenuBtn: document.getElementById("calendarMenuBtn"),
@@ -951,7 +955,11 @@ import { createDataIo } from "./js/data-io.js";
       }
     });
 
-    elements.signOutBtn?.addEventListener("click", () => auth.signOut());
+    elements.signOutBtn?.addEventListener("click", () => {
+      // 设置弹窗里没有退出按钮，但层若还开着（如从菜单进来又点了退出），先收干净
+      closeSettingsSheet();
+      auth.signOut();
+    });
     elements.themeBtn?.addEventListener("click", () => {
       state.darkMode = !state.darkMode;
       localStorage.setItem(THEME_KEY, state.darkMode ? "dark" : "light");
@@ -1232,11 +1240,8 @@ import { createDataIo } from "./js/data-io.js";
         }
       }
     });
-    elements.guaranteeStatCard?.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      e.preventDefault();
-      openGuaranteeSheet();
-    });
+    // v0.34.0：统计卡片已是原生 <button>，Enter / 空格由浏览器直接派发 click，
+    // 原先给 div[role=button] 手写的 keydown 已删（留着会重复开一层）。
 
     // v0.4.0：忘记密码 / 重发验证邮件
     elements.forgotPasswordBtn?.addEventListener("click", async () => {
@@ -1340,6 +1345,12 @@ import { createDataIo } from "./js/data-io.js";
         .forEach((b) =>
           b.classList.toggle("active", b.dataset.value === value)
         );
+      // v0.34.0：统计卡片与当前筛选同步 —— 选中态靠 aria-pressed（读屏可读）+ .active（看得见）
+      document.querySelectorAll(".stat-card[data-stat-filter]").forEach((card) => {
+        const on = card.dataset.statFilter === value;
+        card.classList.toggle("active", on);
+        card.setAttribute("aria-pressed", on ? "true" : "false");
+      });
     };
     document
       .querySelectorAll('.seg-control[aria-label="按状态筛选"] .seg-btn')
@@ -1584,13 +1595,61 @@ import { createDataIo } from "./js/data-io.js";
       aiExtract?.cancelAnalysis?.();
     });
 
-    elements.aiSettingsBtn?.addEventListener("click", async () => {
-      elements.aiSettingsPanel?.classList.toggle("hidden");
-      await ensureParserModules();
-      loadAiConfigToForm(elements);
+    // v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内面板，一点就把
+    // 项目列表整块推下去；现在盖在页面上，遮罩点击 / Esc / ✕ 关闭，焦点锁在层内，关后回到菜单按钮。
+    // 表单回填仍在打开时做（与旧行为一致，避免把 API Key 常驻在 DOM 里）。
+    let settingsSheetOpen = false;
+    let settingsOpener = null;
+    const openSettingsSheet = async () => {
+      if (settingsSheetOpen) return;
+      settingsSheetOpen = true;
+      settingsOpener = document.activeElement;
+      // 先把面板摆出来，再回填字段（模块懒加载慢也不会感觉点了没反应）
+      elements.settingsSheet?.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+      ui.trapFocusIn(elements.settingsSheet);
+      elements.settingsSheetClose?.focus();
+      try {
+        await ensureParserModules();
+        loadAiConfigToForm?.(elements);
+      } catch {
+        // 模块没加载成功就留空；保存时还会再试一次
+      }
       if (elements.reminderDays) {
         elements.reminderDays.value = String(getReminderDays());
       }
+    };
+    const closeSettingsSheet = () => {
+      if (!settingsSheetOpen) return;
+      settingsSheetOpen = false;
+      ui.releaseFocusTrap(elements.settingsSheet);
+      elements.settingsSheet?.classList.add("hidden");
+      // 确认框可能还盖在上面（如重置账户），滚动锁交给它自己收尾
+      if (
+        !elements.confirmDialog ||
+        elements.confirmDialog.classList.contains("hidden")
+      ) {
+        document.body.classList.remove("sheet-open");
+      }
+      const opener = settingsOpener;
+      settingsOpener = null;
+      // 打开它的菜单项随菜单一起收起了（不可见），就回 ☰；否则回原按钮
+      if (opener && document.contains(opener) && opener.getClientRects().length) {
+        opener.focus?.();
+      } else {
+        elements.menuToggle?.focus();
+      }
+    };
+    elements.aiSettingsBtn?.addEventListener("click", openSettingsSheet);
+    elements.settingsSheetClose?.addEventListener("click", closeSettingsSheet);
+    elements.settingsSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-settings']")) closeSettingsSheet();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape" || !settingsSheetOpen) return;
+      // 确认框自己处理 Esc，别连带把底下的设置也关掉
+      if (elements.confirmDialog && !elements.confirmDialog.classList.contains("hidden")) return;
+      closeSettingsSheet();
     });
     elements.aiSaveSettings?.addEventListener("click", async () => {
       await ensureParserModules();
@@ -1603,7 +1662,7 @@ import { createDataIo } from "./js/data-io.js";
       if (elements.reminderDays) elements.reminderDays.value = String(days);
       ui.render();
       ui.showToast(`设置已保存，提醒窗口为未来 ${days} 天。`);
-      elements.aiSettingsPanel?.classList.add("hidden");
+      closeSettingsSheet();
     });
 
     // v0.6.0：选填信息折叠开关 + 字段数
@@ -1704,6 +1763,8 @@ import { createDataIo } from "./js/data-io.js";
         await projectsApi.loadProjects();
         ui.render();
         ui.showToast("账户已重置，全部项目与通知记录已删除。");
+        // v0.34.0：重置完把设置弹窗也收了，让用户直接看到清空后的主界面
+        closeSettingsSheet();
       } catch (err) {
         ui.showToast(`重置失败：${err?.message || err}`);
       } finally {
@@ -2199,11 +2260,14 @@ import { createDataIo } from "./js/data-io.js";
       card.addEventListener("click", () =>
         applyStatFilter(card.dataset.statFilter)
       );
-      card.addEventListener("keydown", (e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        e.preventDefault();
-        applyStatFilter(card.dataset.statFilter);
-      });
+    });
+    // v0.34.0：「即将开标」卡片——不是筛选，而是跳到下面的即将开标面板（闪一下指位置）。
+    elements.upcomingStatCard?.addEventListener("click", () => {
+      const panel = document.querySelector(".upcoming-panel");
+      if (!panel) return;
+      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      panel.classList.add("panel-flash");
+      setTimeout(() => panel.classList.remove("panel-flash"), 1600);
     });
     // v0.14.0：品牌图标即首页——关浮层 + 回主界面列表 + 回顶；
     // 悬浮组已拿掉，返回靠各层自带关闭（菜单 / 抽屉 / 设置 / 底部 Tab），
@@ -2225,8 +2289,8 @@ import { createDataIo } from "./js/data-io.js";
         closeQualSheet();
         return true;
       }
-      if (!elements.aiSettingsPanel?.classList.contains("hidden")) {
-        elements.aiSettingsPanel.classList.add("hidden");
+      if (settingsSheetOpen) {
+        closeSettingsSheet();
         return true;
       }
       return false;
@@ -2269,6 +2333,8 @@ import { createDataIo } from "./js/data-io.js";
   async function init() {
     ui.applyTheme(state.darkMode);
     bindEvents();
+    // v0.34.0：初始渲染前把统计卡片的 aria-pressed 与默认筛选（全部）对齐
+    if (typeof state.syncSegControl === "function") state.syncSegControl();
     ui.updateScrollUi();
     // v0.11.0：AI 配置表单不再启动时回填，打开设置面板时才回填（见 aiSettingsBtn）
 
