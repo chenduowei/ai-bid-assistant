@@ -8,6 +8,16 @@
 export const ICS_PRODID = "-//投标工作台//开标日历//CN";
 export const ICS_CALNAME = "投标工作台·开标日历";
 
+/** v0.34.0：订阅令牌格式校验（纯函数，api/calendar.js 先验它再打 Supabase）。
+ * App 生成的令牌是 UUID（crypto.randomUUID）或 `cal-<时间戳>-<随机串>` 兜底形态，
+ * 两者都只含字母、数字、连字符、下划线。空 / 超长 / 带空格与怪字符的一律判非法。 */
+export function isValidCalendarToken(token) {
+  if (typeof token !== "string") return false;
+  const t = token.trim();
+  if (t.length < 8 || t.length > 128) return false;
+  return /^[A-Za-z0-9_-]+$/.test(t);
+}
+
 // RFC 5545 文本转义：\ ; , 与换行。
 export function escapeIcsText(value) {
   return String(value ?? "")
