@@ -629,7 +629,8 @@ import { createDataIo } from "./js/data-io.js";
   }
 
   // 注意：浏览器通知仅在页面打开时触发（setInterval），关页后不会提醒。
-  // 关页提醒需部署 Edge Function，见 docs/reminders.md（用户已明确暂不需要）。
+  // v0.33.0 起关页提醒由 .ics 日历订阅承担（api/calendar.js + 系统日历通知），
+  // 邮件提醒的 Edge Function 仍未部署，见 docs/reminders.md。
   // 多截止时间通知：遍历每个项目的全部截止项，days=0/1 时通知，文案带截止类型。
   function sendBidNotifications() {
     if (
