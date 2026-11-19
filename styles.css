@@ -1267,10 +1267,14 @@ body.dark .sort-select {
   .sheet-panel.parser-sheet-panel { max-height: 88vh; }
 }
 
-/* v0.27.0：定位高亮按 iOS 风格——先淡入后淡出（之前是起手满格再淡出，背景一帧跳变，看着像闪一下） */
-.project-item.project-highlight { animation: highlight-fade 2s ease-in-out both; }
-/* v0.29.0：定位时跳过目标卡片的入场动画（否则淡入 + 滚动 + 高亮三重叠加看着像闪） */
+/* v0.35.2：定位高亮整套删了 —— “即将到期”等项目按钮跳转后会亮 2 秒，用户反馈像闪屏；
+   现在定位只靠平滑滚动 + 自动展开，不再给卡片挂会亮的类。 */
+/* v0.29.0：定位时跳过目标卡片的入场动画（否则淡入 + 滚动叠加看着像闪） */
 .project-item.no-enter { animation: none; }
+/* v0.35.2：保存完成的柔和提示 —— 一次性的呼吸感：前 24% 缓缓起亮、中段停留、最后退干净，
+   不循环、不脉冲、不整块跳变；时长与 js/ui.js 的 LOCATE_GLOW_DURATION_MS 保持一致。
+   放在 .no-enter 之后：同一张卡片上两者同时存在时，这条生效（定位那次的入场动画本来也该跳过）。 */
+.project-item.save-glow { animation: save-glow 1.4s var(--ease-out) both; }
 .form-panel.form-highlight { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
 .ripple {
   position: absolute;
@@ -1295,7 +1299,12 @@ body.dark .sort-select {
 @keyframes ripple { to { transform: scale(4); opacity: 0; } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
-@keyframes highlight-fade { 0% { background: transparent; } 20% { background: var(--accent-soft); } 100% { background: transparent; } }
+@keyframes save-glow {
+  0% { background-color: transparent; box-shadow: 0 0 0 1px transparent; }
+  24% { background-color: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-soft); }
+  62% { background-color: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-soft); }
+  100% { background-color: transparent; box-shadow: 0 0 0 1px transparent; }
+}
 @keyframes form-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent); } 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
 
 /* ---------- 响应式 ---------- */
@@ -1340,6 +1349,8 @@ body.dark .sort-select {
     transition-duration: 0.01ms !important;
   }
   html { scroll-behavior: auto; }
+  /* v0.35.2：减动效时不放保存柔光；保存成功靠 toast 文字说明，不靠动效传达。 */
+  .project-item.save-glow { animation: none; }
 }
 
 /* —— v0.6.0：批量选择模式 —— */
