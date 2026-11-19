@@ -16,6 +16,8 @@ const APP_SHELL = [
   "./js/projects.js",
   "./js/auth.js",
   "./js/data-io.js",
+  // v0.35.0：四个抽屉的交互模块（app.js 直接 import，漏在壳外离线会断）
+  "./js/drawers.js",
   "./js/pdf-parser.js",
   "./js/ai-extract.js",
   // v0.34.0：js/ics.js 之前漏在壳外（目前只被 api/calendar.js 引入，浏览器侧暂未 import，
