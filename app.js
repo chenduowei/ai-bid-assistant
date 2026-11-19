@@ -1091,6 +1091,9 @@ import { createDrawers } from "./js/drawers.js";
     });
 
     elements.authForm.addEventListener("submit", async (event) => {
+      // v0.35.1：确认密码不一致时提前 return，原来会漏掉 preventDefault，
+      // 表单照旧原生提交（页面刷成 ./?），提示一闪即失、注册模式也被重置。
+      event.preventDefault();
       elements.authMessage.textContent = "";
       elements.authMessage.style.color = "var(--danger)";
       // v0.35.0：注册要输两遍密码 —— 打错一个字就要走一整轮找回流程。
