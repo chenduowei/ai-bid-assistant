@@ -5,8 +5,8 @@ import {
   qualMatchBadge,
   qualMatchSummary,
   formatDateDisplay,
-  getDaysUntilBid,
-  getStatusClass,
+  formatBidMoment,
+  getCountdownInfo,
   getReminderDays,
   formatMoney,
   getGuaranteeTotals,
@@ -14,6 +14,10 @@ import {
   getUpcomingDeadlines,
   getChecklistProgress,
   getGuaranteeRefundReminders,
+  getTrashRemainingDays,
+  getWinRate,
+  matchResult,
+  emptyStateKind,
   paginateItems,
   expandLimitForIndex,
   getEvidenceState,
@@ -40,13 +44,16 @@ export function createUi(elements, getState) {
   const setSyncStatus = (message, isError = false) => {
     if (!elements.syncStatus) return;
     elements.syncStatus.textContent = `● ${message}`;
-    elements.syncStatus.style.color = isError
-      ? "var(--danger)"
-      : "var(--success)";
+    // v0.35.0：不再用内联颜色（--success #34C759 在白底上只有 2.2:1，12px 字看不清）；
+    // 文字走 --tint-green-text（约 5.9:1），错误态走 --danger，颜色统一交给 CSS。
+    elements.syncStatus.classList.toggle("is-error", Boolean(isError));
   };
 
   const applyTheme = (darkMode) => {
     document.body.classList.toggle("dark", darkMode);
+    // v0.35.0：跟随应用内开关改主题色（安卓地址栏 / iOS PWA 状态栏），深色不再留一条浅灰。
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", darkMode ? "#000000" : "#F2F2F7");
     if (elements.themeBtn) {
       // v0.34.0：主题按钮搬进了设置页的「外观」行 —— 文案改成动作（切换为深色 / 浅色），
       // 不会再把「⏿ 深色」误读成当前就是深色。
@@ -113,14 +120,22 @@ export function createUi(elements, getState) {
       tweenStat(elements.inTransitGuarantee, "guarantee", inTransit, 2);
     }
     // v0.34.0：即将开标 —— 开标日落在未来 N 天（提醒窗口）内的未开标项目数；
-    // 复用 getUpcomingDeadlines 的口径（只看 key=date 的开标日，不把报名/质疑截止算进来）。
+    // v0.35.0：改成与面板同一口径（按“事项”数）：一个项目的报名截止与开标日
+    // 都在窗口内时会算两条，卡片数字与面板条数不再对不上。
     if (elements.upcomingCount) {
-      const bidIds = new Set(
-        getUpcomingDeadlines(projects, getReminderDays())
-          .filter((item) => item.key === "date")
-          .map((item) => item.project.id)
-      );
-      tweenStat(elements.upcomingCount, "upcoming", bidIds.size, 0);
+      const items = getUpcomingDeadlines(projects, getReminderDays());
+      tweenStat(elements.upcomingCount, "upcoming", items.length, 0);
+    }
+    // v0.35.0：中标率（只算已出结果的项目），标在列表工具栏中。
+    if (elements.winRate) {
+      const { won, decided, rate } = getWinRate(projects);
+      if (decided) {
+        elements.winRate.textContent = `中标率 ${rate}%（${won}/${decided}）`;
+        elements.winRate.classList.remove("hidden");
+      } else {
+        elements.winRate.textContent = "";
+        elements.winRate.classList.add("hidden");
+      }
     }
     // v0.13.1：页头副标题固定为口号，不再被统计句覆盖。
     // 此前 renderStats 每次渲染都把副标题重写成"X 个进行中 · Y 个临近"，
@@ -169,19 +184,19 @@ export function createUi(elements, getState) {
     const upcoming = getUpcomingDeadlines(projects, reminderDays);
     const desc = document.getElementById("upcomingDesc");
     if (desc) {
-      desc.textContent = `未来 ${reminderDays} 天内的截止事项，按时间排序；浏览器通知仅在页面打开时触发。`;
+      desc.textContent = `未来 ${reminderDays} 天内的截止事项（含报名 / 质疑 / 澄清 / 保证金 / 开标），按时间排序；浏览器通知仅在页面打开时触发。`;
     }
     if (!upcoming.length) {
       elements.upcomingList.innerHTML = `<div class="upcoming-empty"><div class="up-empty-icon">✓</div><div class="up-empty-title">未来 ${reminderDays} 天暂无截止事项</div><div class="up-empty-sub">新的截止时间会在这里提醒你</div></div>`;
       return;
     }
     elements.upcomingList.innerHTML = upcoming
-      .map(({ project, label, date, days }) => {
+      .map(({ project, label, date, days, time }) => {
         const level = upcomingLevel(days);
         const [y, m, d] = String(date).split("-");
         const labelText =
           days === 0 ? "今日截止" : days === 1 ? "明日截止" : `${days} 天后`;
-        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="up-date"><span class="up-day">${escapeHtml(String(Number(d) || ""))}</span><span class="up-month">${escapeHtml(String(Number(m) || ""))}月</span></div><div class="up-main"><div class="up-name">${escapeHtml(project.name)}</div><div class="up-label">${escapeHtml(label)} · ${escapeHtml(formatDateDisplay(date))}</div></div><span class="up-pill">${escapeHtml(labelText)}</span></div>`;
+        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" data-project-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="up-date"><span class="up-day">${escapeHtml(String(Number(d) || ""))}</span><span class="up-month">${escapeHtml(String(Number(m) || ""))}月</span></div><div class="up-main"><div class="up-name">${escapeHtml(project.name)}</div><div class="up-label">${escapeHtml(label)}${time ? ` · ${escapeHtml(time)}` : ""} · ${escapeHtml(formatDateDisplay(date))}</div></div><span class="up-pill">${escapeHtml(labelText)}</span></div>`;
       })
       .join("");
   };
@@ -278,6 +293,8 @@ export function createUi(elements, getState) {
       p.name,
       p.notes,
       p.status,
+      p.result,
+      p.bidTime,
       qualText,
       invalidText,
       checklistText,
@@ -292,9 +309,13 @@ export function createUi(elements, getState) {
   const getFilteredProjects = (projects, filters) => {
     const keyword = (filters.keyword || "").trim().toLowerCase();
     const status = filters.status || "all";
+    const result = filters.result || "all";
     const sort = filters.sort || "date-desc";
     const filtered = projects.filter(
-      (p) => matchesKeyword(p, keyword) && (status === "all" || p.status === status)
+      (p) =>
+        matchesKeyword(p, keyword) &&
+        (status === "all" || p.status === status) &&
+        matchResult(p, result)
     );
     filtered.sort((a, b) =>
       sort === "name-asc"
@@ -337,15 +358,11 @@ export function createUi(elements, getState) {
     return `<div class="checklist${collapsed ? " collapsed" : ""}"><div class="checklist-head"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-checklist" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></span></div><div class="checklist-body"><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div></div>`;
   };
 
-  /** v0.4.5：列表 cell 右侧倒计时 pill —— 短文案 + 紧急度 class（60s 刷新只更新文字） */
+  /** v0.4.5：列表 cell 右侧倒计时 pill —— 短文案 + 紧急度 class（60s 刷新只更新文字）
+   *  v0.35.0：有时刻的开标精确到小时（“3小时后”“今天 09:30”），逻辑收进 utils.getCountdownInfo（可单测）。 */
   const countdownCell = (proj) => {
-    if (proj.status === "已开标") return { text: "已开标", cls: "cd-done" };
-    const days = getDaysUntilBid(proj.date);
-    if (days === null) return { text: "已开标", cls: "cd-done" };
-    if (days < 0) return { text: `已过期${-days}天`, cls: "cd-overdue" };
-    if (days === 0) return { text: "今天开标", cls: "cd-urgent" };
-    if (days <= 3) return { text: `还有${days}天`, cls: "cd-warn" };
-    return { text: `还有${days}天`, cls: "cd-normal" };
+    const info = getCountdownInfo(proj);
+    return { text: info.text, cls: info.cls, title: info.title };
   };
 
   /** v0.4.5：状态圆点 class（徽章已移到详情区） */
@@ -388,10 +405,26 @@ export function createUi(elements, getState) {
       // v0.13.1：展开详情恢复旧版内容，前 7 项按指定顺序排列；
       // 后面只留截止时间、最近截止、风险卡、清单、已保存文件
       // （招标单位 / 金额 / 保证金已删，截止全空时不渲染空列表）。
+      // v0.35.0：项目状态改成可点即改的三选一（不用再展开表单、滚到状态下拉、再保存）；
+      // 开标时间带出时刻；中标结果有值时才占一行。
+      const STATUS_OPTIONS = ["报名中", "制作中", "已开标"];
+      const statusQuick =
+        `<span class="status-quick" role="group" aria-label="修改项目状态">` +
+        STATUS_OPTIONS.map(
+          (s) =>
+            `<button type="button" class="status-chip${s === p.status ? " active" : ""}" data-action="set-status" data-id="${escapeHtml(p.id)}" data-status="${s}" aria-pressed="${s === p.status ? "true" : "false"}" title="改为${s}">${s}</button>`
+        ).join("") +
+        `</span>`;
       return (
         `<div class="kv-list">` +
-        kv("项目状态", `<span class="badge ${getStatusClass(p.status)}">${escapeHtml(p.status)}</span>`) +
-        kv("开标时间", p.date ? escapeHtml(formatDateDisplay(p.date)) : "未设置开标时间") +
+        kv("项目状态", statusQuick) +
+        kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置开标时间") +
+        (p.result
+          ? kv(
+              "中标结果",
+              `<span class="badge ${p.result === "已中标" ? "success" : "danger"}">${escapeHtml(p.result)}</span>`
+            )
+          : "") +
         kv("项目类型", escapeHtml(p.type)) +
         kv("项目名称", escapeHtml(p.name)) +
         kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
@@ -429,7 +462,7 @@ export function createUi(elements, getState) {
     const checkHtml = selectMode
       ? `<button class="select-check" type="button" role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-label="选择项目" data-action="toggle-select" data-id="${escapeHtml(p.id)}"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.8 5.3 9.5 10.5 3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
       : "";
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" role="button" tabindex="0" aria-expanded="${expanded ? "true" : "false"}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}">${escapeHtml(cd.text)}</span><span class="project-chevron" aria-hidden="true">›</span></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}</div></div></div>`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}</div></div></div>`;
   };
 
   /** v0.6.0：列表到底趣味文案（按数量轮换） */
@@ -443,6 +476,12 @@ export function createUi(elements, getState) {
   // syncListDom 共用一份，免得两处文案各写各的、改了一处漏一处。
   const EMPTY_STATE_HTML =
     '<div class="empty-state"><div class="empty-icon">＋</div><div class="empty-title">还没有项目</div><div class="empty-sub">新增第一个项目，开始管理投标进度</div><button class="btn primary" type="button" data-action="empty-add">新增第一个项目</button></div>';
+  // v0.35.0：搜/筛无结果时不再说“还没有项目”（上方计数还写着“筛选结果 0 个”，两句对不上）；
+  // 有关键词或筛选时给一句“没有匹配的项目”与一键清除。
+  const NO_MATCH_HTML =
+    '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">没有匹配的项目</div><div class="empty-sub">换个关键词，或清除搜索与筛选条件</div><button class="btn secondary" type="button" data-action="clear-filters">清除搜索与筛选</button></div>';
+  const emptyStateHtml = (hasActiveFilter) =>
+    emptyStateKind(hasActiveFilter) === "no-match" ? NO_MATCH_HTML : EMPTY_STATE_HTML;
   const listTailHtml = (filtered, visible, remaining) =>
     remaining > 0
       ? `<button class="btn secondary load-more-btn" type="button" data-action="load-more">加载更多（剩余 ${remaining} 条，已显示 ${visible.length} / 共 ${filtered.length} 条）</button>`
@@ -461,7 +500,8 @@ export function createUi(elements, getState) {
   const renderList = (projects, filters) => {
     const keyword = (filters.keyword || "").trim();
     const status = filters.status || "all";
-    const hasActiveFilter = Boolean(keyword) || status !== "all";
+    const hasActiveFilter =
+      Boolean(keyword) || status !== "all" || (filters.result || "all") !== "all";
     const filtered = getFilteredProjects(projects, filters);
     updateFilterCount(filtered.length, projects.length, hasActiveFilter);
     // v0.6.0：选择模式下给容器加 selecting（隐藏行内操作按钮）
@@ -472,7 +512,8 @@ export function createUi(elements, getState) {
       );
 
     if (!filtered.length) {
-      elements.list.innerHTML = EMPTY_STATE_HTML;
+      elements.list.innerHTML = emptyStateHtml(hasActiveFilter);
+      updateCollapseAllBtn();
       return;
     }
     // v0.11.0：列表分页——只渲染前 listLimit 条，剩余的用"加载更多"续取；
@@ -505,12 +546,14 @@ export function createUi(elements, getState) {
     const filters = getCurrentFilters();
     const keyword = (filters.keyword || "").trim();
     const status = filters.status || "all";
-    const hasActiveFilter = Boolean(keyword) || status !== "all";
+    const hasActiveFilter =
+      Boolean(keyword) || status !== "all" || (filters.result || "all") !== "all";
     const filtered = getFilteredProjects(state.projects, filters);
     updateFilterCount(filtered.length, state.projects.length, hasActiveFilter);
     listEl.classList.toggle("selecting", !!(state.selectMode));
     if (!filtered.length) {
-      listEl.innerHTML = EMPTY_STATE_HTML;
+      listEl.innerHTML = emptyStateHtml(hasActiveFilter);
+      updateCollapseAllBtn();
       return;
     }
     const { visible, remaining } = paginateItems(
@@ -607,6 +650,7 @@ export function createUi(elements, getState) {
       const hadSearch = (elements.search?.value || "").trim() !== "";
       if (elements.search) elements.search.value = "";
       if (elements.statusFilter) elements.statusFilter.value = "all";
+      if (elements.resultFilter) elements.resultFilter.value = "all";
       // v0.5.0：seg 同步（app.js 在 state 上挂了 syncSegControl）
       const s0 = getState();
       if (typeof s0.syncSegControl === "function") s0.syncSegControl();
@@ -656,6 +700,7 @@ export function createUi(elements, getState) {
         const cd = countdownCell({
           date: el.dataset.date,
           status: el.dataset.status,
+          bidTime: el.dataset.bidTime || "",
         });
         el.textContent = cd.text;
         el.classList.remove(
@@ -687,7 +732,15 @@ export function createUi(elements, getState) {
             const deletedDate = p.deletedAt
               ? formatDateDisplay(String(p.deletedAt).slice(0, 10))
               : "未知";
-            return `<div class="project-item"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
+            // v0.35.0：30 天保留期是回收站唯一的卖点，给每行一个倒计时；剩 3 天内标红。
+            const left = getTrashRemainingDays(p.deletedAt);
+            const leftText =
+              left === null
+                ? ""
+                : left <= 0
+                  ? `<span class="trash-expire urgent">今天将彻底删除</span>`
+                  : `<span class="trash-expire${left <= 3 ? " urgent" : ""}">还剩 ${left} 天自动删除</span>`;
+            return `<div class="project-item"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}${leftText}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
           }
         )
         .join("") +
@@ -699,6 +752,7 @@ export function createUi(elements, getState) {
   const getCurrentFilters = () => ({
     keyword: elements.search?.value || "",
     status: elements.statusFilter?.value || "all",
+    result: elements.resultFilter?.value || "all",
     sort: elements.sortBy?.value || "date-desc",
   });
 
@@ -743,7 +797,7 @@ export function createUi(elements, getState) {
   const getCurrentFilteredProjects = () =>
     getFilteredProjects(getState().projects, getCurrentFilters());
 
-  /** v0.8.0：开标日历 —— 月历网格（周一起始）+ 当天项目。只响应状态筛选，忽略搜索关键词。 */
+  /** v0.8.0：开标日历 —— 月历网格（周一起始）+ 当天项目。v0.35.0：搜索关键词也生效（之前能输入却不理）。 */
   const CAL_WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
   const toDateStr = (d) =>
     `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -759,9 +813,14 @@ export function createUi(elements, getState) {
     const selected = st.calSelected || toDateStr(now);
     const todayStr = toDateStr(now);
     const status = filters?.status || "all";
-    // 状态筛选后的未删除项目（state.projects 本身已排除回收站）
+    const keyword = (filters?.keyword || "").trim().toLowerCase();
+    const result = filters?.result || "all";
+    // 状态 / 结果筛选 + 关键词过滤后的未删除项目（state.projects 本身已排除回收站）
     const visible = (Array.isArray(projects) ? projects : []).filter(
-      (p) => status === "all" || p.status === status
+      (p) =>
+        (status === "all" || p.status === status) &&
+        matchResult(p, result) &&
+        matchesKeyword(p, keyword)
     );
     const byDate = new Map();
     visible.forEach((p) => {
@@ -831,6 +890,21 @@ export function createUi(elements, getState) {
       .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
     const countEl = elements.guaranteeCount;
     if (countEl) countEl.textContent = list.length ? `（${list.length} 项待退还）` : "";
+    // v0.35.0：抽屉头部给一行合计（统计卡只有全站在途总额，对账时要看这份清单的合计）。
+    if (elements.guaranteeTotals) {
+      if (!list.length) {
+        elements.guaranteeTotals.textContent = "";
+        elements.guaranteeTotals.classList.add("hidden");
+      } else {
+        const total = list.reduce((sum, p) => {
+          const n = Number(p.guaranteeAmount);
+          if (!Number.isFinite(n)) return sum;
+          return sum + (p.guaranteeUnit === "元" ? n / 10000 : n);
+        }, 0);
+        elements.guaranteeTotals.textContent = `待退还合计 ${total.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 万元（${list.length} 项）`;
+        elements.guaranteeTotals.classList.remove("hidden");
+      }
+    }
     if (!list.length) {
       el.innerHTML = `<div class="guarantee-empty">暂无待退还保证金 🎉</div>`;
       return;
@@ -947,6 +1021,16 @@ export function createUi(elements, getState) {
     ripple.addEventListener("animationend", () => ripple.remove());
   };
 
+  // v0.35.0：关浮层后的焦点归还 —— 入口按钮在菜单里、菜单已收起（display:none）时
+  // focus() 会落到 body；能看见就回原按钮，否则回 ☰。与 closeSettingsSheet 同一套逻辑，抽出来一处维护。
+  const restoreFocusTo = (opener) => {
+    if (opener && document.contains(opener) && opener.getClientRects().length) {
+      opener.focus?.();
+      return;
+    }
+    elements.menuToggle?.focus();
+  };
+
   const toggleMobileMenu = (force) => {
     const menu = document.getElementById("headerMenu");
     const btn = document.getElementById("menuToggle");
@@ -959,6 +1043,9 @@ export function createUi(elements, getState) {
   // v0.10.0：自定义确认框 —— 替代原生 confirm()；返回 Promise<boolean>。
   // 默认焦点在取消按钮上，避免回车误触；新调用到来时旧调用按取消处理。
   // 监听全部用属性赋值（每次覆盖），不叠加、不误关新框。
+  // v0.35.0：传入 altText 时变成三出口，返回 " confirm" | "alt" | "cancel"（字符串）。
+  // 适合“覆盖 / 只补新增 / 取消”这类必须能说“不”的场景：以前取消按钮写着
+  // “只补新增”，Esc 与点遮罩也回 false，而 false 又被当成“只补新增”照旧写库。
   let pendingConfirmCancel = null;
   // v0.32.0：requireTyping —— 危险操作的打字确认：输入框须与指定短语一致
   // （前后空格忽略）才启用确认按钮；不传则保持原样。
@@ -967,6 +1054,7 @@ export function createUi(elements, getState) {
     message = "",
     confirmText = "确定",
     cancelText = "取消",
+    altText = "",
     danger = false,
     requireTyping = "",
   } = {}) => {
@@ -977,16 +1065,23 @@ export function createUi(elements, getState) {
       pendingConfirmCancel = null;
       cancelPrevious();
     }
+    const threeWay = Boolean(altText);
     return new Promise((resolve) => {
       if (elements.confirmDialogTitle) elements.confirmDialogTitle.textContent = title;
       if (elements.confirmDialogMessage) elements.confirmDialogMessage.textContent = message;
       if (elements.confirmDialogCancel) elements.confirmDialogCancel.textContent = cancelText;
       const okBtn = elements.confirmDialogOk;
+      const altBtn = elements.confirmDialogAlt;
       const typingInput = elements.confirmDialogInput;
       if (okBtn) {
         okBtn.textContent = confirmText;
         okBtn.className = danger ? "btn danger-solid" : "btn primary";
       }
+      if (altBtn) {
+        altBtn.textContent = altText;
+        altBtn.classList.toggle("hidden", !threeWay);
+      }
+      elements.confirmDialogActions?.classList.toggle("three", threeWay);
       // 打字确认：显示输入区、确认按钮先禁用，输对短语才放行。
       if (requireTyping && elements.confirmDialogTyping) {
         if (elements.confirmDialogPhrase)
@@ -1015,6 +1110,11 @@ export function createUi(elements, getState) {
           okBtn.onclick = null;
           okBtn.disabled = false;
         }
+        if (altBtn) {
+          altBtn.onclick = null;
+          altBtn.classList.add("hidden");
+        }
+        elements.confirmDialogActions?.classList.remove("three");
         if (typingInput) {
           typingInput.value = "";
           typingInput.oninput = null;
@@ -1029,18 +1129,21 @@ export function createUi(elements, getState) {
         resolve(value);
       };
       const onKeyDown = (event) => {
-        if (event.key === "Escape") finish(false);
+        if (event.key === "Escape") finish(threeWay ? "cancel" : false);
       };
-      pendingConfirmCancel = () => finish(false);
+      pendingConfirmCancel = () => finish(threeWay ? "cancel" : false);
       dialog.classList.remove("hidden");
       document.body.classList.add("sheet-open");
       trapFocusIn(dialog);
       dialog.onclick = (event) => {
-        if (event.target.closest("[data-action='cancel-confirm']")) finish(false);
+        if (event.target.closest("[data-action='cancel-confirm']"))
+          finish(threeWay ? "cancel" : false);
       };
-      if (okBtn) okBtn.onclick = () => finish(true);
+      if (okBtn) okBtn.onclick = () => finish(threeWay ? "confirm" : true);
+      if (altBtn) altBtn.onclick = () => finish("alt");
       if (elements.confirmDialogCancel) {
-        elements.confirmDialogCancel.onclick = () => finish(false);
+        elements.confirmDialogCancel.onclick = () =>
+          finish(threeWay ? "cancel" : false);
         // 打字确认时焦点给输入框（方便直接打字），否则默认给取消按钮防误触。
         if (requireTyping && typingInput) typingInput.focus();
         else elements.confirmDialogCancel.focus();
@@ -1081,6 +1184,7 @@ export function createUi(elements, getState) {
     updateScrollUi,
     addRipple,
     toggleMobileMenu,
+    restoreFocusTo,
     confirmDialog,
     showListSkeleton,
     showTrashSkeleton,

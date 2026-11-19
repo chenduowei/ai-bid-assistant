@@ -6,8 +6,13 @@
   <meta name="description" content="工程建设行业智能投标工作台 · AI Bid Assistant" />
   <title>投标工作台</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
-  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+  <!-- v0.35.0：iOS 期望 180×180，直接给一张，不再让系统把 192 缩放糊掉 -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
   <link rel="manifest" href="./manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="投标工作台" />
+  <!-- v0.35.0：主题色跟随应用内深浅色开关（由 ui.applyTheme 改写），安卓地址栏 / iOS PWA 状态栏不再一条浅灰 -->
   <meta name="theme-color" content="#F2F2F7" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
@@ -29,20 +34,24 @@
         </div>
       </aside>
       <section class="auth-card card">
-        <p>登录后项目保存到云端，多设备自动同步。</p>
-      <div class="auth-tabs" id="authTabs">
+        <!-- v0.35.0：右侧终于有标题了（之前唯一 h1 在海报里，卡片首行是灰色说明，像脚注） -->
+        <h2 id="authTitle" class="auth-title">登录</h2>
+        <p id="authIntro" class="auth-intro">登录后项目保存到云端，多设备自动同步。</p>
+      <div class="auth-tabs" id="authTabs" role="group" aria-label="登录或注册">
         <span class="auth-tab-indicator" aria-hidden="true"></span>
-        <button class="btn secondary auth-tab active" type="button" data-mode="login">登录</button>
-        <button class="btn secondary auth-tab" type="button" data-mode="signup">注册</button>
+        <button class="auth-tab active" type="button" data-mode="login" aria-pressed="true">登录</button>
+        <button class="auth-tab" type="button" data-mode="signup" aria-pressed="false">注册</button>
       </div>
       <form id="authForm" class="auth-form">
         <div class="field"><label for="authEmail">邮箱</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com" required /></div>
         <div class="field"><label for="authPassword">密码</label><div class="password-wrap"><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" title="显示密码">👁️</button></div></div>
+        <div id="authConfirmField" class="field hidden"><label for="authConfirmPassword">确认密码</label><input id="authConfirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="再次输入密码" /></div>
         <button id="authSubmit" class="btn primary" type="submit">登录</button>
         <div id="authMessage" class="auth-message" role="alert"></div>
-        <div class="auth-links">
-          <button id="forgotPasswordBtn" class="btn secondary auth-link-btn" type="button">忘记密码？</button>
-          <button id="resendVerificationBtn" class="btn secondary auth-link-btn" type="button">重发验证邮件</button>
+        <button id="authRetryBtn" class="btn secondary hidden" type="button">重试加载</button>
+        <div id="authLinks" class="auth-links">
+          <button id="forgotPasswordBtn" class="btn-text auth-link-btn" type="button">忘记密码？</button>
+          <button id="resendVerificationBtn" class="btn-text auth-link-btn" type="button">重发验证邮件</button>
         </div>
       </form>
       <form id="resetPasswordPanel" class="auth-form hidden">
@@ -56,7 +65,7 @@
     </section>
     </div>
   </main>
-  <div id="appView" class="page hidden">
+  <main id="appView" class="page hidden">
     <div id="dashboardView">
     <header class="header">
       <div class="header-top">
@@ -72,7 +81,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.34.0</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.0</span></div>
       <!-- v0.34.0：菜单只留内容与视图动作 —— 导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，
            菜单项从 12 个收到 9 个，找东西不用先在一长串里挑。 -->
       <div id="headerMenu" class="header-actions">
@@ -99,27 +108,27 @@
          键盘 Tab / Enter / 空格走浏览器原生行为，不用再开 ☰ 菜单。 -->
     <section class="stats" aria-label="项目统计与快捷筛选">
       <button type="button" class="stat-card active" data-stat-filter="all" aria-pressed="true" title="查看全部项目">
-        <span class="label">项目总数</span>
+        <span class="label"><span class="label-long">项目总数</span><span class="label-short">总数</span></span>
         <span class="value" id="totalCount">0</span>
       </button>
       <button type="button" class="stat-card" data-stat-filter="报名中" aria-pressed="false" title="只看报名中的项目">
-        <span class="label">报名中</span>
+        <span class="label"><span class="label-long">报名中</span><span class="label-short">报名</span></span>
         <span class="value" id="registeringCount">0</span>
       </button>
       <button type="button" class="stat-card" data-stat-filter="制作中" aria-pressed="false" title="只看制作中的项目">
-        <span class="label">制作中</span>
+        <span class="label"><span class="label-long">制作中</span><span class="label-short">制作</span></span>
         <span class="value" id="makingCount">0</span>
       </button>
       <button type="button" class="stat-card" data-stat-filter="已开标" aria-pressed="false" title="只看已开标的项目">
-        <span class="label">已开标</span>
+        <span class="label"><span class="label-long">已开标</span><span class="label-short">开标</span></span>
         <span class="value" id="openedCount">0</span>
       </button>
-      <button type="button" class="stat-card" id="upcomingStatCard" title="跳到即将开标项目">
-        <span class="label">即将开标</span>
+      <button type="button" class="stat-card" id="upcomingStatCard" title="跳到即将到期事项">
+        <span class="label"><span class="label-long">临期事项</span><span class="label-short">临近</span></span>
         <span class="value" id="upcomingCount">0</span>
       </button>
       <button type="button" class="stat-card" id="guaranteeStatCard" aria-haspopup="dialog" title="查看待退还保证金清单">
-        <span class="label">在途保证金（万元）</span>
+        <span class="label"><span class="label-long">在途保证金（万元）</span><span class="label-short">保证金</span></span>
         <span class="value" id="inTransitGuarantee">0.00</span>
       </button>
     </section>
@@ -127,8 +136,8 @@
     <section class="card upcoming-panel">
       <div class="panel-title">
         <div>
-          <h2>即将开标项目</h2>
-          <p id="upcomingDesc">未来 7 天内开标，按时间排序。</p>
+          <h2>即将到期事项</h2>
+          <p id="upcomingDesc">未来 7 天内的截止事项，按时间排序。</p>
         </div>
       </div>
       <div id="upcomingList" class="upcoming-list"></div>
@@ -145,6 +154,9 @@
       </div>
 
       <div id="formBody" class="form-body collapse"><div class="collapse-inner">
+      <!-- v0.35.0：表单改成真 <form> —— 桌面按回车即可提交；novalidate 是为了用自己的中文提示，
+           不依赖浏览器原生气泡（各平台语言与样式不一致）。 -->
+      <form id="projectForm" class="project-form" novalidate>
       <!-- v0.20.0：解析入口挪进表单（可选）—— 标题栏按钮已删；从这里进抽屉，
         回填后回到同一张表单（新建仍是新建，编辑仍是正在改的那张）。 -->
       <div class="form-parser-row">
@@ -156,24 +168,33 @@
           <div class="form-section-title">必填信息</div>
           <div class="form-group">
             <div class="field">
-              <label for="date">开标时间</label>
-              <input id="date" type="date" />
+              <label for="date">开标日期<span class="req-dot" aria-hidden="true">*</span></label>
+              <input id="date" type="date" required aria-describedby="err-date" />
+              <div class="field-error hidden" id="err-date">请填写开标日期</div>
             </div>
             <div class="field">
-              <label for="projectType">项目类型</label>
-              <input id="projectType" placeholder="项目类型" />
+              <label for="bidTime">开标时刻（选填）</label>
+              <input id="bidTime" type="time" />
             </div>
             <div class="field">
-              <label for="name">项目名称</label>
-              <input id="name" placeholder="项目名称" />
+              <label for="projectType">项目类型<span class="req-dot" aria-hidden="true">*</span></label>
+              <input id="projectType" placeholder="项目类型" required aria-describedby="err-type" />
+              <div class="field-error hidden" id="err-type">请填写项目类型</div>
             </div>
             <div class="field">
-              <label for="biddingCompany">投标公司</label>
-              <input id="biddingCompany" placeholder="投标公司" />
+              <label for="name">项目名称<span class="req-dot" aria-hidden="true">*</span></label>
+              <input id="name" placeholder="项目名称" required aria-describedby="err-name" />
+              <div class="field-error hidden" id="err-name">请填写项目名称</div>
             </div>
             <div class="field">
-              <label for="contact">联系人</label>
-              <input id="contact" placeholder="联系人" />
+              <label for="biddingCompany">投标公司<span class="req-dot" aria-hidden="true">*</span></label>
+              <input id="biddingCompany" placeholder="投标公司" required aria-describedby="err-biddingCompany" />
+              <div class="field-error hidden" id="err-biddingCompany">请填写投标公司</div>
+            </div>
+            <div class="field">
+              <label for="contact">联系人<span class="req-dot" aria-hidden="true">*</span></label>
+              <input id="contact" placeholder="联系人" required aria-describedby="err-contact" />
+              <div class="field-error hidden" id="err-contact">请填写联系人</div>
             </div>
             <div class="field">
               <label for="status">项目状态</label>
@@ -181,6 +202,14 @@
                 <option value="报名中">报名中</option>
                 <option value="制作中">制作中</option>
                 <option value="已开标">已开标</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="result">中标结果（选填）</label>
+              <select id="result">
+                <option value="">未出结果</option>
+                <option value="已中标">已中标</option>
+                <option value="未中标">未中标</option>
               </select>
             </div>
           </div>
@@ -257,9 +286,10 @@
       </div>
 
       <div class="action-row form-actions">
-        <button id="submitBtn" class="btn primary btn-block" type="button">新增项目</button>
+        <button id="submitBtn" class="btn primary btn-block" type="submit">新增项目</button>
         <button id="cancelBtn" class="btn secondary btn-block hidden" type="button">取消</button>
       </div>
+      </form>
       </div></div>
     </section>
 
@@ -287,10 +317,10 @@
       </div>
       <div class="list-tools">
         <div class="seg-control" role="group" aria-label="按状态筛选">
-          <button type="button" class="seg-btn active" data-value="all">全部</button>
-          <button type="button" class="seg-btn" data-value="报名中">报名中</button>
-          <button type="button" class="seg-btn" data-value="制作中">制作中</button>
-          <button type="button" class="seg-btn" data-value="已开标">已开标</button>
+          <button type="button" class="seg-btn active" data-value="all" aria-pressed="true">全部</button>
+          <button type="button" class="seg-btn" data-value="报名中" aria-pressed="false">报名中</button>
+          <button type="button" class="seg-btn" data-value="制作中" aria-pressed="false">制作中</button>
+          <button type="button" class="seg-btn" data-value="已开标" aria-pressed="false">已开标</button>
         </div>
         <select id="statusFilter" class="hidden" aria-hidden="true" tabindex="-1">
           <option value="all">全部状态</option>
@@ -303,11 +333,18 @@
           <option value="date-desc" selected>开标日期：最晚优先</option>
           <option value="name-asc">项目名称：A 到 Z</option>
         </select>
+        <!-- v0.35.0：中标结果筛选 + 中标率（结果字段为空的不计） -->
+        <select id="resultFilter" class="sort-select" aria-label="按中标结果筛选">
+          <option value="all">全部结果</option>
+          <option value="已中标">已中标</option>
+          <option value="未中标">未中标</option>
+        </select>
+        <span id="winRate" class="win-rate hidden"></span>
         <button id="selectModeBtn" class="btn-text" type="button">选择</button>
         <button id="collapseAllBtn" class="btn-text" type="button" disabled>全部折叠</button>
         <div class="seg-control view-seg" role="group" aria-label="视图切换">
-          <button type="button" class="seg-btn view-btn active" data-view="list">列表</button>
-          <button type="button" class="seg-btn view-btn" data-view="calendar">日历</button>
+          <button type="button" class="seg-btn view-btn active" data-view="list" aria-pressed="true">列表</button>
+          <button type="button" class="seg-btn view-btn" data-view="calendar" aria-pressed="false">日历</button>
         </div>
       </div>
 
@@ -337,15 +374,17 @@
 
     <!-- v0.11.0：移动端底部快捷导航（仅窄屏显示，桌面端仍用顶部菜单） -->
     <nav class="bottom-tabs" aria-label="快捷导航">
-      <button type="button" data-tab="projects" class="bottom-tab active"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
-      <button type="button" data-tab="calendar" class="bottom-tab"><span class="bottom-tab-icon">📅</span><span>日历</span></button>
-      <button type="button" data-tab="parser" class="bottom-tab"><span class="bottom-tab-icon">📄</span><span>解析</span></button>
-      <button type="button" data-tab="menu" class="bottom-tab"><span class="bottom-tab-icon">☰</span><span>菜单</span></button>
+      <button type="button" data-tab="projects" class="bottom-tab active" aria-pressed="true"><span class="bottom-tab-icon">📋</span><span>项目</span></button>
+      <button type="button" data-tab="calendar" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon">📅</span><span>日历</span></button>
+      <button type="button" data-tab="parser" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon">📄</span><span>解析</span></button>
+      <button type="button" data-tab="menu" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon">☰</span><span>菜单</span></button>
     </nav>
     <!-- v0.23.0：浮动按钮 —— 桌面端回顶部（下滑后出现）；移动端回到底部（未到底时出现） -->
     <button id="backToTopBtn" class="float-btn back-to-top" type="button" aria-label="回到顶部">↑</button>
     <button id="goToBottomBtn" class="float-btn go-to-bottom" type="button" aria-label="回到底部">↓</button>
-  </div>
+    <!-- v0.35.0：手机端浮动新增 —— 列表滑到很下面也能直接开表单 -->
+    <button id="fabAdd" class="float-btn fab-add" type="button" aria-label="新增项目" title="新增项目">＋</button>
+  </main>
   <!-- v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内一块面板，
        一点设置就把下面的项目列表整块推下去，很容易迷失位置；现在盖在页面上，
        遮罩点击 / Esc / ✕ 都能关，焦点锁在层内，关后焦点回到菜单按钮。
@@ -378,7 +417,16 @@
           <label for="reminderDays">开标提醒天数</label>
           <input id="reminderDays" type="number" min="1" max="30" step="1" value="7" placeholder="1–30" />
         </div>
-        <p class="field-hint">在「即将开标」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。浏览器通知仅在页面打开时触发，关闭页面后不会提醒；关页期间错过的提醒会在下次打开时补提示。需要关页也提醒，用 ☰ 菜单里的「📅 日历订阅」把开标日同步到手机系统日历（开标前一天 9 点与当天 8 点各提醒一次，需先在 Supabase 执行 supabase.sql 第 10 节）。</p>
+        <!-- v0.35.0：通知权限终于可见可开（之前第一次登录拒绝后就再无入口） -->
+        <div class="settings-row">
+          <div class="settings-row-main">
+            <div class="settings-row-label">浏览器通知 · <span id="notifStatus">未开启</span></div>
+            <div class="settings-row-desc">只在页面打开时提醒；关页提醒请用「日历订阅」。</div>
+          </div>
+          <button id="notifBtn" class="btn secondary" type="button">开启通知</button>
+        </div>
+        <p class="field-hint">在「即将到期事项」列表与顶部提示中，显示未来 N 天内的待开标项目（默认 7 天）。</p>
+        <p class="field-hint">关页期间错过的提醒会在下次打开时补提示；需要关页也提醒，用 ☰ 菜单里的「📅 日历订阅」（开标前一天 9 点与当天 8 点各一次，需先在 Supabase 执行 supabase.sql 第 10 节）。</p>
       </div>
 
       <div class="settings-group">
@@ -405,6 +453,13 @@
             <div class="settings-row-desc">把全部项目（含回收站）导成一个 JSON 文件存到本机。</div>
           </div>
           <button id="backupBtn" class="btn secondary" type="button">💾 导出备份</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-main">
+            <div class="settings-row-label">备份含招标全文</div>
+            <div class="settings-row-desc">默认不含：全文每项最多 20 万字，几十项就是几十 MB，手机上容易备份失败。</div>
+          </div>
+          <label class="switch"><input id="backupIncludePdfText" type="checkbox" /><span>包含</span></label>
         </div>
         <div class="settings-row">
           <div class="settings-row-main">
@@ -455,6 +510,7 @@
         <div>
           <h2 id="guaranteeSheetTitle">保证金待退还清单</h2>
           <p>已开标且保证金已缴纳的项目，标记后从清单消失。<span id="guaranteeCount"></span></p>
+          <p id="guaranteeTotals" class="guarantee-totals hidden"></p>
         </div>
         <button id="guaranteeSheetClose" class="btn secondary" type="button" aria-label="关闭保证金清单">✕</button>
       </div>
@@ -585,7 +641,8 @@
         <label for="confirmDialogInput">请输入「<span id="confirmDialogPhrase"></span>」以继续</label>
         <input id="confirmDialogInput" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
       </div>
-      <div class="confirm-actions">
+      <div class="confirm-actions" id="confirmDialogActions">
+        <button id="confirmDialogAlt" class="btn secondary hidden" type="button"></button>
         <button id="confirmDialogCancel" class="btn secondary" type="button">取消</button>
         <button id="confirmDialogOk" class="btn primary" type="button">确定</button>
       </div>
@@ -594,7 +651,9 @@
 
   <!-- v0.8.0：SheetJS（Excel 导入）—— 固定版本 + SRI，加载失败时导入流程 toast 提示改用 CSV -->
   <!-- v0.11.0：SheetJS 不再首屏常驻，首次导入 .xlsx 时才按需加载（见 app.js loadSheetJS） -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js" integrity="sha384-dl/4LkSyQ4uEucc48NM6VDZLAjLLq9yMzZ5JLXumBq7Ld33XBof73hseOqPhO89+" crossorigin="anonymous"></script>
+  <!-- v0.35.0：Supabase SDK 改从仓库内 vendor/ 加载（零构建纯静态，多一个文件不多事），
+       不再首屏等境外 CDN；万一 vendor 没命中，app.js 会回退 jsdelivr 一次。 -->
+  <script src="./vendor/supabase-2.117.3.min.js"></script>
   <script src="./supabase-config.js"></script>
   <script type="module" src="./app.js"></script>
 </body>

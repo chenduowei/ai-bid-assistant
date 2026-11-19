@@ -37,6 +37,8 @@ export function createPdfParser({ elements, ui }) {
   // 若已不是最新任务则静默放弃，不再写 UI、不再弹失败提示。
   let parseSeq = 0;
   let currentLoadingTask = null;
+  // v0.35.0：解析也能中止 —— 200 页的 PDF 不用只能干等；终止后按钮态回位、可继续清空或重新选文件。
+  let parsing = false;
 
   const setParseProgress = (percent, text) => {
     elements.parserStatus.classList.remove("hidden");
@@ -60,6 +62,7 @@ export function createPdfParser({ elements, ui }) {
     }
     const mySeq = ++parseSeq;
     const isStale = () => mySeq !== parseSeq;
+    parsing = true;
     // 取消上一次未完成的加载任务（新文件优先），旧任务的 reject 会走作废静默路径
     if (currentLoadingTask) {
       try {
@@ -173,9 +176,35 @@ export function createPdfParser({ elements, ui }) {
       if (currentLoadingTask === loadingTask) currentLoadingTask = null;
       // 只有最新任务负责清理 parsing 态，避免旧任务的 finally 抹掉新任务的状态
       if (typeof isStale === "function" && !isStale()) {
+        parsing = false;
         elements.dropZone?.classList.remove("parsing");
       }
     }
+  }
+
+  /** v0.35.0：中止当前解析 —— 作废旧任务令牌并销毁加载任务；旧任务在每个 await 后自己退出。 */
+  function cancelParse() {
+    if (!parsing) return false;
+    parseSeq += 1;
+    parsing = false;
+    if (currentLoadingTask) {
+      try {
+        currentLoadingTask.destroy();
+      } catch {
+        // 忽略
+      }
+      currentLoadingTask = null;
+    }
+    elements.dropZone?.classList.remove("parsing");
+    elements.parseProgress.style.width = "0%";
+    elements.parseProgressText.textContent = "已停止解析";
+    elements.toggleTextBtn.disabled = true;
+    elements.toggleTextBtn.textContent = "查看原始文本";
+    elements.copyTextBtn.disabled = true;
+    if (elements.aiAnalyzeBtn) elements.aiAnalyzeBtn.disabled = true;
+    if (elements.clearParserBtn) elements.clearParserBtn.disabled = false;
+    ui.showToast("已停止解析。");
+    return true;
   }
 
   async function copyParsedText() {
@@ -191,5 +220,5 @@ export function createPdfParser({ elements, ui }) {
     ui.showToast("全文已复制。");
   }
 
-  return { parsePdf, copyParsedText, setParseProgress };
+  return { parsePdf, copyParsedText, setParseProgress, cancelParse, isParsing: () => parsing };
 }

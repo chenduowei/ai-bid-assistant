@@ -1,7 +1,8 @@
 {
-  "background_color": "#FFFFFF",
+  "background_color": "#F2F2F7",
   "description": "工程建设行业智能投标工作台 · AI Bid Assistant",
   "display": "standalone",
+  "id": "/",
   "icons": [
     {
       "sizes": "192x192",

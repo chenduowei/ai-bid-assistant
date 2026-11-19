@@ -56,6 +56,33 @@ export function icsDateTimeUtc(dateStr, utcHour) {
   return formatUtcDateTime(d);
 }
 
+// v0.35.0：有时刻的开标 —— 本地时间（浮动时间，跟日历所在时区，中国不用改）。
+// "2026-11-19" + "09:30" (+60 分钟) → "20261119T103000"；非法返回 ""。
+export function icsLocalDateTime(dateStr, time, addMinutes = 0) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(time || "").trim());
+  if (!m) return "";
+  const hour = Number(m[1]);
+  const minute = Number(m[2]);
+  if (!Number.isFinite(hour) || hour > 23 || minute > 59) return "";
+  const base = parseIcsDate(dateStr);
+  if (!base) return "";
+  // 用 UTC 字段做纯算术（不涉及时区），再把结果拼回本地时间格式。
+  const total = hour * 60 + minute + addMinutes;
+  const dayShift = Math.floor(total / 1440);
+  const mins = ((total % 1440) + 1440) % 1440;
+  base.setUTCDate(base.getUTCDate() + dayShift);
+  const ymd = base.toISOString().slice(0, 10).replace(/-/g, "");
+  const hh = String(Math.floor(mins / 60)).padStart(2, "0");
+  const mm = String(mins % 60).padStart(2, "0");
+  return `${ymd}T${hh}${mm}00`;
+}
+
+/** 开标行的时刻（兼容 bid_time 的 "09:30:00"）；无效返回 ""。 */
+export function icsBidTime(row) {
+  const t = /^(\d{1,2}):(\d{2})/.exec(String(row?.bid_time || "").trim());
+  return t ? `${String(Number(t[1])).padStart(2, "0")}:${t[2]}` : "";
+}
+
 export function formatUtcDateTime(date) {
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return "";
@@ -96,6 +123,9 @@ export function buildCalendarIcs(projects, now = new Date()) {
   ];
   for (const p of projects || []) {
     if (!p?.bid_date || !p?.name) continue;
+    const time = icsBidTime(p);
+    const timedStart = time ? icsLocalDateTime(p.bid_date, time) : "";
+    const timedEnd = time ? icsLocalDateTime(p.bid_date, time, 60) : "";
     const start = icsDateValue(p.bid_date);
     const end = icsDateValue(addDaysIcs(p.bid_date, 1));
     // 前一天 9:00（北京时间）= 前一天 01:00 UTC；当天 8:00 = 当天 00:00 UTC。
@@ -103,6 +133,7 @@ export function buildCalendarIcs(projects, now = new Date()) {
     const alarmDay = icsDateTimeUtc(p.bid_date, 0);
     if (!start || !end || !alarmBefore || !alarmDay) continue;
     const descLines = [];
+    if (time) descLines.push(`开标时刻：${time}`);
     if (p.project_type) descLines.push(`项目类型：${p.project_type}`);
     if (p.bidding_company) descLines.push(`投标公司：${p.bidding_company}`);
     if (p.tenderer) descLines.push(`招标单位：${p.tenderer}`);
@@ -112,9 +143,17 @@ export function buildCalendarIcs(projects, now = new Date()) {
       "BEGIN:VEVENT",
       `UID:${p.id}@bid-assistant`,
       `DTSTAMP:${dtstamp}`,
-      `DTSTART;VALUE=DATE:${start}`,
-      `DTEND;VALUE=DATE:${end}`,
-      `SUMMARY:${escapeIcsText(`开标：${p.name}`)}`
+      // v0.35.0：填了开标时刻就用带时间的 DTSTART/DTEND（浮动本地时间），
+      // 否则仍是全天事件。
+      timedStart && timedEnd
+        ? `DTSTART:${timedStart}`
+        : `DTSTART;VALUE=DATE:${start}`,
+      timedStart && timedEnd
+        ? `DTEND:${timedEnd}`
+        : `DTEND;VALUE=DATE:${end}`,
+      `SUMMARY:${escapeIcsText(
+        time ? `开标 ${time}：${p.name}` : `开标：${p.name}`
+      )}`
     );
     if (descLines.length)
       lines.push(`DESCRIPTION:${escapeIcsText(descLines.join("\n"))}`);
