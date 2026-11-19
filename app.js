@@ -5,11 +5,12 @@
  * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
  * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, FORM_DRAFT_KEY, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
 import { createDataIo } from "./js/data-io.js";
+import { createDrawers } from "./js/drawers.js";
 
 (() => {
   const config = window.SUPABASE_CONFIG || {};
@@ -29,6 +30,12 @@ import { createDataIo } from "./js/data-io.js";
     authMessage: document.getElementById("authMessage"),
     authTabs: document.querySelectorAll(".auth-tab"),
     authTabsWrap: document.getElementById("authTabs"),
+    authTitle: document.getElementById("authTitle"),
+    authIntro: document.getElementById("authIntro"),
+    authLinksWrap: document.getElementById("authLinks"),
+    authConfirmField: document.getElementById("authConfirmField"),
+    authConfirmPassword: document.getElementById("authConfirmPassword"),
+    authRetryBtn: document.getElementById("authRetryBtn"),
     togglePasswordBtn: document.getElementById("togglePasswordBtn"),
     forgotPasswordBtn: document.getElementById("forgotPasswordBtn"),
     resendVerificationBtn: document.getElementById("resendVerificationBtn"),
@@ -82,6 +89,11 @@ import { createDataIo } from "./js/data-io.js";
     aiBaseUrl: document.getElementById("aiBaseUrl"),
     aiModel: document.getElementById("aiModel"),
     reminderDays: document.getElementById("reminderDays"),
+    notifStatus: document.getElementById("notifStatus"),
+    notifBtn: document.getElementById("notifBtn"),
+    backupIncludePdfText: document.getElementById("backupIncludePdfText"),
+    fabAdd: document.getElementById("fabAdd"),
+    projectForm: document.getElementById("projectForm"),
     aiSaveSettings: document.getElementById("aiSaveSettings"),
     submitBtn: document.getElementById("submitBtn"),
     cancelBtn: document.getElementById("cancelBtn"),
@@ -89,6 +101,9 @@ import { createDataIo } from "./js/data-io.js";
     filterResultCount: document.getElementById("filterResultCount"),
     statusFilter: document.getElementById("statusFilter"),
     sortBy: document.getElementById("sortBy"),
+    resultFilter: document.getElementById("resultFilter"),
+    winRate: document.getElementById("winRate"),
+    guaranteeTotals: document.getElementById("guaranteeTotals"),
     headerSubtitle: document.getElementById("headerSubtitle"),
     selectModeBtn: document.getElementById("selectModeBtn"),
     collapseAllBtn: document.getElementById("collapseAllBtn"),
@@ -150,6 +165,8 @@ import { createDataIo } from "./js/data-io.js";
     confirmDialogTyping: document.getElementById("confirmDialogTyping"),
     confirmDialogPhrase: document.getElementById("confirmDialogPhrase"),
     confirmDialogInput: document.getElementById("confirmDialogInput"),
+    confirmDialogAlt: document.getElementById("confirmDialogAlt"),
+    confirmDialogActions: document.getElementById("confirmDialogActions"),
     formBody: document.getElementById("formBody"),
     formSubtitle: document.getElementById("formSubtitle"),
     upcomingList: document.getElementById("upcomingList"),
@@ -170,6 +187,8 @@ import { createDataIo } from "./js/data-io.js";
     addProjectBtn: document.getElementById("addProjectBtn"),
     form: {
       date: document.getElementById("date"),
+      bidTime: document.getElementById("bidTime"),
+      result: document.getElementById("result"),
       type: document.getElementById("projectType"),
       name: document.getElementById("name"),
       biddingCompany: document.getElementById("biddingCompany"),
@@ -200,10 +219,10 @@ import { createDataIo } from "./js/data-io.js";
   let parseTargetId = null;
   let parserSheetOpen = false;
   let parserOpener = null;
+  // v0.35.0：区分“AI 分析中”与“PDF 解析中”，共用一个取消按钮。
+  let analysisRunning = false;
   /** 错过提醒每个会话只提示一次，避免 Realtime 刷新时反复刷屏 */
   let missedReminderShown = false;
-  let trashSheetOpen = false;
-  let guaranteeSheetOpen = false;
   /** 密码重置流程中：为 true 时 showApp 不切回工作台，停留在重置面板 */
   let passwordRecoveryActive = false;
   /** v0.4.0：搜索防抖 200ms（筛选/排序仍立即渲染） */
@@ -376,6 +395,7 @@ import { createDataIo } from "./js/data-io.js";
 
   const ui = createUi(elements, getState);
   const projectsApi = createProjectsApi({ getClient, getState, setState, ui });
+  const drawers = createDrawers({ elements, getState, setState, ui, projectsApi });
 
   // v0.11.0：解析模块懒加载——首次需要时才 import，之后复用同一实例。
   // AI 配置本身存在 localStorage，分析时直接读存储；表单回填只在打开设置时做，
@@ -426,6 +446,29 @@ import { createDataIo } from "./js/data-io.js";
     return sheetJsLoading;
   };
 
+  // v0.35.0：Supabase SDK 改为仓库内 vendor 文件（首屏不再挂境外 CDN，国内网络也不至于白屏）；
+  // vendor 文件没加载成功时才回退 jsdelivr 一次，两个都失败才是“依赖加载失败”。
+  const SUPABASE_CDN =
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.3/dist/umd/supabase.min.js";
+  const SUPABASE_SRI =
+    "sha384-dl/4LkSyQ4uEucc48NM6VDZLAjLLq9yMzZ5JLXumBq7Ld33XBof73hseOqPhO89+";
+  let supabaseCdnLoading = null;
+  const ensureSupabase = async () => {
+    if (window.supabase) return true;
+    if (!supabaseCdnLoading) {
+      supabaseCdnLoading = new Promise((resolve) => {
+        const script = document.createElement("script");
+        script.src = SUPABASE_CDN;
+        script.integrity = SUPABASE_SRI;
+        script.crossOrigin = "anonymous";
+        script.onload = () => resolve(Boolean(window.supabase));
+        script.onerror = () => resolve(false);
+        document.head.appendChild(script);
+      });
+    }
+    return supabaseCdnLoading;
+  };
+
   // v0.12.0：数据进出模块实例（绑定在 bindEvents 内调用 dataIo.bindDataIo()）
   const dataIo = createDataIo({
     elements,
@@ -436,6 +479,9 @@ import { createDataIo } from "./js/data-io.js";
   });
 
   const resetForm = () => {
+    // v0.35.0：草稿按编辑对象存 —— 先记下当前编辑对象，清的是它那一份，
+    // 而不是把 editingId 置空后误清“新建”草稿。
+    const draftId = state.editingId;
     Object.values(elements.form).forEach((input) => {
       if (input) input.value = "";
     });
@@ -446,6 +492,9 @@ import { createDataIo } from "./js/data-io.js";
       elements.form.guaranteeUnit.value = "万元";
     if (elements.form.guaranteeStatus)
       elements.form.guaranteeStatus.value = "未缴纳";
+    if (elements.form.result) elements.form.result.value = "";
+    if (elements.form.bidTime) elements.form.bidTime.value = "";
+    clearFieldErrors();
     state.editingId = null;
     lastAiResult = null;
     parserAttachOnSave = false;
@@ -456,7 +505,7 @@ import { createDataIo } from "./js/data-io.js";
       elements.formSubtitle.textContent =
         "必填：开标时间、项目类型、项目名称、投标公司、联系人；其余选填。";
     setFormExpanded(false); // v0.4.3：保存成功 / 取消后自动收起表单
-    clearFormDraft(); // v0.29.0：保存成功 / 取消后草稿作废
+    clearFormDraft(draftId); // v0.29.0：保存成功 / 取消后草稿作废
   };
 
   /** 表单数值解析：空字符串 / 非数字 / 负数 → null */
@@ -470,6 +519,8 @@ import { createDataIo } from "./js/data-io.js";
   const formData = () => {
     const base = {
       bid_date: elements.form.date.value,
+      // v0.35.0：精确开标时刻（选填，time 输入给 HH:MM）
+      bid_time: elements.form.bidTime?.value || null,
       project_type: elements.form.type.value.trim(),
       name: elements.form.name.value.trim(),
       bidding_company: elements.form.biddingCompany.value.trim(),
@@ -488,6 +539,8 @@ import { createDataIo } from "./js/data-io.js";
       guarantee_deadline: elements.form.guaranteeDeadline?.value || null,
       contact: elements.form.contact.value.trim(),
       status: elements.form.status.value || "报名中",
+      // v0.35.0：中标结果（选填，独立于状态，避免把状态机改复杂）
+      result: elements.form.result?.value || null,
       notes: elements.form.notes.value.trim() || null,
     };
     if (lastAiResult) {
@@ -508,43 +561,34 @@ import { createDataIo } from "./js/data-io.js";
 
   // v0.29.0：表单草稿保护 —— 输入防抖存草稿（localStorage），页面刷新 /
   // 会话过期后打开表单可恢复；保存成功 / 取消后清除。草稿只留一份、7 天有效。
-  const loadFormDraft = () => {
-    try {
-      const raw = localStorage.getItem(FORM_DRAFT_KEY);
-      if (!raw) return null;
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
-  };
+  // v0.35.0：改成按编辑对象存一份（Map）—— 新建是 "new"，编辑某项目是 id:xxx；
+  // 跨项目切换时各自的输入不再互相覆盖，回到原项目还能恢复。
+  const loadDrafts = () => pruneFormDrafts(readFormDrafts(localStorage));
   const saveFormDraft = () => {
-    try {
-      const fields = formData();
-      if (isFormDataEmpty(fields) && !lastAiResult) {
-        localStorage.removeItem(FORM_DRAFT_KEY);
-        return;
-      }
-      localStorage.setItem(
-        FORM_DRAFT_KEY,
-        JSON.stringify({
-          v: 1,
-          editingId: state.editingId ?? null,
-          savedAt: Date.now(),
-          fields,
-          aiResult: lastAiResult ?? null,
-        })
-      );
-    } catch {
-      // 隐私模式等写失败不影响填表
+    const drafts = loadDrafts();
+    const key = formDraftKey(state.editingId);
+    const fields = formData();
+    if (isFormDataEmpty(fields) && !lastAiResult) {
+      delete drafts[key];
+      writeFormDrafts(localStorage, drafts);
+      return;
     }
+    drafts[key] = {
+      v: 1,
+      editingId: state.editingId ?? null,
+      savedAt: Date.now(),
+      fields,
+      aiResult: lastAiResult ?? null,
+    };
+    writeFormDrafts(localStorage, drafts);
   };
-  const clearFormDraft = () => {
-    try {
-      localStorage.removeItem(FORM_DRAFT_KEY);
-    } catch {
-      // ignore
-    }
+  const clearFormDraft = (editingId = state.editingId) => {
+    const drafts = loadDrafts();
+    delete drafts[formDraftKey(editingId)];
+    writeFormDrafts(localStorage, drafts);
   };
+  const loadFormDraft = (editingId = state.editingId) =>
+    pickFormDraft(loadDrafts(), editingId);
   const debouncedSaveFormDraft = debounce(saveFormDraft, 500);
   const applyFormDraft = (draft) => {
     const f = draft.fields || {};
@@ -552,6 +596,7 @@ import { createDataIo } from "./js/data-io.js";
       if (elements.form[key]) elements.form[key].value = value ?? "";
     };
     set("date", f.bid_date);
+    set("bidTime", f.bid_time || "");
     set("type", f.project_type);
     set("name", f.name);
     set("biddingCompany", f.bidding_company);
@@ -568,6 +613,7 @@ import { createDataIo } from "./js/data-io.js";
     set("guaranteeDeadline", f.guarantee_deadline);
     set("contact", f.contact);
     set("status", f.status || "报名中");
+    set("result", f.result || "");
     set("notes", f.notes);
     lastAiResult = draft.aiResult ?? null;
     state.editingId = draft.editingId ?? null;
@@ -594,11 +640,11 @@ import { createDataIo } from "./js/data-io.js";
     revealForm();
   };
   const maybeOfferFormDraft = async () => {
-    const draft = loadFormDraft();
+    const draft = loadFormDraft(state.editingId);
     if (!draft) return;
     if (!isFormDraftUsable(draft, state.editingId)) {
-      // 只是 editingId 对不上时留着，等它自己的上下文再问；坏了 / 过期了才清。
-      if (isFormDraftStale(draft)) clearFormDraft();
+      // 结构完整但 editingId 对不上（旧版单份草稿拖过来的）时留着；坏了 / 过期了才清。
+      if (isFormDraftStale(draft)) clearFormDraft(draft.editingId ?? null);
       return;
     }
     const when = new Date(draft.savedAt).toLocaleString("zh-CN", {
@@ -617,8 +663,85 @@ import { createDataIo } from "./js/data-io.js";
       applyFormDraft(draft);
       ui.showToast("草稿已恢复。");
     } else {
-      clearFormDraft();
+      clearFormDraft(state.editingId);
     }
+  };
+
+  // v0.35.0：必填校验从“一句总话”改成“指出是哪几项”——给第一个缺失字段加红边 + 下方一行小字，
+  // 并把焦点 / 滚动送过去；toast 只说还差几项。与 projectsApi.validate 共用同一张字段表。
+  const REQUIRED_FORM_FIELDS = [
+    { db: "bid_date", key: "date", label: "开标日期" },
+    { db: "project_type", key: "type", label: "项目类型" },
+    { db: "name", key: "name", label: "项目名称" },
+    { db: "bidding_company", key: "biddingCompany", label: "投标公司" },
+    { db: "contact", key: "contact", label: "联系人" },
+  ];
+  const clearFieldErrors = () => {
+    REQUIRED_FORM_FIELDS.forEach(({ key }) => {
+      const input = elements.form[key];
+      input?.closest(".field")?.classList.remove("invalid");
+      input?.removeAttribute("aria-invalid");
+      const err = document.getElementById(`err-${key}`);
+      if (err) err.classList.add("hidden");
+    });
+  };
+  const showFieldErrors = (missingDbFields = []) => {
+    clearFieldErrors();
+    let firstInput = null;
+    for (const { db, key } of REQUIRED_FORM_FIELDS) {
+      if (!missingDbFields.includes(db)) continue;
+      const input = elements.form[key];
+      if (!input) continue;
+      input.closest(".field")?.classList.add("invalid");
+      input.setAttribute("aria-invalid", "true");
+      const err = document.getElementById(`err-${key}`);
+      if (err) err.classList.remove("hidden");
+      if (!firstInput) firstInput = input;
+    }
+    if (firstInput) {
+      setFormExpanded(true);
+      firstInput.focus({ preventScroll: true });
+      firstInput.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  };
+
+  /** v0.35.0：表单提交抽成函数 —— 按钮、回车（form submit）与“切换编辑对象前先保存”共用一条路径。 */
+  const submitForm = async () => {
+    const data = formData();
+    const check = projectsApi.validate(data);
+    if (!check.ok) {
+      showFieldErrors(check.missingFields);
+      ui.showToast(`还有 ${check.missing.length} 项必填：${check.missing.join("、")}`);
+      return false;
+    }
+    clearFieldErrors();
+    const btn = elements.submitBtn;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "保存中…";
+    const savedId = await projectsApi.saveProject(data, state.editingId);
+    btn.disabled = false;
+    if (!savedId) {
+      btn.textContent = originalText;
+      return false;
+    }
+    // v0.20.0：回填过的解析原文随这次保存一并存上 —— 表单是唯一的保存口，
+    if (parserAttachOnSave) {
+      const text = elements.parsedText?.value || "";
+      parserAttachOnSave = false;
+      if (text.trim()) {
+        const saved = state.projects.find((p) => p.id === savedId);
+        const ok = await projectsApi.updateProjectFields(savedId, {
+          pdfText: text,
+          pdfFilename: getCurrentPdfFilename(saved?.pdfFilename),
+          pdfParsedAt: new Date().toISOString(),
+        });
+        if (!ok) ui.showToast("项目已保存，但解析原文没存上，请稍后再试。");
+      }
+    }
+    resetForm();
+    ui.focusProjectInList(savedId);
+    return true;
   };
 
   async function requestNotificationPermission() {
@@ -626,9 +749,31 @@ import { createDataIo } from "./js/data-io.js";
       return;
     try {
       const permission = await Notification.requestPermission();
+      updateNotificationRow();
       if (permission === "granted") ui.showToast("已开启开标提醒通知。");
     } catch {
       ui.showToast("当前浏览器不支持通知。");
+    }
+  }
+
+  /** v0.35.0：设置里的一行通知状态 —— 第一次登录拒绝后就再没有入口，也看不到当前状态。 */
+  function updateNotificationRow() {
+    if (!elements.notifStatus) return;
+    const supported = "Notification" in window;
+    const permission = supported ? Notification.permission : "unsupported";
+    const text =
+      permission === "granted"
+        ? "已开启"
+        : permission === "denied"
+          ? "已被浏览器阻止"
+          : permission === "unsupported"
+            ? "当前浏览器不支持"
+            : "未开启";
+    elements.notifStatus.textContent = text;
+    if (elements.notifBtn) {
+      elements.notifBtn.textContent =
+        permission === "granted" ? "已开启" : permission === "denied" ? "去浏览器设置" : "开启通知";
+      elements.notifBtn.disabled = permission === "granted" || permission === "unsupported";
     }
   }
 
@@ -653,7 +798,7 @@ import { createDataIo } from "./js/data-io.js";
         const notificationKey = `bid-reminder:${urlHint}:${state.user.id}:${project.id}:${item.key}:${item.date}:${stage}`;
         if (localStorage.getItem(notificationKey)) continue;
         new Notification(`截止提醒：${project.name}`, {
-          body: `${item.label}：${item.date}${item.days === 0 ? "（今日）" : "（明日）"}`,
+          body: `${item.label}：${item.date}${item.time ? ` ${item.time}` : ""}${item.days === 0 ? "（今日）" : "（明日）"}`,
           tag: `bid-${project.id}-${item.key}-${stage}`,
         });
         localStorage.setItem(notificationKey, "true");
@@ -669,15 +814,6 @@ import { createDataIo } from "./js/data-io.js";
     const names = missed.slice(0, 3).map((p) => `「${p.name}」`).join("、");
     const more = missed.length > 3 ? `等共 ${missed.length} 个` : "";
     ui.showToast(`${names}${more}已过开标时间，状态仍不是“已开标”，请核对（仅页面打开时提醒）。`);
-  }
-
-  async function refreshTrashList() {
-    if (!trashSheetOpen) return;
-    const deleted = await projectsApi.loadDeletedProjects();
-    ui.renderTrashList(deleted);
-    // v0.22.0：回收站为空时禁用清空按钮，避免对着空抽屉点确认框。
-    if (elements.emptyTrashBtn)
-      elements.emptyTrashBtn.disabled = !deleted?.length;
   }
 
   /** 当前解析区对应的 PDF 文件名（从文件名栏解析，取不到则用默认名）
@@ -794,9 +930,11 @@ import { createDataIo } from "./js/data-io.js";
 
   // v0.11.0：底部 Tab 高亮（模块级，供 showParser/showDashboard/setViewMode 共用）
   function setActiveTab(name) {
-    document.querySelectorAll(".bottom-tab").forEach((b) =>
-      b.classList.toggle("active", b.dataset.tab === name)
-    );
+    document.querySelectorAll(".bottom-tab").forEach((b) => {
+      const on = b.dataset.tab === name;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    });
   }
 
   // v0.18.0：解析改抽屉 —— showParser 打开抽屉（可绑定项目），showDashboard
@@ -899,25 +1037,43 @@ import { createDataIo } from "./js/data-io.js";
   };
 
   function bindEvents() {
+    // v0.35.0：四个抽屉（保证金 / 资质 / 日历订阅 / 回收站）的事件与开关在 js/drawers.js
+    drawers.bindDrawers();
+    // v0.35.0：登录 / 注册两种模式的 UI 差异收到一处 —— 注册时隐藏与注册无关的
+    // “忘记密码 / 重发验证邮件”，首段换成注册文案，并显示“确认密码”；
+    // 同时给 tab 补 aria-pressed（之前选中态只写在 class 里，读屏读不出来）。
+    const applyAuthMode = (mode) => {
+      state.authMode = mode;
+      const signup = mode === "signup";
+      elements.authTabs.forEach((item) => {
+        const on = item.dataset.mode === mode;
+        item.classList.toggle("active", on);
+        item.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      elements.authTabsWrap?.classList.toggle("mode-signup", signup);
+      elements.authSubmit.textContent = signup ? "注册账号" : "登录";
+      elements.authPassword.autocomplete = signup ? "new-password" : "current-password";
+      if (elements.authIntro)
+        elements.authIntro.textContent = signup
+          ? "注册后项目存到云端，手机和电脑自动同步。"
+          : "登录后项目保存到云端，多设备自动同步。";
+      if (elements.authTitle) elements.authTitle.textContent = signup ? "注册新账号" : "登录";
+      elements.authLinksWrap?.classList.toggle("hidden", signup);
+      elements.authConfirmField?.classList.toggle("hidden", !signup);
+      if (elements.authConfirmPassword) {
+        elements.authConfirmPassword.required = signup;
+        if (!signup) elements.authConfirmPassword.value = "";
+      }
+      elements.authMessage.textContent = "";
+      elements.authMessage.style.color = "var(--danger)";
+    };
     elements.authTabs.forEach((tab) =>
-      tab.addEventListener("click", () => {
-        state.authMode = tab.dataset.mode;
-        elements.authTabs.forEach((item) =>
-          item.classList.toggle("active", item === tab)
-        );
-        // v0.9.0：滑块跟随当前 tab（CSS transform 弹簧滑动）
-        elements.authTabsWrap?.classList.toggle(
-          "mode-signup",
-          state.authMode === "signup"
-        );
-        elements.authSubmit.textContent =
-          state.authMode === "signup" ? "注册账号" : "登录";
-        elements.authPassword.autocomplete =
-          state.authMode === "signup" ? "new-password" : "current-password";
-        elements.authMessage.textContent = "";
-        elements.authMessage.style.color = "var(--danger)";
-      })
+      tab.addEventListener("click", () => applyAuthMode(tab.dataset.mode))
     );
+    applyAuthMode(state.authMode);
+
+    // v0.35.0：依赖加载失败时显示的重试按钮
+    elements.authRetryBtn?.addEventListener("click", () => location.reload());
 
     // v0.9.0：密码可见性切换（不改密码值，只改输入框类型）
     elements.togglePasswordBtn?.addEventListener("click", () => {
@@ -937,6 +1093,16 @@ import { createDataIo } from "./js/data-io.js";
     elements.authForm.addEventListener("submit", async (event) => {
       elements.authMessage.textContent = "";
       elements.authMessage.style.color = "var(--danger)";
+      // v0.35.0：注册要输两遍密码 —— 打错一个字就要走一整轮找回流程。
+      if (
+        state.authMode === "signup" &&
+        elements.authConfirmPassword &&
+        elements.authConfirmPassword.value !== elements.authPassword.value
+      ) {
+        elements.authMessage.textContent = "两次输入的密码不一致。";
+        elements.authConfirmPassword.focus();
+        return;
+      }
       elements.authSubmit.disabled = true;
       const result = await auth.handleAuth(
         event,
@@ -978,9 +1144,16 @@ import { createDataIo } from "./js/data-io.js";
     const setViewMode = (mode) => {
       if (mode !== "list" && mode !== "calendar") return;
       state.viewMode = mode;
-      document.querySelectorAll(".view-btn").forEach((b) =>
-        b.classList.toggle("active", b.dataset.view === mode)
-      );
+      document.querySelectorAll(".view-btn").forEach((b) => {
+        const on = b.dataset.view === mode;
+        b.classList.toggle("active", on);
+        b.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      // v0.35.0：“选择 / 全部折叠”在日历视图里没有可作用的对象，收起这两个入口，
+      // 不让它们看起来能点却什么都不变（搜索已改成日历也生效）。
+      document
+        .querySelector(".list-tools")
+        ?.classList.toggle("calendar-mode", mode === "calendar");
       // v0.11.0：视图切换同步底部 Tab 高亮（桌面端无此元素，调用无害）
       setActiveTab(mode === "calendar" ? "calendar" : "projects");
       elements.calendarView?.classList.toggle("hidden", mode !== "calendar");
@@ -1038,208 +1211,6 @@ import { createDataIo } from "./js/data-io.js";
       }
     });
 
-    // v0.14.0：保证金清单抽屉 —— 菜单入口 / 统计卡片打开，关闭按钮 / 遮罩 / Esc 关闭；
-    // 列表与计数沿用 ui.renderGuaranteeList（#guaranteeList 随抽屉搬家，渲染逻辑不动）
-    const openGuaranteeSheet = () => {
-      guaranteeSheetOpen = true;
-      elements.guaranteeSheet?.classList.remove("hidden");
-      document.body.classList.add("sheet-open");
-      ui.trapFocusIn(elements.guaranteeSheet);
-      elements.guaranteeSheetClose?.focus();
-    };
-    const closeGuaranteeSheet = () => {
-      guaranteeSheetOpen = false;
-      ui.releaseFocusTrap(elements.guaranteeSheet);
-      elements.guaranteeSheet?.classList.add("hidden");
-      document.body.classList.remove("sheet-open");
-      elements.guaranteeMenuBtn?.focus();
-    };
-    elements.guaranteeMenuBtn?.addEventListener("click", openGuaranteeSheet);
-    elements.guaranteeSheetClose?.addEventListener("click", closeGuaranteeSheet);
-    elements.guaranteeSheet?.addEventListener("click", (event) => {
-      if (event.target.closest("[data-action='close-guarantee']")) closeGuaranteeSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && guaranteeSheetOpen) closeGuaranteeSheet();
-    });
-    elements.guaranteeStatCard?.addEventListener("click", openGuaranteeSheet);
-
-    // v0.29.0：我的资质抽屉 —— 菜单入口打开，关闭按钮 / 遮罩 / Esc 关闭；
-    // 列表由 ui.renderQualList 渲染（按类别分组，过期与 90 天内到期标出）。
-    let qualSheetOpen = false;
-    let editingQualId = null;
-    const clearQualForm = () => {
-      editingQualId = null;
-      if (elements.qualCategory) elements.qualCategory.value = "施工资质";
-      if (elements.qualName) elements.qualName.value = "";
-      if (elements.qualDetails) elements.qualDetails.value = "";
-      if (elements.qualExpires) elements.qualExpires.value = "";
-      if (elements.qualSaveBtn) elements.qualSaveBtn.textContent = "保存资质";
-      elements.qualCancelEditBtn?.classList.add("hidden");
-    };
-    const openQualSheet = () => {
-      qualSheetOpen = true;
-      ui.renderQualList(state.qualifications);
-      elements.qualSheet?.classList.remove("hidden");
-      document.body.classList.add("sheet-open");
-      ui.trapFocusIn(elements.qualSheet);
-      elements.qualSheetClose?.focus();
-    };
-    const closeQualSheet = () => {
-      qualSheetOpen = false;
-      ui.releaseFocusTrap(elements.qualSheet);
-      elements.qualSheet?.classList.add("hidden");
-      document.body.classList.remove("sheet-open");
-      clearQualForm();
-      elements.qualMenuBtn?.focus();
-    };
-    elements.qualMenuBtn?.addEventListener("click", openQualSheet);
-    elements.qualSheetClose?.addEventListener("click", closeQualSheet);
-    elements.qualSheet?.addEventListener("click", (event) => {
-      if (event.target.closest("[data-action='close-qual']")) closeQualSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && qualSheetOpen) closeQualSheet();
-    });
-    elements.qualSaveBtn?.addEventListener("click", async () => {
-      const btn = elements.qualSaveBtn;
-      btn.disabled = true;
-      const ok = await projectsApi.saveQualification(
-        {
-          category: elements.qualCategory?.value,
-          name: elements.qualName?.value,
-          details: elements.qualDetails?.value,
-          expires_at: elements.qualExpires?.value,
-        },
-        editingQualId
-      );
-      btn.disabled = false;
-      if (ok) {
-        clearQualForm();
-        ui.renderQualList(state.qualifications);
-      }
-    });
-    elements.qualCancelEditBtn?.addEventListener("click", clearQualForm);
-
-    // v0.33.0：日历订阅抽屉 —— 生成带令牌的 .ics 订阅链接；复制、重新生成、停用。
-    // 令牌存在 calendar_tokens 表（supabase.sql 第 10 节）；表未建时读不到链接，抽屉里提示执行第 10 节。
-    let calendarSheetOpen = false;
-    let calendarToken = null;
-    const calendarUrl = (token) =>
-      `${window.location.origin}/api/calendar?token=${token}`;
-    const renderCalendarSheet = () => {
-      const hasToken = Boolean(calendarToken);
-      elements.calendarEmpty?.classList.toggle("hidden", hasToken);
-      elements.calendarActive?.classList.toggle("hidden", !hasToken);
-      // 表未建时提示执行第 10 节（否则点生成没反应，用户不知道为什么）。
-      elements.calendarSetupHint?.classList.toggle(
-        "hidden",
-        hasToken || !projectsApi.isCalendarTableMissing()
-      );
-      if (hasToken && elements.calendarUrlInput)
-        elements.calendarUrlInput.value = calendarUrl(calendarToken);
-    };
-    const openCalendarSheet = async () => {
-      calendarSheetOpen = true;
-      calendarToken = await projectsApi.getCalendarToken();
-      renderCalendarSheet();
-      elements.calendarSheet?.classList.remove("hidden");
-      document.body.classList.add("sheet-open");
-      ui.trapFocusIn(elements.calendarSheet);
-      elements.calendarSheetClose?.focus();
-    };
-    const closeCalendarSheet = () => {
-      calendarSheetOpen = false;
-      ui.releaseFocusTrap(elements.calendarSheet);
-      elements.calendarSheet?.classList.add("hidden");
-      document.body.classList.remove("sheet-open");
-      elements.calendarMenuBtn?.focus();
-    };
-    elements.calendarMenuBtn?.addEventListener("click", openCalendarSheet);
-    elements.calendarSheetClose?.addEventListener("click", closeCalendarSheet);
-    elements.calendarSheet?.addEventListener("click", (event) => {
-      if (event.target.closest("[data-action='close-calendar']"))
-        closeCalendarSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && calendarSheetOpen) closeCalendarSheet();
-    });
-    elements.calendarGenerateBtn?.addEventListener("click", async () => {
-      const btn = elements.calendarGenerateBtn;
-      btn.disabled = true;
-      const token = await projectsApi.createCalendarToken();
-      btn.disabled = false;
-      if (!token) return;
-      calendarToken = token;
-      renderCalendarSheet();
-      ui.showToast("订阅链接已生成，复制到日历 App 即可订阅。");
-    });
-    elements.calendarCopyBtn?.addEventListener("click", async () => {
-      const url = elements.calendarUrlInput?.value || "";
-      if (!url) return;
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        elements.calendarUrlInput?.select();
-        document.execCommand("copy");
-      }
-      ui.showToast("订阅链接已复制。");
-    });
-    elements.calendarRegenBtn?.addEventListener("click", async () => {
-      const ok = await ui.confirmDialog({
-        title: "重新生成订阅链接",
-        message: "旧链接会立即失效，日历 App 里需要重新粘贴新链接。确定重新生成吗？",
-        confirmText: "重新生成",
-        cancelText: "取消",
-      });
-      if (!ok) return;
-      const revoked = await projectsApi.revokeCalendarTokens();
-      if (!revoked) return;
-      const token = await projectsApi.createCalendarToken();
-      if (!token) return;
-      calendarToken = token;
-      renderCalendarSheet();
-      ui.showToast("已生成新订阅链接，旧链接已失效。");
-    });
-    elements.calendarRevokeBtn?.addEventListener("click", async () => {
-      const ok = await ui.confirmDialog({
-        title: "停用订阅",
-        message: "停用后日历 App 将不再同步新的开标日程，已同步的日程不受影响。确定停用吗？",
-        confirmText: "停用订阅",
-        cancelText: "取消",
-        danger: true,
-      });
-      if (!ok) return;
-      const revoked = await projectsApi.revokeCalendarTokens();
-      if (!revoked) return;
-      calendarToken = null;
-      renderCalendarSheet();
-      ui.showToast("订阅已停用。");
-    });
-    elements.qualList?.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-      const id = button.dataset.id;
-      if (button.dataset.action === "qual-edit") {
-        const q = state.qualifications.find((item) => item.id === id);
-        if (!q) return;
-        editingQualId = q.id;
-        if (elements.qualCategory) elements.qualCategory.value = q.category;
-        if (elements.qualName) elements.qualName.value = q.name;
-        if (elements.qualDetails) elements.qualDetails.value = q.details || "";
-        if (elements.qualExpires) elements.qualExpires.value = q.expires_at || "";
-        if (elements.qualSaveBtn) elements.qualSaveBtn.textContent = "保存修改";
-        elements.qualCancelEditBtn?.classList.remove("hidden");
-        elements.qualName?.focus();
-      }
-      if (button.dataset.action === "qual-delete") {
-        const ok = await projectsApi.deleteQualification(id);
-        if (ok) {
-          if (editingQualId === id) clearQualForm();
-          ui.renderQualList(state.qualifications);
-        }
-      }
-    });
     // v0.34.0：统计卡片已是原生 <button>，Enter / 空格由浏览器直接派发 click，
     // 原先给 div[role=button] 手写的 keydown 已删（留着会重复开一层）。
 
@@ -1289,35 +1260,10 @@ import { createDataIo } from "./js/data-io.js";
     });
 
     // v0.4.0：CSV 导入（只做 CSV）+ 下载导入模板
-    elements.submitBtn?.addEventListener("click", async () => {
-      const btn = elements.submitBtn;
-      const originalText = btn.textContent;
-      btn.disabled = true;
-      btn.textContent = "保存中…";
-      const savedId = await projectsApi.saveProject(formData(), state.editingId);
-      btn.disabled = false;
-      // 成功时 resetForm() 会把按钮文案设回“新增项目”；失败才恢复原文字
-      // v0.16.0：保存成功后定位到该项目卡片并展开，不再只停在表单页。
-      if (savedId) {
-        // v0.20.0：回填过的解析原文随这次保存一并存上 —— 表单是唯一的保存口，
-        // "保存到项目"按钮删了，原文只能从这里进库；只在回填后的一次提交里带。
-        if (parserAttachOnSave) {
-          const text = elements.parsedText?.value || "";
-          parserAttachOnSave = false;
-          if (text.trim()) {
-            const saved = state.projects.find((p) => p.id === savedId);
-            const ok = await projectsApi.updateProjectFields(savedId, {
-              pdfText: text,
-              pdfFilename: getCurrentPdfFilename(saved?.pdfFilename),
-              pdfParsedAt: new Date().toISOString(),
-            });
-            if (!ok)
-              ui.showToast("项目已保存，但解析原文没存上，请稍后再试。");
-          }
-        }
-        resetForm();
-        ui.focusProjectInList(savedId);
-      } else btn.textContent = originalText;
+    // v0.35.0：表单改成真 <form>，提交统一走 submit 事件（按钮与桌面回车同一路径）。
+    elements.projectForm?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      submitForm();
     });
     elements.cancelBtn?.addEventListener("click", resetForm);
     // v0.29.0：表单草稿 —— 输入防抖保存；切页 / 关页前再存一次，500ms 窗口也不丢。
@@ -1330,7 +1276,7 @@ import { createDataIo } from "./js/data-io.js";
       state.listLimit = 50;
       debouncedRender();
     });
-    [elements.statusFilter, elements.sortBy].forEach((el) =>
+    [elements.statusFilter, elements.sortBy, elements.resultFilter].forEach((el) =>
       el?.addEventListener("change", () => {
         state.listLimit = 50;
         ui.render();
@@ -1342,9 +1288,11 @@ import { createDataIo } from "./js/data-io.js";
       const value = elements.statusFilter?.value || "all";
       document
         .querySelectorAll('.seg-control[aria-label="按状态筛选"] .seg-btn')
-        .forEach((b) =>
-          b.classList.toggle("active", b.dataset.value === value)
-        );
+        .forEach((b) => {
+          const on = b.dataset.value === value;
+          b.classList.toggle("active", on);
+          b.setAttribute("aria-pressed", on ? "true" : "false");
+        });
       // v0.34.0：统计卡片与当前筛选同步 —— 选中态靠 aria-pressed（读屏可读）+ .active（看得见）
       document.querySelectorAll(".stat-card[data-stat-filter]").forEach((card) => {
         const on = card.dataset.statFilter === value;
@@ -1440,10 +1388,26 @@ import { createDataIo } from "./js/data-io.js";
         elements.pdfInput.click();
       }
     });
-    elements.pdfInput?.addEventListener("change", async (event) => {
+    // v0.35.0：解析也能中止 —— 解析期间把“终止分析”按钮借来当“停止解析”（同一个取消按钮，两种阶段）。
+    const startParse = async (file) => {
       await ensureParserModules();
       clearStaleAiResult();
-      pdfParser.parsePdf(event.target.files?.[0]);
+      if (!file) return;
+      if (elements.aiCancelBtn) {
+        elements.aiCancelBtn.textContent = "⏹ 停止解析";
+        elements.aiCancelBtn.classList.remove("hidden");
+      }
+      try {
+        await pdfParser.parsePdf(file);
+      } finally {
+        if (elements.aiCancelBtn) {
+          elements.aiCancelBtn.textContent = "⏹ 终止分析";
+          elements.aiCancelBtn.classList.add("hidden");
+        }
+      }
+    };
+    elements.pdfInput?.addEventListener("change", (event) => {
+      startParse(event.target.files?.[0]);
     });
     ["dragenter", "dragover"].forEach((eventName) =>
       elements.dropZone?.addEventListener(eventName, (event) => {
@@ -1457,10 +1421,8 @@ import { createDataIo } from "./js/data-io.js";
         elements.dropZone.classList.remove("dragover");
       })
     );
-    elements.dropZone?.addEventListener("drop", async (event) => {
-      await ensureParserModules();
-      clearStaleAiResult();
-      pdfParser.parsePdf(event.dataTransfer.files?.[0]);
+    elements.dropZone?.addEventListener("drop", (event) => {
+      startParse(event.dataTransfer.files?.[0]);
     });
     // v0.16.0：清掉上一份解析的 AI 结果 —— 新文件解析前、查看已保存文本时、
     // 点"清空"时都调，避免旧面板配新文本、旧结果带进下次保存。
@@ -1492,7 +1454,7 @@ import { createDataIo } from "./js/data-io.js";
     // v0.19.0：把分析结果回填到表单 —— 面板底部只剩这一个动作。保存方式
     // 不在这里选：回填后表单自己的保存按钮即定新建/更新（editingId 决定）。
     // 绑定时直接进该项目的表单；未绑定时就地选一次（默认新建项目）。
-    const applyAiResultToForm = (targetId) => {
+    const applyAiResultToForm = async (targetId) => {
       const freshAi = lastAiResult;
       if (!freshAi) {
         ui.showToast("没有可回填的分析结果，先做 AI 分析。");
@@ -1505,6 +1467,25 @@ import { createDataIo } from "./js/data-io.js";
         (k) => elements.form[k]?.value ?? ""
       );
       if (!targetId) {
+        // v0.35.0：同样先做脏检查 —— 从底部 Tab 打开解析、回填到“新建”时，
+        // 不能把正在填的那张表单一键抹掉。
+        if (!isFormDataEmpty(formData())) {
+          const choice = await ui.confirmDialog({
+            title: "切换到新建项目",
+            message: "当前表单还有未保存内容，回填到新建项目会覆盖它。",
+            confirmText: "丢弃并新建",
+            altText: "保存后再新建",
+            cancelText: "继续编辑",
+            danger: true,
+          });
+          if (choice === "alt") {
+            if (!(await submitForm())) return;
+          } else if (choice !== "confirm") {
+            return;
+          } else {
+            clearFormDraft(state.editingId);
+          }
+        }
         state.editingId = null;
         elements.submitBtn.textContent = "新增项目";
         elements.cancelBtn.classList.add("hidden");
@@ -1528,7 +1509,11 @@ import { createDataIo } from "./js/data-io.js";
         if (state.editingId === targetId) {
           revealForm();
         } else {
-          enterEditMode(p);
+          const entered = await enterEditMode(p);
+          if (!entered) {
+            parserAttachOnSave = false;
+            return;
+          }
         }
       }
       lastAiResult = freshAi;
@@ -1559,6 +1544,10 @@ import { createDataIo } from "./js/data-io.js";
       // v0.20.0：分析进行中先禁掉回填 —— 免得点下去回填的是上一份旧结果。
       if (elements.applyAiToFormBtn)
         elements.applyAiToFormBtn.disabled = true;
+      // v0.35.0：分析跑着的时候也禁掉“清空解析结果”——否则文本被抹掉、请求还在跑，
+      // 跑完又把结果画回面板，界面进入说不清的状态。
+      if (elements.clearParserBtn) elements.clearParserBtn.disabled = true;
+      analysisRunning = true;
       // v0.17.0：分析中显示“终止分析”，点按后 ai-extract 取消当前请求与后续分块。
       elements.aiCancelBtn?.classList.remove("hidden");
       try {
@@ -1585,14 +1574,19 @@ import { createDataIo } from "./js/data-io.js";
           msg === "已终止分析。" ? "已终止分析。" : "AI 分析失败"
         );
       } finally {
+        analysisRunning = false;
         elements.aiAnalyzeBtn.disabled = false;
         elements.aiCancelBtn?.classList.add("hidden");
+        // 分析结束（无论成败）把清空按钮按当前文本是否存在重新启用。
+        if (elements.clearParserBtn)
+          elements.clearParserBtn.disabled = !(elements.parsedText?.value || "").trim();
       }
     });
 
-    // v0.17.0：终止分析 —— 只发取消信号，提示与进度复位由分析回调的 catch 接手。
+    // v0.17.0：终止分析 / v0.35.0：停止解析 —— 同一个按钮，按当前阶段决定取消哪个。
     elements.aiCancelBtn?.addEventListener("click", () => {
-      aiExtract?.cancelAnalysis?.();
+      if (analysisRunning) aiExtract?.cancelAnalysis?.();
+      else pdfParser?.cancelParse?.();
     });
 
     // v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内面板，一点就把
@@ -1618,6 +1612,7 @@ import { createDataIo } from "./js/data-io.js";
       if (elements.reminderDays) {
         elements.reminderDays.value = String(getReminderDays());
       }
+      updateNotificationRow();
     };
     const closeSettingsSheet = () => {
       if (!settingsSheetOpen) return;
@@ -1634,13 +1629,23 @@ import { createDataIo } from "./js/data-io.js";
       const opener = settingsOpener;
       settingsOpener = null;
       // 打开它的菜单项随菜单一起收起了（不可见），就回 ☰；否则回原按钮
-      if (opener && document.contains(opener) && opener.getClientRects().length) {
-        opener.focus?.();
-      } else {
-        elements.menuToggle?.focus();
-      }
+      ui.restoreFocusTo(opener);
     };
     elements.aiSettingsBtn?.addEventListener("click", openSettingsSheet);
+    // v0.35.0：通知权限在应用里终于可见可开 —— 已拒绝时给去站点设置的说明。
+    elements.notifBtn?.addEventListener("click", async () => {
+      const perm = "Notification" in window ? Notification.permission : "unsupported";
+      if (perm === "unsupported") {
+        ui.showToast("当前浏览器不支持通知。");
+        return;
+      }
+      if (perm === "denied") {
+        ui.showToast("浏览器已阻止通知：在地址栏的站点设置里把「通知」改为允许，然后刷新页面。");
+        return;
+      }
+      await requestNotificationPermission();
+      updateNotificationRow();
+    });
     elements.settingsSheetClose?.addEventListener("click", closeSettingsSheet);
     elements.settingsSheet?.addEventListener("click", (event) => {
       if (event.target.closest("[data-action='close-settings']")) closeSettingsSheet();
@@ -1773,8 +1778,11 @@ import { createDataIo } from "./js/data-io.js";
     });
 
     // v0.16.0：编辑回填抽出共用 —— 卡片"编辑"与 AI"更新到已有项目"都走这里。
+    // v0.35.0：入口加脏检查 —— 正在填 A（或新建）且切到 B 时先问一句，
+    // 不再静默用 B 的数据整张覆盖表单（草稿按 editingId 各存一份，A 的内容也不会被 B 盖掉）。
     const fillFormFromProject = (p) => {
       elements.form.date.value = p.date || "";
+      if (elements.form.bidTime) elements.form.bidTime.value = p.bidTime || "";
       elements.form.type.value = p.type || "";
       elements.form.name.value = p.name || "";
       elements.form.biddingCompany.value = p.biddingCompany || "";
@@ -1801,10 +1809,34 @@ import { createDataIo } from "./js/data-io.js";
         elements.form.guaranteeDeadline.value = p.guaranteeDeadline || "";
       elements.form.contact.value = p.contact || "";
       elements.form.status.value = p.status || "报名中";
+      if (elements.form.result) elements.form.result.value = p.result || "";
       elements.form.notes.value = p.notes || "";
     };
 
-    const enterEditMode = (p) => {
+    const enterEditMode = async (p) => {
+      if (state.editingId !== p.id && !isFormDataEmpty(formData())) {
+        const prevId = state.editingId;
+        const prevName =
+          state.projects.find((x) => x.id === prevId)?.name || "新建项目";
+        const choice = await ui.confirmDialog({
+          title: "切换编辑项目",
+          message: `当前表单还有「${prevName}」的未保存内容，切到「${p.name}」会覆盖它。`,
+          confirmText: "丢弃并切换",
+          altText: "保存后再切换",
+          cancelText: "继续编辑",
+          danger: true,
+        });
+        if (choice !== "confirm" && choice !== "alt") {
+          revealForm();
+          return false;
+        }
+        if (choice === "alt") {
+          const saved = await submitForm();
+          if (!saved) return false;
+        } else {
+          clearFormDraft(prevId);
+        }
+      }
       state.editingId = p.id;
       lastAiResult =
         p.riskSummary || p.qualification || p.invalidBidClauses
@@ -1824,6 +1856,7 @@ import { createDataIo } from "./js/data-io.js";
       if (elements.formSubtitle)
         elements.formSubtitle.textContent = `正在编辑：${String(p.name || "").slice(0, 12)}…`;
       revealForm();
+      return true;
     };
 
     elements.list?.addEventListener("click", async (event) => {
@@ -1845,6 +1878,30 @@ import { createDataIo } from "./js/data-io.js";
         return;
       }
       const id = button.dataset.id;
+      // v0.35.0：箭头是真正的按钮（行容器不再冒充按钮，读屏不会把里面的按钮念成容器内容）
+      if (button.dataset.action === "toggle-details") {
+        if (state.selectMode) toggleSelectOne(id);
+        else toggleProjectDetails(button);
+        return;
+      }
+      // v0.35.0：详情区的状态一键切换
+      if (button.dataset.action === "set-status") {
+        const nextStatus = button.dataset.status;
+        if (!nextStatus) return;
+        const ok = await projectsApi.updateProjectFields(id, { status: nextStatus });
+        if (ok) ui.showToast(`状态已改为「${nextStatus}」。`);
+        return;
+      }
+      // v0.35.0：空状态里的“清除搜索与筛选”
+      if (button.dataset.action === "clear-filters") {
+        if (elements.search) elements.search.value = "";
+        if (elements.statusFilter) elements.statusFilter.value = "all";
+        if (elements.resultFilter) elements.resultFilter.value = "all";
+        state.listLimit = 50;
+        if (typeof state.syncSegControl === "function") state.syncSegControl();
+        ui.render();
+        return;
+      }
       // v0.11.0：列表分页——续 50 条后重渲染（筛选变化时 listLimit 已复位）
       if (button.dataset.action === "load-more") {
         state.listLimit = (state.listLimit || 50) + 50;
@@ -1977,7 +2034,8 @@ import { createDataIo } from "./js/data-io.js";
         const index = Number(button.dataset.index);
         if (!field || !Number.isInteger(index)) return;
         const items = normalizeEvidenceItems(p[field]);
-        if (!items[index]) return;
+        const item = items[index];
+        if (!item) return;
         const okConfirm = await ui.confirmDialog({
           title: "删除这条结论",
           message: "确定删除这条结论吗？删除后不再显示，也无法直接恢复。",
@@ -1985,9 +2043,11 @@ import { createDataIo } from "./js/data-io.js";
           danger: true,
         });
         if (!okConfirm) return;
-        items.splice(index, 1);
-        const ok = await projectsApi.updateProjectFields(id, {
-          [field]: items,
+        // v0.35.0：函数式更新 —— 排队到本次写入时才读最新清单，不会拿旧数组覆盖刚勾的项。
+        const ok = await projectsApi.updateProjectFields(id, (fresh) => {
+          const latest = normalizeEvidenceItems(fresh[field]);
+          latest.splice(Number(button.dataset.index), 1);
+          return { [field]: latest };
         });
         if (ok) ui.showToast("已删除该条结论。");
       }
@@ -2066,40 +2126,43 @@ import { createDataIo } from "./js/data-io.js";
         const items = normalizeEvidenceItems(p[field]);
         const item = items[index];
         if (!item) return;
-        items[index] = { ...item, verified: !item.verified };
-        const ok = await projectsApi.updateProjectFields(id, {
-          [field]: items,
+        // v0.35.0：函数式更新 + 串行队列（连续核对多条时不再互相覆盖）
+        const ok = await projectsApi.updateProjectFields(id, (fresh) => {
+          const latest = normalizeEvidenceItems(fresh[field]);
+          const target = latest[index];
+          if (!target) return {};
+          latest[index] = { ...target, verified: !target.verified };
+          return { [field]: latest };
         });
         if (ok) {
-          ui.showToast(
-            items[index].verified ? "已标记为人工已核对。" : "已取消核对。"
-          );
+          const now = state.projects.find((project) => project.id === id)?.[field]?.[index];
+          ui.showToast(now?.verified ? "已标记为人工已核对。" : "已取消核对。");
         }
       }
       if (button.dataset.action === "edit") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
-        enterEditMode(p);
-        maybeOfferFormDraft(); // v0.29.0：同一项目有未保存的草稿时问一次
+        const entered = await enterEditMode(p);
+        // v0.29.0：同一项目有未保存的草稿时问一次（切换被取消了就不再问）
+        if (entered) await maybeOfferFormDraft();
       }
     });
 
     // 清单勾选：用 change 事件取勾选态；失败时重渲染还原。
+    // v0.35.0：函数式 + 串行 —— 手快连勾 5 项不再只成功 3 项。
     elements.list?.addEventListener("change", async (event) => {
       const checkbox = event.target.closest(
         'input[type="checkbox"][data-action="checklist-toggle"]'
       );
       if (!checkbox) return;
       const id = checkbox.dataset.id;
-      const p = state.projects.find((project) => project.id === id);
-      if (!p) return;
-      const ok = await projectsApi.updateProjectFields(id, {
+      const itemId = checkbox.dataset.itemId;
+      const done = checkbox.checked;
+      const ok = await projectsApi.updateProjectFields(id, (p) => ({
         checklist: (p.checklist || []).map((item) =>
-          item.id === checkbox.dataset.itemId
-            ? { ...item, done: checkbox.checked }
-            : item
+          item.id === itemId ? { ...item, done } : item
         ),
-      });
+      }));
       if (!ok) ui.render();
     });
 
@@ -2120,49 +2183,6 @@ import { createDataIo } from "./js/data-io.js";
       else toggleProjectDetails(toggleEl);
     });
 
-    // v0.4.0：保证金退还提醒横幅 — 标记已退回
-    // v0.8.0：同一处理复用到保证金待退还清单（不要另写一套更新路径）
-    const handleMarkRefunded = async (event) => {
-      const button = event.target.closest(
-        'button[data-action="mark-refunded"]'
-      );
-      if (!button) return;
-      const ok = await projectsApi.updateProjectFields(button.dataset.id, {
-        guaranteeStatus: "已退回",
-      });
-      if (ok) ui.showToast("已标记为已退回。");
-    };
-    elements.refundTip?.addEventListener("click", handleMarkRefunded);
-    elements.guaranteeList?.addEventListener("click", handleMarkRefunded);
-
-    // v0.9.0：回收站抽屉 —— 菜单按钮打开，关闭按钮 / 遮罩 / Esc 关闭；
-    // 打开时刷新列表，关闭后焦点回到菜单按钮
-    const openTrashSheet = async () => {
-      state.trashLimit = 50; // v0.30.0：每次打开回收站都从第一页看起
-      trashSheetOpen = true;
-      elements.trashSheet?.classList.remove("hidden");
-      ui.trapFocusIn(elements.trashSheet);
-      document.body.classList.add("sheet-open");
-      ui.showTrashSkeleton();
-      await refreshTrashList();
-      elements.trashSheetClose?.focus();
-    };
-    const closeTrashSheet = () => {
-      trashSheetOpen = false;
-      ui.releaseFocusTrap(elements.trashSheet);
-      elements.trashSheet?.classList.add("hidden");
-      document.body.classList.remove("sheet-open");
-      elements.trashMenuBtn?.focus();
-    };
-    elements.trashMenuBtn?.addEventListener("click", openTrashSheet);
-    elements.trashSheetClose?.addEventListener("click", closeTrashSheet);
-    elements.trashSheet?.addEventListener("click", (event) => {
-      if (event.target.closest("[data-action='close-trash']")) closeTrashSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && trashSheetOpen) closeTrashSheet();
-    });
-
     // v0.4.3：新增 / 编辑表单标题点击展开 / 收起（键盘 Enter / Space 同理）
     const formTitle = document.querySelector('.form-panel [data-action="toggle-form"]');
     formTitle?.addEventListener("click", (event) => {
@@ -2178,45 +2198,6 @@ import { createDataIo } from "./js/data-io.js";
       setFormExpanded(!state.formExpanded);
       if (state.formExpanded && !state.editingId && isFormDataEmpty(formData()))
         maybeOfferFormDraft();
-    });
-
-    // v0.22.0：清空回收站 —— 先取最新列表（防抽屉开着时数据已变），
-    // 空了直接提示；有内容则走批量彻底删除（自带确认框），成功后刷新列表。
-    elements.emptyTrashBtn?.addEventListener("click", async () => {
-      const btn = elements.emptyTrashBtn;
-      btn.disabled = true;
-      const deleted = await projectsApi.loadDeletedProjects();
-      if (!deleted?.length) {
-        ui.showToast("回收站已经是空的。");
-        return; // 本来就是空的，保持禁用
-      }
-      const ok = await projectsApi.permanentlyDeleteProjects(
-        deleted.map((p) => p.id)
-      );
-      if (ok) {
-        await refreshTrashList(); // 列表已空，按钮保持禁用
-        return;
-      }
-      btn.disabled = false; // 用户在确认框点了取消，恢复可点
-    });
-
-    elements.trashList?.addEventListener("click", async (event) => {
-      const button = event.target.closest("button");
-      if (!button) return;
-      const id = button.dataset.id;
-      if (button.dataset.action === "restore") {
-        await projectsApi.restoreProject(id);
-        await refreshTrashList();
-      }
-      if (button.dataset.action === "permanent-delete") {
-        const ok = await projectsApi.permanentlyDeleteProject(id, button.dataset.name);
-        if (ok) await refreshTrashList();
-      }
-      // v0.30.0：回收站“加载更多”——每页 50 条，续一页。
-      if (button.dataset.action === "trash-load-more") {
-        state.trashLimit += 50;
-        await refreshTrashList();
-      }
     });
 
     elements.menuToggle?.addEventListener("click", () =>
@@ -2242,12 +2223,15 @@ import { createDataIo } from "./js/data-io.js";
     });
     // v0.7.0：header 新增项目主按钮
     elements.addProjectBtn?.addEventListener("click", () => revealForm());
+    // v0.35.0：手机端浮动新增按钮 —— 列表滑到第 20 项也不用滑回页顶才能新增。
+    elements.fabAdd?.addEventListener("click", () => {
+      revealForm();
+      maybeOfferFormDraft();
+    });
     // v0.7.0：统计卡片可点击筛选（前 4 张；保证金卡片保持静态）
+    // v0.35.0：不再清搜索词 —— 搜了“桥梁”再点“制作中”，期望是“桥梁里制作中的”，
+    // 与工具栏那组 seg 筛选行为一致（之前两套“筛选”各干各的）。
     const applyStatFilter = (value) => {
-      // v0.30.0：统计卡片清搜索时说一声（之前静默清掉，搜了一半的字就没了）。
-      const hadSearch = (elements.search?.value || "").trim() !== "";
-      if (elements.search) elements.search.value = "";
-      if (hadSearch) ui.showToast(`已清除搜索词，按状态「${value}」筛选。`);
       if (elements.statusFilter) elements.statusFilter.value = value;
       if (typeof state.syncSegControl === "function") state.syncSegControl();
       state.listLimit = 50;
@@ -2277,18 +2261,7 @@ import { createDataIo } from "./js/data-io.js";
         ui.toggleMobileMenu(false);
         return true;
       }
-      if (trashSheetOpen) {
-        closeTrashSheet();
-        return true;
-      }
-      if (guaranteeSheetOpen) {
-        closeGuaranteeSheet();
-        return true;
-      }
-      if (qualSheetOpen) {
-        closeQualSheet();
-        return true;
-      }
+      if (drawers.closeTop()) return true;
       if (settingsSheetOpen) {
         closeSettingsSheet();
         return true;
@@ -2350,9 +2323,16 @@ import { createDataIo } from "./js/data-io.js";
       // 忽略
     }
 
-    if (!configured || !window.supabase) {
+    if (!configured) {
       elements.authMessage.textContent =
         "请先复制 supabase-config.example.js 为 supabase-config.js，并填入 Supabase URL 与 anon key。";
+      return;
+    }
+    if (!(await ensureSupabase())) {
+      // v0.35.0：配置是好的、只是依赖没加载 —— 不再误报“你没配置 Supabase”，并给一个重试入口。
+      elements.authMessage.textContent =
+        "依赖加载失败（Supabase SDK 没下载成功），请检查网络后重试。";
+      elements.authRetryBtn?.classList.remove("hidden");
       return;
     }
     client = window.supabase.createClient(config.url, config.anonKey);

@@ -23,6 +23,102 @@ export const getDaysUntilBid = (value) => {
     : Math.round((target - today) / 86400000);
 };
 
+/* ================= v0.35.0：精确开标时刻 / 中标结果 ================= */
+
+/** "09:30" / "9:30" / "09:30:00" → "09:30"；非法或空返回 ""。 */
+export function formatBidTime(value) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(value ?? "").trim());
+  if (!m) return "";
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return "";
+  if (h < 0 || h > 23 || min < 0 || min > 59) return "";
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
+/** 项目开标的绝对时刻（日期 + 可选时刻）；日期缺失或非法返回 null。 */
+export function getBidDateTime(project) {
+  const date = String(project?.date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const time = formatBidTime(project?.bidTime);
+  const d = new Date(`${date}T${time || "00:00"}:00`);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** "2026年11月19日 09:30"（无时刻时只显示日期）。 */
+export function formatBidMoment(project) {
+  const time = formatBidTime(project?.bidTime);
+  const base = formatDateDisplay(String(project?.date || "").slice(0, 10));
+  return time ? `${base} ${time}` : base;
+}
+
+/**
+ * 列表倒计时（v0.35.0：有时刻时精确到小时）。
+ * 返回 { text, cls, title }；cls 与 .cd-* 一一对应。
+ * 只认项目自己的 date / bidTime / status，60s 刷新可只传这三个字段。
+ */
+export function getCountdownInfo(project, now = new Date()) {
+  if (project?.status === "已开标") return { text: "已开标", cls: "cd-done", title: "" };
+  const date = String(project?.date || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date))
+    return { text: "已开标", cls: "cd-done", title: "" };
+  const time = formatBidTime(project?.bidTime);
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const dayStart = new Date(`${date}T00:00:00`);
+  const days = Math.round((dayStart - today) / 86400000);
+  const title = formatBidMoment(project);
+  if (!time) {
+    if (days < 0) return { text: `已过期${-days}天`, cls: "cd-overdue", title };
+    if (days === 0) return { text: "今天开标", cls: "cd-urgent", title };
+    if (days <= 3) return { text: `还有${days}天`, cls: "cd-warn", title };
+    return { text: `还有${days}天`, cls: "cd-normal", title };
+  }
+  const target = new Date(`${date}T${time}:00`);
+  const diffMs = target - now;
+  const cls = days <= 0 ? "cd-urgent" : days <= 3 ? "cd-warn" : "cd-normal";
+  if (diffMs < 0) {
+    // 当天时刻已过但状态还没改：按“已开标时刻已过”提示，别显示“今天开标”。
+    return { text: "已到开标时刻", cls: "cd-overdue", title };
+  }
+  const hours = Math.ceil(diffMs / 3600000);
+  if (diffMs < 3600000) {
+    const minutes = Math.max(1, Math.ceil(diffMs / 60000));
+    return { text: `${minutes}分钟后`, cls, title };
+  }  if (hours < 24) return { text: `${hours}小时后`, cls, title };
+  const wholeDays = Math.floor(diffMs / 86400000);
+  return { text: `还有${wholeDays}天`, cls, title };
+}
+
+/** 回收站剩余保留天数（保留 30 天）；deletedAt 非法返回 null。 */
+export function getTrashRemainingDays(deletedAt, now = new Date()) {
+  const t = new Date(String(deletedAt || "")).getTime();
+  if (!Number.isFinite(t)) return null;
+  const elapsed = Math.floor((now.getTime() - t) / 86400000);
+  return Math.max(0, TRASH_RETENTION_DAYS - Math.max(0, elapsed));
+}
+
+/** 中标率：只看已出结果（已中标 / 未中标）的项目；无已出结果时 rate 为 null。 */
+export function getWinRate(projects) {
+  const list = Array.isArray(projects) ? projects : [];
+  const won = list.filter((p) => p?.result === "已中标").length;
+  const lost = list.filter((p) => p?.result === "未中标").length;
+  const decided = won + lost;
+  return {
+    won,
+    lost,
+    decided,
+    rate: decided ? Math.round((won / decided) * 1000) / 10 : null,
+  };
+}
+
+/** 结果筛选：空 / "all" 不过滤，否则按 result 精确匹配（只认两种终态）。 */
+export const RESULT_OPTIONS = ["已中标", "未中标"];
+export function matchResult(project, result) {
+  if (!result || result === "all") return true;
+  return (project?.result || "") === result;
+}
+
 export const getStatusClass = (status) =>
   status === "已开标" ? "success" : status === "制作中" ? "warning" : "";
 
@@ -74,6 +170,13 @@ export function getMissedBidProjects(projects, now = new Date(), windowDays = 7)
     const target = new Date(`${p.date}T00:00:00`);
     if (Number.isNaN(target.getTime())) return false;
     const days = Math.round((target - today) / 86400000);
+    if (days === 0) {
+      // v0.35.0：当天有时刻时，过了那个时刻才算错过（早上 8 点不该报 9:30 的标已错过）；
+      // 没填时刻就不知道几点开标，按旧行为当天不算错过。
+      if (!formatBidTime(p.bidTime)) return false;
+      const at = getBidDateTime(p);
+      return Boolean(at) && now.getTime() > at.getTime();
+    }
     return days < 0 && days >= -windowDays;
   });
 }
@@ -377,6 +480,15 @@ export const DEADLINE_TYPES = [
   { key: "date", label: "开标时间" },
 ];
 
+// v0.35.0：顺便修掉一个真 bug —— 界面项目用的是驼峰字段（registrationDeadline），
+// 而这里只读了下划线字段，导致“即将到期事项”实际永远只有开标日一条。两种都认。
+const DEADLINE_CAMEL = {
+  registration_deadline: "registrationDeadline",
+  inquiry_deadline: "inquiryDeadline",
+  clarification_deadline: "clarificationDeadline",
+  guarantee_deadline: "guaranteeDeadline",
+};
+
 /** 某项目的所有截止项（有日期且状态 != 已开标）：{key, label, date, days} */
 export function getDeadlineItems(project) {
   if (!project || project.status === "已开标") return [];
@@ -384,7 +496,10 @@ export function getDeadlineItems(project) {
   today.setHours(0, 0, 0, 0);
   const items = [];
   for (const { key, label } of DEADLINE_TYPES) {
-    const raw = key === "date" ? project.date : project[key];
+    const raw =
+      key === "date"
+        ? project.date
+        : (project[key] ?? project[DEADLINE_CAMEL[key]]);
     if (!raw) continue;
     const date = String(raw).slice(0, 10);
     const target = new Date(`${date}T00:00:00`);
@@ -393,6 +508,8 @@ export function getDeadlineItems(project) {
       key,
       label,
       date,
+      // v0.35.0：开标时刻随开标项一起带出（面板 / 通知 / 日历用）。
+      time: key === "date" ? formatBidTime(project.bidTime) : "",
       days: Math.round((target - today) / 86400000),
     });
   }
@@ -787,6 +904,118 @@ export function isFormDraftStale(draft, now = Date.now()) {
   return now - draft.savedAt > FORM_DRAFT_TTL_MS;
 }
 
+/* v0.35.0：草稿从「单份」改成按编辑对象存的 Map —— 跨项目切换时各自的输入不互相覆盖。 */
+export const FORM_DRAFTS_KEY = "bid-assistant-form-drafts";
+
+/** 草稿在 Map 里的键：编辑某项目用 id，新建用 "new"。 */
+export function formDraftKey(editingId) {
+  return editingId ? `id:${editingId}` : "new";
+}
+
+/** 读出草稿 Map（坏数据一律当空；旧版单份草稿自动搬进 Map）。storage 可传 localStorage 或测试替身。 */
+export function readFormDrafts(storage) {
+  const out = {};
+  try {
+    const raw = storage.getItem(FORM_DRAFTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [k, v] of Object.entries(parsed)) {
+          if (v && typeof v === "object") out[k] = v;
+        }
+      }
+    }
+    // 旧版（v0.29.0–v0.34.0）只有一份草稿，键为 FORM_DRAFT_KEY；搬进来后删掉旧键。
+    const legacyRaw = storage.getItem(FORM_DRAFT_KEY);
+    if (legacyRaw) {
+      const legacy = JSON.parse(legacyRaw);
+      if (legacy && typeof legacy === "object") {
+        const key = formDraftKey(legacy.editingId ?? null);
+        if (!out[key]) out[key] = legacy;
+      }
+      storage.removeItem(FORM_DRAFT_KEY);
+    }
+  } catch {
+    // 隐私模式 / 脏数据：当作没有草稿。
+  }
+  return out;
+}
+
+/** 写入草稿 Map（失败静默，不影响填表）。 */
+export function writeFormDrafts(storage, drafts) {
+  try {
+    const clean = {};
+    for (const [k, v] of Object.entries(drafts || {})) {
+      if (v && typeof v === "object") clean[k] = v;
+    }
+    if (!Object.keys(clean).length) {
+      storage.removeItem(FORM_DRAFTS_KEY);
+      return true;
+    }
+    storage.setItem(FORM_DRAFTS_KEY, JSON.stringify(clean));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** 取当前编辑对象可用的草稿：只认这个键、结构完整、7 天内、非空。 */
+export function pickFormDraft(drafts, editingId, now = Date.now()) {
+  const draft = drafts?.[formDraftKey(editingId)];
+  if (!draft) return null;
+  // editingId 已由键决定，这里只校验结构 / 有效期 / 非空。
+  return isFormDraftUsable(draft, draft.editingId ?? null, now) ? draft : null;
+}
+
+/** 清掉过期 / 损坏的草稿，返回新 Map（不改原对象）。 */
+export function pruneFormDrafts(drafts, now = Date.now()) {
+  const out = {};
+  for (const [k, v] of Object.entries(drafts || {})) {
+    if (v && typeof v === "object" && !isFormDraftStale(v, now)) out[k] = v;
+  }
+  return out;
+}
+
+/* v0.35.0：按 key 串行的写队列（纯函数，可单测）——
+ * 同一项目的两次整列回写不再并发：后一次在前一次返回后才发，且 patch 函数
+ * 在前一次落地后的最新 state 上求值，不会用旧数组覆盖掉刚勾上的那一项。
+ * 不同 key 互不阻塞；队列空了自动清理（不会无限攒 Promise）。 */
+export function createKeyedQueue() {
+  const tails = new Map();
+  const run = (key, task) => {
+    const prev = tails.get(key) || Promise.resolve();
+    const next = prev.then(task, task);
+    // 队列尾巴只用于排顺，吞掉异常免得一条失败卡死后面的写。
+    const tail = next.then(
+      () => {},
+      () => {}
+    );
+    tails.set(key, tail);
+    tail.then(() => {
+      if (tails.get(key) === tail) tails.delete(key);
+    });
+    return next;
+  };
+  return { run, size: () => tails.size };
+}
+
+/** 列表空状态的种类：有搜索 / 筛选时是 "no-match"（没有匹配的项目），否则 "empty"（还没有项目）。
+ * 纯决策函数（可单测）—— 之前两种情况都写“还没有项目”，搜错一个字就以为数据没了。 */
+export function emptyStateKind(hasActiveFilter) {
+  return hasActiveFilter ? "no-match" : "empty";
+}
+
+/** 恢复备份的三态决定："overwrite" | "insert-only" | "abort"（默认）。
+ * 确认框返回值（"confirm" / "alt" / "cancel" / true / false / 空）统一翻译；
+ * 任何看不懂的返回值都按 abort —— 宁可不写，也不把“点了取消”当成“只补新增”。 */
+export function resolveRestoreDecision(choice) {
+  if (choice === "overwrite" || choice === "insert-only" || choice === "abort")
+    return choice;
+  if (choice === "confirm" || choice === true) return "overwrite";
+  if (choice === "alt") return "insert-only";
+  return "abort";
+}
+
 // v0.28.0：导入去重 —— 按（项目名称 + 开标时间 + 投标公司）去重。
 // 名称与公司去掉全部空白、转小写；日期取前 10 位（YYYY-MM-DD）。
 // 中文名里的空格多半是手误（"甲 公司"即"甲公司"），去掉比保留更贴合去重本意。
@@ -886,7 +1115,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.34.0";
+export const APP_VERSION = "0.35.0";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {

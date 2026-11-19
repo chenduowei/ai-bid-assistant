@@ -11,6 +11,8 @@ import {
   dedupeImportRows,
   saveProjectsSnapshot,
   loadProjectsSnapshot,
+  createKeyedQueue,
+  resolveRestoreDecision,
   APP_VERSION,
   upsertById,
   removeByIds,
@@ -29,7 +31,9 @@ const toNumberOrNull = (v) => {
 export function createProjectsApi({ getClient, getState, setState, ui }) {
   // v0.4.0：列表查询显式列清单，排除 pdf_text（全文按需拉，见 loadProjectPdfText）。
   // 列表仍保留 pdf_filename + pdf_parsed_at，用于显示“已保存招标文件”。
-  const LIST_COLUMNS = [
+  // v0.35.0：bid_time / result 是新增列 —— 先探测一次，旧库没迁移时自动退回旧列清单，
+  // 不会因 select 不存在的列让整个列表打不开。
+  const BASE_LIST_COLUMNS = [
     "id",
     "user_id",
     "bid_date",
@@ -62,7 +66,31 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     "pdf_parsed_at",
     "created_at",
     "updated_at",
-  ].join(",");
+  ];
+  const EXTRA_LIST_COLUMNS = ["bid_time", "result"];
+  let extraColumns = null; // null = 还没探测；true/false = 旧库有没有新列
+  const listColumns = () =>
+    [...BASE_LIST_COLUMNS, ...(extraColumns ? EXTRA_LIST_COLUMNS : [])].join(",");
+  async function ensureExtraColumns() {
+    if (extraColumns !== null) return extraColumns;
+    try {
+      const { error } = await getClient()
+        .from("projects")
+        .select(EXTRA_LIST_COLUMNS.join(","))
+        .limit(1);
+      extraColumns = !error;
+    } catch {
+      extraColumns = false;
+    }
+    return extraColumns;
+  }
+  const stripUnavailableColumns = (payload) => {
+    if (extraColumns) return payload;
+    const out = { ...payload };
+    delete out.bid_time;
+    delete out.result;
+    return out;
+  };
 
   const toUiProject = (row) => ({
     id: row.id,
@@ -103,6 +131,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     inquiryDeadline: row.inquiry_deadline || null,
     clarificationDeadline: row.clarification_deadline || null,
     guaranteeDeadline: row.guarantee_deadline || null,
+    // v0.35.0：精确开标时刻（HH:MM，选填）与中标结果（空 / 已中标 / 未中标）
+    bidTime: String(row.bid_time || "").slice(0, 5),
+    result: ["已中标", "未中标"].includes(row.result) ? row.result : "",
     // v0.3.0：PDF 文本持久化
     pdfText: row.pdf_text || "",
     // v0.18.1：入库前已污染的文件名（末尾连拼"（N 字）"）在这里洗掉，
@@ -117,7 +148,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const client = getClient();
     let query = client
       .from("projects")
-      .select(LIST_COLUMNS)
+      .select(listColumns())
       .order(deletedOnly ? "deleted_at" : "bid_date", { ascending: !deletedOnly });
     if (useDeletedFilter) {
       query = deletedOnly
@@ -131,6 +162,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const client = getClient();
     const state = getState();
     ui.setSyncStatus("正在同步…");
+    await ensureExtraColumns();
     // 分页拉取：Supabase 默认单次上限 1000 条，全量 select 会静默丢数据。
     // 每页 500 条循环拉完，设 10000 条安全上限防死循环。
     const PAGE_SIZE = 500;
@@ -405,15 +437,25 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     setState({ channel });
   }
 
-  // v0.4.0：保证金 / 金额均选填。必填：开标时间、项目类型、项目名称、投标公司、联系人。
+  // v0.4.0：保证金 / 金额均选填。必填：开标日期、项目类型、项目名称、投标公司、联系人。
+  // v0.35.0：从“一句总话”改成结构化结果 —— 调用方能指出是哪几项没填、把光标送过去。
+  const REQUIRED_FIELDS = [
+    { field: "bid_date", label: "开标日期" },
+    { field: "project_type", label: "项目类型" },
+    { field: "name", label: "项目名称" },
+    { field: "bidding_company", label: "投标公司" },
+    { field: "contact", label: "联系人" },
+  ];
   function validate(project) {
-    return !project.bid_date ||
-      !project.project_type ||
-      !project.name ||
-      !project.bidding_company ||
-      !project.contact
-      ? "必填项没填完：开标时间、项目类型、项目名称、投标公司、联系人。"
-      : "";
+    const missingRows = REQUIRED_FIELDS.filter(
+      ({ field }) => !String(project?.[field] ?? "").trim()
+    );
+    return {
+      ok: missingRows.length === 0,
+      missing: missingRows.map((r) => r.label),
+      missingFields: missingRows.map((r) => r.field),
+      firstField: missingRows[0]?.field || "",
+    };
   }
 
   async function saveProject(project, editingId) {
@@ -425,19 +467,20 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast("当前为离线快照，联网后才能保存。");
       return false;
     }
-    const errorText = validate(project);
-    if (errorText) {
-      ui.showToast(errorText);
+    const check = validate(project);
+    if (!check.ok) {
+      ui.showToast(`还有 ${check.missing.length} 项必填：${check.missing.join("、")}`);
       return false;
     }
     // 保证金原文为空时存 null（v0.4.0 起 guarantee 列可为空，见 supabase.sql 第 8 节）
-    const payload = {
+    await ensureExtraColumns();
+    const payload = stripUnavailableColumns({
       ...project,
       guarantee:
         typeof project.guarantee === "string" && project.guarantee.trim()
           ? project.guarantee
           : null,
-    };
+    });
     ui.setSyncStatus("正在保存…");
     const wasEditing = Boolean(editingId);
     // v0.16.0：保存成功返回项目 id（新建时取刚插入行的 id），供调用方定位到该卡片；
@@ -450,12 +493,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
           .update(payload)
           .eq("id", editingId)
           .eq("user_id", state.user.id)
-          .select(LIST_COLUMNS)
+          .select(listColumns())
           .single()
       : client
           .from("projects")
           .insert({ ...payload, user_id: state.user.id })
-          .select(LIST_COLUMNS)
+          .select(listColumns())
           .single()
           .single();
     const { data, error } = await query;
@@ -481,8 +524,38 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
    * 局部更新项目字段（清单 / 金额 / 截止时间 / PDF 文本等）。
    * 只允许白名单字段映射到 DB 列；pdf_text 保存时截断到 200000 字符。
    * 旧库未执行 v0.3.0 迁移时提示迁移，不静默失败。
+   *
+   * v0.35.0：同一项目的写入串行（createKeyedQueue），patch 可以是函数
+   * `(project) => partial`，在轮到本次写入时用最新 state 求值，并把结果先乐观写进本地 state。
+   * 修的是“连续勾选清单互相覆盖”：两次点击间隔小于一次往返时，第二次不再是基于
+   * 旧数组的整列回写（旧行为：后到的响应把前一次勾的那项抹掉）。
    */
-  async function updateProjectFields(id, patch) {
+  const writeQueue = createKeyedQueue();
+  const updateProjectFields = (id, patch) =>
+    writeQueue.run(id, () => runUpdateProjectFields(id, patch));
+
+  // 补丁字段 → 本地 UI 字段（乐观写入 / 失败回滚用）；pdfText 不进列表 state，故意不列。
+  const LOCAL_PATCH_FIELDS = [
+    "checklist", "riskPoints", "qualification", "invalidBidClauses",
+    "riskSummary", "amountValue", "amountUnit", "guaranteeAmount",
+    "guaranteeUnit", "guaranteeStatus", "registrationDeadline",
+    "inquiryDeadline", "clarificationDeadline", "guaranteeDeadline",
+    "pdfFilename", "pdfParsedAt", "bidTime", "result",
+    "status", "notes", "name", "type", "date", "biddingCompany",
+    "tenderer", "amount", "guarantee", "contact",
+  ];
+  const applyPatchToLocal = (project, patchObj) => {
+    const next = { ...project };
+    let touched = false;
+    for (const key of LOCAL_PATCH_FIELDS) {
+      if (!(key in (patchObj || {}))) continue;
+      next[key] = key === "checklist" ? normalizeChecklist(patchObj[key]) : patchObj[key];
+      touched = true;
+    }
+    return touched ? next : null;
+  };
+
+  async function runUpdateProjectFields(id, patch) {
     const client = getClient();
     const state = getState();
     // v0.30.0：离线快照下拦截写操作（同 saveProject）——此前四处写入口没拦，
@@ -491,6 +564,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast("当前为离线快照，联网后才能更新。");
       return false;
     }
+    await ensureExtraColumns();
+    const current = getState().projects.find((p) => p.id === id);
+    if (!current) return false;
+    const patchObj = typeof patch === "function" ? patch(current) : patch;
     const dbPatch = {};
     const fieldMap = {
       checklist: "checklist",
@@ -512,29 +589,54 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       pdfText: "pdf_text",
       pdfFilename: "pdf_filename",
       pdfParsedAt: "pdf_parsed_at",
+      // v0.35.0：开标时刻 / 中标结果 / 状态一键切换
+      bidTime: "bid_time",
+      result: "result",
+      status: "status",
     };
+    let needsMigration = false;
     for (const [uiKey, dbKey] of Object.entries(fieldMap)) {
-      if (!(uiKey in (patch || {}))) continue;
-      let value = patch[uiKey];
+      if (!(uiKey in (patchObj || {}))) continue;
+      if (!extraColumns && EXTRA_LIST_COLUMNS.includes(dbKey)) {
+        needsMigration = true;
+        continue;
+      }
+      let value = patchObj[uiKey];
       if (uiKey === "checklist") value = normalizeChecklist(value);
       if (uiKey === "pdfText" && typeof value === "string" && value.length > 200000) {
         value = `${value.slice(0, 200000)}\n\n[文本过长，已截断]`;
       }
       dbPatch[dbKey] = value;
     }
+    if (needsMigration) {
+      ui.showToast("这个字段需要先迁移：在 Supabase SQL Editor 执行 docs/migrations/v0.35.0-bid-time-result.sql。");
+    }
     if (!Object.keys(dbPatch).length) return false;
-    // v0.31.0：取回整行本地提交，不再全量重拉（LIST_COLUMNS 不含 pdf_text，
+    // 先乐观写入本地（不渲染）：排队中的下一次 patch 函数看到的是本次改动后的值。
+    const optimistic = applyPatchToLocal(current, patchObj);
+    if (optimistic) {
+      setState({ projects: upsertById(getState().projects, optimistic) });
+    }
+    // v0.31.0：取回整行本地提交，不再全量重拉（listColumns() 不含 pdf_text，
     // 与列表重拉后的 state 一致）。
     const { data, error } = await client
       .from("projects")
       .update(dbPatch)
       .eq("id", id)
       .eq("user_id", state.user.id)
-      .select(LIST_COLUMNS)
+      .select(listColumns())
       .single();
     if (error) {
+      // 回滚本次乐观写入（只改本次涉及的字段，不碰其它刚写完的值）+ 重渲染还原 UI。
+      if (optimistic) {
+        const revert = { ...current };
+        setState({ projects: upsertById(getState().projects, revert) });
+        afterLocalChange([id]);
+      }
       if (MISSING_COLUMN_PATTERN.test(error.message || "")) {
         ui.showToast("保存失败：先在 Supabase SQL Editor 执行 supabase.sql 的 v0.3.0 增量迁移。");
+      } else if (/bid_time|result/.test(error.message || "")) {
+        ui.showToast("保存失败：先在 Supabase 执行 v0.35.0 迁移（bid_time / result 列）。");
       } else {
         ui.showToast(`保存失败：${error.message}`);
       }
@@ -658,7 +760,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       .update({ deleted_at: null })
       .eq("id", id)
       .eq("user_id", state.user.id)
-      .select(LIST_COLUMNS)
+      .select(listColumns())
       .single();
     if (error) {
       ui.showToast(`恢复失败：${error.message}`);
@@ -767,7 +869,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       const { data, error } = await client
         .from("projects")
         .insert(batch)
-        .select(LIST_COLUMNS);
+        .select(listColumns());
       if (error) {
         failed += batch.length;
         ui.showToast(`导入失败（第 ${i + 1}–${i + batch.length} 条）：${error.message}`);
@@ -804,7 +906,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       }))
     )
       return false;
-    const payload = {
+    await ensureExtraColumns();
+    const payload = stripUnavailableColumns({
       user_id: state.user.id,
       bid_date: project.date,
       project_type: project.type,
@@ -816,6 +919,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       contact: project.contact,
       status: "报名中",
       notes: project.notes || null,
+      // v0.35.0：开标时刻随副本复制；中标结果不跟——副本是一次新投标。
+      bid_time: project.bidTime || null,
+      result: null,
       risk_summary: project.riskSummary || null,
       risk_points: project.riskPoints?.length ? project.riskPoints : null,
       qualification: project.qualification?.length ? project.qualification : null,
@@ -836,12 +942,12 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       pdf_text: null,
       pdf_filename: null,
       pdf_parsed_at: null,
-    };
+    });
     // v0.31.0：取回副本行本地提交，不再全量重拉。
     const { data, error } = await client
       .from("projects")
       .insert(payload)
-      .select(LIST_COLUMNS)
+      .select(listColumns())
       .single();
     if (error) {
       ui.showToast(`复制失败：${error.message}`);
@@ -857,6 +963,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     // v0.6.0：开标时间移到第一列，其余顺序不变
     const headers = [
       "开标时间",
+      "开标时刻",
       "项目名称",
       "项目类型",
       "投标公司",
@@ -865,6 +972,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       "保证金/保函",
       "项目金额",
       "项目状态",
+      "中标结果",
       "备注",
       "风险摘要",
       "项目金额（数值）",
@@ -879,6 +987,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     ];
     const rows = projects.map((p) => [
       p.date,
+      p.bidTime || "",
       p.name,
       p.type,
       p.biddingCompany || "",
@@ -887,6 +996,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       p.guarantee,
       p.amount || "",
       p.status,
+      p.result || "",
       p.notes || "",
       p.riskSummary || "",
       p.amountValue ?? "",
@@ -926,8 +1036,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
    * v0.8.0：一键备份 —— 直接从 Supabase 拉当前用户全部 projects（含回收站的已删除数据，
    * 不只内存里的 state：PDF 文本是按需加载的，内存可能不全），下载 JSON 文件。
    * 只带 user_id 条件，绝不无条件拉取。
+   * v0.35.0：默认不包含 pdf_text（每项最多 20 万字，几十项就几十 MB，手机上容易内存告急）；
+   * 需要全文备份时显式传 { includePdfText: true }。恢复逻辑兼容缺字段的行。
    */
-  const exportBackup = async () => {
+  const exportBackup = async ({ includePdfText = false } = {}) => {
     const client = getClient();
     const state = getState();
     const uid = state.user?.id;
@@ -936,6 +1048,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       return false;
     }
     try {
+      await ensureExtraColumns();
       const PAGE_SIZE = 500;
       const MAX_ROWS = 10000;
       const allRows = [];
@@ -943,7 +1056,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       while (from < MAX_ROWS) {
         const { data, error } = await client
           .from("projects")
-          .select("*")
+          .select(includePdfText ? "*" : listColumns())
           .eq("user_id", uid)
           .order("created_at", { ascending: true })
           .range(from, from + PAGE_SIZE - 1);
@@ -959,6 +1072,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         app: "ai-bid-assistant",
         version: APP_VERSION,
         exportedAt: now.toISOString(),
+        includesPdfText: Boolean(includePdfText),
         count: allRows.length,
         projects: allRows,
       };
@@ -980,7 +1094,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       } catch {
         // 隐私模式等写失败不影响备份本身
       }
-      ui.showToast(`备份已下载，共 ${allRows.length} 条（含回收站）。`);
+      ui.showToast(
+        `备份已下载，共 ${allRows.length} 条（含回收站${includePdfText ? "与招标全文" : "，不含招标全文"}）。`
+      );
       return true;
     } catch (err) {
       ui.showToast(`备份失败：${err?.message || err}`);
@@ -1035,13 +1151,21 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         from += PAGE_SIZE;
       }
       const { insert, update } = splitRestoreRows(rows, existingIds);
-      let overwrite = false;
+      // v0.35.0：三态决定 —— overwrite / insert-only / abort；取消就是一条都不写。
+      let mode = "insert-only";
       if (update.length && typeof decideOverwrite === "function") {
-        overwrite = await decideOverwrite({
-          overlap: update.length,
-          fresh: insert.length,
-        });
+        mode = resolveRestoreDecision(
+          await decideOverwrite({ overlap: update.length, fresh: insert.length })
+        );
       }
+      if (mode === "abort") {
+        ui.showToast("已取消恢复，没有写入任何数据。");
+        return false;
+      }
+      const overwrite = mode === "overwrite";
+      // 旧库没有 bid_time / result 列时，备份里带的这两列要去掉，否则整批 upsert 报错。
+      await ensureExtraColumns();
+      const writeRows = rows.map(stripUnavailableColumns);
       // 恢复前快照：只拉会被覆盖的那些行的当前内容（覆盖模式才需要）
       if (overwrite && update.length) {
         const ids = update.map((r) => r.id);
@@ -1055,11 +1179,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
           for (const row of data || []) beforeRows.set(row.id, row);
         }
       }
-      totalToWrite = overwrite ? rows.length : insert.length;
+      totalToWrite = overwrite ? writeRows.length : writeRows.filter((r) => !existingIds.has(r.id)).length;
       const BATCH = 100;
       if (overwrite) {
-        for (let i = 0; i < rows.length; i += BATCH) {
-          const batch = rows.slice(i, i + BATCH);
+        for (let i = 0; i < writeRows.length; i += BATCH) {
+          const batch = writeRows.slice(i, i + BATCH);
           const { error } = await client
             .from("projects")
             .upsert(batch, { onConflict: "id" });
@@ -1072,8 +1196,9 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
           }
         }
       } else {
-        for (let i = 0; i < insert.length; i += BATCH) {
-          const batch = insert.slice(i, i + BATCH);
+        const freshRows = writeRows.filter((r) => !existingIds.has(r.id));
+        for (let i = 0; i < freshRows.length; i += BATCH) {
+          const batch = freshRows.slice(i, i + BATCH);
           const { error } = await client
             .from("projects")
             .insert(batch);

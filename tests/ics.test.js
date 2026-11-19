@@ -9,6 +9,8 @@ import {
   foldIcsLine,
   buildCalendarIcs,
   isValidCalendarToken,
+  icsLocalDateTime,
+  icsBidTime,
 } from "../js/ics.js";
 import handler from "../api/calendar.js";
 
@@ -149,4 +151,31 @@ test("api/calendar：缺令牌 400，格式不对 400", async () => {
   const arr = fakeRes();
   await handler({ query: { token: ["abc", "def"] } }, arr);
   assert.equal(arr.statusCode, 400);
+});
+
+test("v0.35.0：填了开标时刻就用带时间的 DTSTART/DTEND，摘要里也带时刻", () => {
+  const ics = buildCalendarIcs([
+    {
+      id: "p1",
+      name: "有时刻的标",
+      bid_date: "2026-11-20",
+      bid_time: "09:30:00",
+      project_type: "房建",
+    },
+    { id: "p2", name: "没时刻的标", bid_date: "2026-11-21" },
+  ]);
+  assert.match(ics, /DTSTART:20261120T093000/);
+  assert.match(ics, /DTEND:20261120T103000/);
+  assert.match(ics, /SUMMARY:开标 09:30：有时刻的标/);
+  // 没时刻的仍是全天事件
+  assert.match(ics, /DTSTART;VALUE=DATE:20261121/);
+});
+
+test("icsLocalDateTime：跨天加时与非法输入", () => {
+  assert.equal(icsLocalDateTime("2026-11-20", "23:30", 60), "20261121T003000");
+  assert.equal(icsLocalDateTime("2026-11-20", "9:05"), "20261120T090500");
+  assert.equal(icsLocalDateTime("2026-11-20", "25:00"), "");
+  assert.equal(icsLocalDateTime("bad", "09:00"), "");
+  assert.equal(icsBidTime({ bid_time: "09:30:00" }), "09:30");
+  assert.equal(icsBidTime({}), "");
 });

@@ -12,8 +12,12 @@ import {
 
 export function createDataIo({ elements, getState, ui, projectsApi, loadSheetJS }) {
   // v0.8.0：一键备份（直接拉 Supabase 全量，含回收站）+ 30 天备份提醒
+  // v0.35.0：默认不带招标全文（pdf_text 每项最多 20 万字，几十项就几十 MB）；
+  // 设置里勾了“含招标全文”才一并导出。
   const runBackup = async () => {
-    const ok = await projectsApi.exportBackup();
+    const ok = await projectsApi.exportBackup({
+      includePdfText: Boolean(elements.backupIncludePdfText?.checked),
+    });
     if (ok) elements.backupTip?.classList.add("hidden");
   };
 
@@ -31,8 +35,9 @@ export function createDataIo({ elements, getState, ui, projectsApi, loadSheetJS 
       elements.backupTip?.classList.add("hidden")
     );
 
-    // v0.8.1：从备份恢复 —— 无重叠直接补齐；有重叠时一次确认：
-    // 确定 = 用备份覆盖已有，取消 = 只补新增；库里有、备份里没有的一律不动
+    // v0.8.1：从备份恢复 —— 无重叠直接补齐；有重叠时三种选择：
+    // 「覆盖已有」= 用备份覆盖、「只补新增」= 只插库里没有的、「取消恢复」= 一条都不写；
+    // 库里有、备份里没有的一律不动。v0.35.0：“取消”不再被当成“只补新增”照旧写库。
     // v0.12.0：离线快照下不打开文件选择框（恢复是写操作，写不上去）
     elements.restoreBtn?.addEventListener("click", () => {
       if (getState().offlineSnapshot) {
@@ -55,9 +60,10 @@ export function createDataIo({ elements, getState, ui, projectsApi, loadSheetJS 
       await projectsApi.restoreBackup(text, ({ overlap, fresh }) =>
         ui.confirmDialog({
           title: "恢复方式",
-          message: `备份中有 ${overlap} 条已存在于当前数据库。点「覆盖已有」用备份覆盖它们，点「只补新增」只补新增的 ${fresh} 条。数据库里有、备份里没有的项目不会被删除。`,
+          message: `备份里有 ${overlap} 条已在库中（另有 ${fresh} 条是新的）。「覆盖已有」用备份内容覆盖它们，「只补新增」只插新的 ${fresh} 条，「取消恢复」什么都不写。库里有、备份里没有的项目不会被删除。`,
           confirmText: "覆盖已有",
-          cancelText: "只补新增",
+          altText: `只补新增（${fresh} 条）`,
+          cancelText: "取消恢复",
         })
       );
     });

@@ -14,6 +14,9 @@ create table if not exists public.projects (
   amount text,
   contact text not null check (char_length(trim(contact)) > 0),
   bid_date date not null,
+  -- v0.35.0：精确开标时刻（选填）与中标结果（null / 已中标 / 未中标）
+  bid_time time,
+  result text,
   guarantee text,
   status text not null default '报名中' check (status in ('报名中', '制作中', '已开标')),
   notes text,
@@ -338,4 +341,42 @@ as $$
   order by p.bid_date asc;
 $$;
 
+grant execute on function public.get_calendar_projects(text) to anon, authenticated;
+
+-- 11) v0.35.0：精确开标时刻 + 中标结果（与 docs/migrations/v0.35.0-bid-time-result.sql 相同）
+alter table public.projects add column if not exists bid_time time;
+alter table public.projects add column if not exists result text;
+do $$ begin
+  alter table public.projects add constraint projects_result_check
+    check (result is null or result in ('已中标', '未中标'));
+exception when duplicate_object then null; end $$;
+
+-- 订阅函数补 bid_time（返回列变了，先删后建）
+drop function if exists public.get_calendar_projects(text);
+create or replace function public.get_calendar_projects(p_token text)
+returns table (
+  id uuid,
+  name text,
+  bid_date date,
+  bid_time time,
+  project_type text,
+  bidding_company text,
+  tenderer text,
+  contact text,
+  notes text
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select p.id, p.name, p.bid_date, p.bid_time, p.project_type, p.bidding_company,
+         p.tenderer, p.contact, p.notes
+  from public.projects p
+  join public.calendar_tokens t on t.user_id = p.user_id
+  where t.token = p_token
+    and p.deleted_at is null
+    and p.bid_date >= current_date
+  order by p.bid_date asc;
+$$;
 grant execute on function public.get_calendar_projects(text) to anon, authenticated;
