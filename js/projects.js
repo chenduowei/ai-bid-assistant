@@ -516,7 +516,17 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     ui.setSyncStatus(
       getState().realtimeReady ? "实时同步已连接" : "云端已同步"
     );
-    ui.showToast(wasEditing ? "项目已更新。" : "项目已添加到云端。");
+    // v0.35.2：保存成功的提示带上项目名（列表很长时，“项目已更新”看不出存的是哪一条）。
+    const shortName = String(project.name || "").trim().slice(0, 12);
+    ui.showToast(
+      wasEditing
+        ? shortName
+          ? `已保存「${shortName}」的修改。`
+          : "项目已更新。"
+        : shortName
+          ? `已添加「${shortName}」到云端。`
+          : "项目已添加到云端。"
+    );
     return wasEditing ? editingId : data?.id || false;
   }
 

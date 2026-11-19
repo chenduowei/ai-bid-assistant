@@ -289,6 +289,35 @@ import { createDrawers } from "./js/drawers.js";
     }
   };
 
+  /**
+   * v0.35.2：保存后“定身”定位。
+   * 表单收起是 0.35s 的 grid 高度动画，收起时下面的列表会整体上抬近千像素；若同一帧就
+   * scrollIntoView，算的是旧布局，算完又会被动画抽走，而且滚动位置可能被夹到新页高上限——
+   * 这就是“保存后跳到别的地方”。所以等收起动画落定（约 380ms，减动效时几乎瞬间）再定位。
+   * 这期间用户又打开表单（revealForm）就直接作废，不去抢页面。
+   */
+  const FORM_COLLAPSE_SETTLE_MS = 380;
+  let pendingLocateTimer = 0;
+  const cancelPendingLocate = () => {
+    if (pendingLocateTimer) {
+      clearTimeout(pendingLocateTimer);
+      pendingLocateTimer = 0;
+    }
+  };
+  const locateProjectAfterSave = (projectId) => {
+    cancelPendingLocate();
+    if (!projectId) return;
+    const reduceMotion =
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const wait = reduceMotion ? 40 : FORM_COLLAPSE_SETTLE_MS;
+    pendingLocateTimer = setTimeout(() => {
+      pendingLocateTimer = 0;
+      // 定位 + 一次柔光提示（v0.35.2：不再有 2 秒背景闪烁）
+      ui.focusProjectInList(projectId, { glow: true });
+    }, wait);
+  };
+
   /** v0.4.4：新增 / 编辑表单折叠。class 切换（grid 高度动画），只改 DOM + state，不触发 ui.render()。 */
   const setFormExpanded = (expanded) => {
     state.formExpanded = expanded;
@@ -306,6 +335,9 @@ import { createDrawers } from "./js/drawers.js";
 
   /** v0.4.3：展开表单 → 滚动定位 → 高亮 → 聚焦第一个可见输入框 */
   const revealForm = () => {
+    // v0.35.2：用户又自己把表单打开了 —— 作废还没执行的“保存后回列表”定位，
+    // 否则它会在收起动画后把页面从表单拽回列表（“保存后再切换编辑对象”就走这条路）。
+    cancelPendingLocate();
     setFormExpanded(true);
     ui.highlightFormPanel();
     const first = elements.formBody?.querySelector(
@@ -314,7 +346,9 @@ import { createDrawers } from "./js/drawers.js";
     if (first) setTimeout(() => first.focus({ preventScroll: true }), 60);
   };
 
-  /** v0.6.0：选填信息折叠（只做 UI 切换，不清空已填值；与 formExpanded 独立） */
+  /** v0.6.0：选填信息折叠（只做 UI 切换，不清空已填值；与 formExpanded 独立）
+   *  v0.35.2：备注已挪进必填区最下面（常改的一句话不该躲在折叠里）、但仍算选填，
+   *  所以不计入这里的项数。 */
   const OPTIONAL_FIELDS = [
     "tenderer",
     "guarantee",
@@ -327,7 +361,6 @@ import { createDrawers } from "./js/drawers.js";
     "inquiryDeadline",
     "clarificationDeadline",
     "guaranteeDeadline",
-    "notes",
   ];
   const setOptionalExpanded = (expanded) => {
     state.optionalExpanded = expanded;
@@ -740,7 +773,8 @@ import { createDrawers } from "./js/drawers.js";
       }
     }
     resetForm();
-    ui.focusProjectInList(savedId);
+    // v0.35.2：等表单收起动画落定再回到这张卡片（以前同一帧定位，结果页面被抽到列表底部）。
+    locateProjectAfterSave(savedId);
     return true;
   };
 

@@ -1,6 +1,6 @@
 # 维护说明
 
-当前以 **v0.35.1 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
+当前以 **v0.35.2 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
 
 ---
 
@@ -23,6 +23,7 @@
 
 ## 版本维护记录
 
+- v0.35.2：三处细节。备注从「选填信息」挪到必填区最后一行（仍选填，选填区 12→11 项）；定位不再挂 2 秒背景闪烁（`project-highlight` / `highlight-fade` 删除，定位只靠平滑滚动 + 展开）；编辑保存后等表单收起（~380ms，减动效时 40ms）落定再回到该卡片，并用一次性柔光 `.save-glow` 提示（Realtime 回声重建卡片时用负 `animation-delay` 接着放，不重头闪一下），`prefers-reduced-motion` 下不播；toast 带项目名。
 - v0.35.1：补丁版，只修注册提交。`app.js` 的 `authForm` submit 处理器在「两次输入的密码不一致」分支提前 `return` 时漏掉了 `event.preventDefault()`（它原本在 `js/auth.js` 的 `handleAuth()` 里才调用），表单于是按浏览器默认行为 GET 提交到 `./?` —— 页面刷回登录态、输入清空、错误提示一闪即失。现在 submit 开头统一 `preventDefault()`。改动为 `app.js` 3 行 + 版本号同步（package.json / sw.js `CACHE_NAME` / index.html 页眉 / js/utils.js `APP_VERSION` / README / changelog / 本文件）。
 - v0.35.0：审查报告 26 项全修。高危三件（恢复备份的“取消”真的是取消：`confirmDialog` 三出口 + `resolveRestoreDecision`；整列回写改按项目串行队列 `createKeyedQueue` + 函数式补丁 + 乐观写入；切换编辑对象加脏检查、草稿改成按编辑对象存的 Map）；手机端（统计卡 3 列 + 短标签、隐藏重复状态筛选、新增「＋」浮动按钮、详情区状态一键改）；空状态分叉、统计卡不再清搜索、日历搜索生效、即将到期统一“事项”口径（并修掉驼峰截止字段读不到的真 bug）；表单改真 `<form>` + 结构化校验与字段级报错；通知权限行、深色 `color-scheme`、同步状态对比度、解析可中止、回收站剩余天数、保证金合计、备份默认不含全文、注册确认密码；新增 `bid_time` / `result`（需执行 `docs/migrations/v0.35.0-bid-time-result.sql`，旧库自动降级）与中标率；海报外置（styles.css 131KB→71KB）、aria-pressed 与行容器语义修正、PWA 细节、CSP Report-Only、app.js 抽 `js/drawers.js`、680px 媒体查询合并 + `check:css` 新增同断点数量校验。测试 94→117。
 - v0.34.0：顶部菜单瘦身（导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，12 项→ 9 项）；设置改浮层（桌面居中弹窗 / 移动底部抽屉，遮罩·Esc·✕ 关闭 + 焦点陷阱）；统计卡片改原生 `<button>`（回车/空格原生行为、`.active` + `aria-pressed`），新增第 6 张「即将开标」跳转卡；`sw.js` 壳补 `js/ics.js`；`api/calendar.js` 令牌格式先验（400，不打 Supabase）+ `private, max-age=300`；`js/ai-extract.js` 分块摘要 `sessionStorage` 缓存（原文哈希 + 模型 + 提示词版本 + 块号，40 条上限）；确认框关闭不再抢走下层抽屉的滚动锁。测试 86→94 个。

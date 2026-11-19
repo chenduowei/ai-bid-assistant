@@ -591,6 +591,9 @@ export function createUi(elements, getState) {
           replacement.classList.add("no-enter");
           el.replaceWith(replacement);
           el = replacement;
+          // v0.35.2：保存后的柔光放到一半时正好碰上 Realtime 回声重建 —— 接着放完，
+          // 否则背景从柔光一下子回到透明，看着又是一下闪。
+          resumeLocateGlow(el, p.id);
         }
         if (anchor) listEl.insertBefore(el, anchor);
         else listEl.appendChild(el);
@@ -636,13 +639,42 @@ export function createUi(elements, getState) {
   };
 
 
-  /** 定位到项目列表中的某一项并高亮（v0.4.1：自动展开该项目） */
-  // v0.27.0：连续点两个项目时，旧的定时器会把新的高亮提前摘掉——先清掉再排新的。
+  /**
+   * 定位到项目列表中的某一项并展开（v0.4.1）。
+   * v0.35.2：去掉定位后那 2 秒背景闪烁（用户反馈像闪屏）。位置改由“平滑滚动 + 展开详情”
+   * 说明，不再往卡片上挂会亮的类；只有保存完成那一次传 `glow: true`，放一层一次性的柔光
+   * （见 styles.css 的 .project-item.save-glow，prefers-reduced-motion 下不播）。
+   * v0.27.0：连续点两个项目时，旧的定时器会把新的提示提前摘掉——先清掉再排新的。
+   */
   let locateTimers = [];
-  const focusProjectInList = (projectId) => {
+  // 柔光时间线与 styles.css 的 .save-glow 动画时长保持同步。
+  const LOCATE_GLOW_DELAY_MS = 260;
+  const LOCATE_GLOW_DURATION_MS = 1400;
+  // 柔光正在放的那张卡片（Realtime 回声重建节点时靠它把动画接着放完，见 resumeLocateGlow）。
+  let glowTarget = null;
+
+  const locateNode = (projectId) =>
+    elements.list?.querySelector(
+      `.project-item[data-id="${CSS.escape(String(projectId))}"]`
+    );
+
+  /** v0.35.2：卡片被重建时把还没放完的柔光接上（负延迟 = 从当前进度继续）。 */
+  const resumeLocateGlow = (node, projectId) => {
+    if (!glowTarget || glowTarget.id !== String(projectId)) return;
+    const elapsed = Date.now() - glowTarget.startedAt;
+    if (elapsed >= LOCATE_GLOW_DURATION_MS) {
+      glowTarget = null;
+      return;
+    }
+    node.style.animationDelay = `-${elapsed}ms`;
+    node.classList.add("save-glow");
+  };
+
+  const focusProjectInList = (projectId, { glow = false } = {}) => {
     if (!projectId) return;
     locateTimers.forEach(clearTimeout);
     locateTimers = [];
+    glowTarget = null; // 新的定位作废上一张卡片的柔光（旧节点上的类下轮渲染自然消失）
     // v0.30.0：只有目标项目在当前搜索 / 筛选中不可见时才清搜索与筛选（之前不管
     // 可见与否都清空，搜了一半的字就这么没了）；清的时候说一声，不再静默。
     const visible = getCurrentFilteredProjects();
@@ -679,15 +711,30 @@ export function createUi(elements, getState) {
     }
     item.scrollIntoView({ behavior: "smooth", block: "center" });
     // v0.29.0：定位残留闪的根因——render() 后目标卡片会重播入场动画（淡入 + 上移），
-    // 与滚动、高亮三重叠加看着像闪。定位时跳过这次入场动画，动画结束后再摘掉。
+    // 与滚动三重叠加看着像闪。定位时跳过这次入场动画。
     item.classList.add("no-enter");
-    // v0.27.0：iOS 风格——高亮不再一上来就满格（那是闪一下的根源），
-    // 等 300ms（列表入场动画落定、滚动已起步）再挂类，动画本身先淡入后淡出。
-    locateTimers = [
-      setTimeout(() => item.classList.add("project-highlight"), 300),
-      setTimeout(() => item.classList.remove("project-highlight"), 2300),
-      setTimeout(() => item.classList.remove("no-enter"), 2300),
-    ];
+    if (glow) {
+      // 等滚动起步（260ms）再挂柔光，免得和滚动的第一帧抢眼睛。
+      locateTimers = [
+        setTimeout(() => {
+          const node = locateNode(projectId);
+          if (!node) return;
+          glowTarget = { id: String(projectId), startedAt: Date.now() };
+          node.classList.add("save-glow");
+        }, LOCATE_GLOW_DELAY_MS),
+        setTimeout(() => {
+          if (glowTarget && glowTarget.id === String(projectId)) glowTarget = null;
+          const node = locateNode(projectId);
+          node?.classList.remove("save-glow");
+          node?.classList.remove("no-enter");
+          if (node) node.style.animationDelay = "";
+        }, LOCATE_GLOW_DELAY_MS + LOCATE_GLOW_DURATION_MS),
+      ];
+    } else {
+      locateTimers = [
+        setTimeout(() => locateNode(projectId)?.classList.remove("no-enter"), 600),
+      ];
+    }
   };
 
   /** 仅更新倒计时文字，避免每分钟全量 render */

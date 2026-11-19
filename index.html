@@ -81,7 +81,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.1</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.2</span></div>
       <!-- v0.34.0：菜单只留内容与视图动作 —— 导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，
            菜单项从 12 个收到 9 个，找东西不用先在一长串里挑。 -->
       <div id="headerMenu" class="header-actions">
@@ -212,11 +212,17 @@
                 <option value="未中标">未中标</option>
               </select>
             </div>
+            <!-- v0.35.2：备注从「选填信息」挪到必填区最下面 —— 它是最常随手补的一句话，
+                 藏在折叠的选填区里要多点一次才看得见。属性仍是选填（不加 required）。 -->
+            <div class="field">
+              <label for="notes">备注（选填）</label>
+              <textarea id="notes" placeholder="备注"></textarea>
+            </div>
           </div>
         </div>
         <div class="form-section">
           <button type="button" class="form-section-title collapsible" id="optionalToggle" aria-expanded="false">
-            <span>选填信息 · <span id="optionalCount">12</span> 项</span>
+            <span>选填信息 · <span id="optionalCount">11</span> 项</span>
             <span class="section-chevron" aria-hidden="true">›</span>
           </button>
           <div id="optionalBody" class="collapse"><div class="collapse-inner">
@@ -275,10 +281,6 @@
             <div class="field">
               <label for="guaranteeDeadline">保证金缴纳截止</label>
               <input id="guaranteeDeadline" type="date" />
-            </div>
-            <div class="field">
-              <label for="notes">备注</label>
-              <textarea id="notes" placeholder="备注"></textarea>
             </div>
           </div>
           </div></div>
