@@ -81,7 +81,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.4</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.5</span></div>
       <!-- v0.34.0：菜单只留内容与视图动作 —— 导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，
            菜单项从 12 个收到 9 个，找东西不用先在一长串里挑。 -->
       <div id="headerMenu" class="header-actions">
@@ -129,7 +129,7 @@
       </button>
       <button type="button" class="stat-card" id="guaranteeStatCard" aria-haspopup="dialog" title="查看待退还保证金清单">
         <span class="label"><span class="label-long">在途保证金（万元）</span><span class="label-short">保证金</span></span>
-        <span class="value" id="inTransitGuarantee">0.00</span>
+        <span class="value" id="inTransitGuarantee">0.00</span><span class="value-unit" aria-hidden="true">万元</span>
       </button>
     </section>
 
@@ -137,6 +137,11 @@
       <div class="panel-title">
         <div>
           <h2>即将到期事项</h2>
+          <!-- v0.35.5：手机端把横条收成一行摘要（首屏省 100px），点它展开；桌面端这条按钮不显示（display:none） -->
+          <button class="up-summary" id="upcomingSummaryBtn" type="button" aria-expanded="false" aria-controls="upcomingList">
+            <span class="up-summary-text" id="upcomingSummary">未来 7 天内的截止事项</span>
+            <span class="up-summary-chevron" aria-hidden="true">›</span>
+          </button>
           <p id="upcomingDesc">未来 7 天内的截止事项，按时间排序。</p>
         </div>
       </div>
@@ -295,7 +300,7 @@
       </div></div>
     </section>
 
-    <section class="card panel">
+    <section class="card panel list-panel">
       <div class="panel-title">
         <div>
           <h2>项目列表</h2>
@@ -331,9 +336,9 @@
           <option value="已开标">已开标</option>
         </select>
         <select id="sortBy" class="sort-select" aria-label="项目排序方式">
-          <option value="date-asc">开标日期：最近优先</option>
-          <option value="date-desc" selected>开标日期：最晚优先</option>
-          <option value="name-asc">项目名称：A 到 Z</option>
+          <option value="date-asc">最近开标</option>
+          <option value="date-desc" selected>最晚开标</option>
+          <option value="name-asc">名称 A-Z</option>
         </select>
         <!-- v0.35.0：中标结果筛选 + 中标率（结果字段为空的不计） -->
         <select id="resultFilter" class="sort-select" aria-label="按中标结果筛选">
@@ -482,6 +487,8 @@
         <p class="field-hint">删除该账户下全部项目（含回收站）与通知记录，不可恢复。</p>
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
+      <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
+      <p class="settings-version">投标工作台 v0.35.5</p>
     </section>
   </div>
 

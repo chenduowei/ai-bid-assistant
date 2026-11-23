@@ -289,6 +289,8 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .stat-card + .stat-card { border-left: 1px solid var(--border); }
 .stat-card .label { display: block; font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--sp-2); }
 .stat-card .value { display: block; font-size: var(--fs-3xl); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+/* v0.35.5：保证金单位的补充说明 —— 桌面端长标签里已有「（万元）」，只在手机端显示 */
+.stat-card .value-unit { display: none; }
 .stat-card:hover { background: var(--accent-soft); }
 .stat-card:active { transform: scale(0.97); }
 .stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
@@ -737,6 +739,8 @@ body.dark .sort-select {
 }
 .refund-item { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .refund-btn { font-size: var(--fs-xs); padding: 6px var(--sp-3); }
+/* v0.35.5：手机端专用的一行摘要与入口 —— 桌面端不显示（桌面仍逐条列出 + 标记已退回） */
+.refund-compact, .refund-open-btn { display: none; }
 .refund-text, .refund-more { font-weight: 700; }
 
 /* ---------- 回收站行 ---------- */
@@ -809,6 +813,8 @@ body.dark .sort-select {
 
 /* ---------- 即将开标：横向 urgency 卡片 ---------- */
 .upcoming-panel { padding: var(--sp-5); margin-bottom: var(--sp-5); }
+/* v0.35.5：手机端的一行摘要按钮 —— 桌面用面板标题 + 说明，不显示它 */
+.up-summary { display: none; }
 .upcoming-list {
   display: flex;
   gap: var(--sp-3);
@@ -1046,6 +1052,8 @@ body.dark .sort-select {
 .checklist-progress { font-size: var(--fs-md); font-weight: 700; margin-bottom: 10px; }
 .checklist-items { display: grid; gap: var(--sp-2); }
 .checklist-item { display: flex; align-items: flex-start; gap: 10px; min-width: 0; font-size: var(--fs-md); line-height: 1.55; }
+/* v0.35.5：勾选框 + 文字包在同一层 label 里（手机端整行可点是靠它） */
+.checklist-main { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
 .checklist-item input[type="checkbox"] { flex-shrink: 0; margin-top: 3px; width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 .checklist-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .checklist-text.done { color: var(--muted); text-decoration: line-through; }
@@ -1796,6 +1804,8 @@ body.sheet-open { overflow: hidden; }
 }
 .settings-group .field + .field { margin-top: var(--sp-3); }
 .settings-group .field input { background: var(--surface); }
+/* v0.35.5：手机页头不再显示版本号，版本挪到设置抽屉末尾 */
+.settings-version { margin: var(--sp-4) 0 0; text-align: center; font-size: var(--fs-xs); color: var(--muted); }
 .settings-panel .field-hint { display: block; font-size: var(--fs-sm); color: var(--muted); line-height: 1.6; margin: var(--sp-2) 0 0; }
 /* 说明 + 按钮一行：按钮不吃换行，说明先压缩 */
 .settings-row {
@@ -1968,9 +1978,7 @@ body.dark { color-scheme: dark; }
   .page { padding: var(--sp-4); }
   .panel { padding: var(--sp-4); }
   .panel-title h2 { font-size: var(--fs-xl); }
-  .list-tools { gap: 10px; margin: 0 calc(-1 * var(--sp-4)) var(--sp-4); }
-  .list-tools .seg-control { order: 2; flex-basis: 100%; }
-  .sort-select { margin-left: auto; }
+  .list-tools { margin: 0 calc(-1 * var(--sp-4)) var(--sp-4); }
   .form-group > .field > input,
   .form-group > .field > select,
   .form-group > .field > textarea { font-size: var(--fs-lg); }
@@ -1979,17 +1987,36 @@ body.dark { color-scheme: dark; }
      换行后的 row-gap（12px）和操作行自己的 margin-top（6px）叠加，上下内边距又各 10px。
      现在内边距 10→8（下 6）、行间 12+6 → row-gap 2 + margin-top 0，操作行按钮间距 6→4，
      卡片降到约 121px（短名一行时约 104px）；交互区（行内按钮 44px）与排版结构不变。 */
-  .project-head { padding: 8px var(--sp-4) 6px; flex-wrap: wrap; row-gap: 2px; }
+  /* v0.35.5：卡头改三行网格（行 1 圆点 + 名称/副标题 + 箭头，行 2 倒计时胶囊，行 3 四个操作）——
+     之前胶囊（61–100px）和 44px 箭头与名称挤同一行，390 下名称只剩 104px、360 只剩 74px。
+     现在名称拿到整行宽度（390 下约 212px、360 下约 182px），仍是最多两行 + 省略号。 */
+  .project-head {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 1fr) 44px;
+    column-gap: 10px;
+    padding: 8px var(--sp-4) 6px;
+    row-gap: 2px;
+    align-items: start;
+  }
   .project-head-right { display: contents; }
-  .project-head-top { order: 1; align-self: center; }
-  .project-head-actions { order: 2; flex: 1 1 100%; margin-top: 0; gap: 4px; }
+  .project-head .status-dot { grid-column: 1; grid-row: 1; margin-top: 7px; }
+  .project-head-main { grid-column: 2; grid-row: 1; }
+  .project-head-top { display: contents; }
+  .project-chevron-btn { grid-column: 3; grid-row: 1; align-self: start; }
+  .project-head-top .cd-pill { grid-column: 2; grid-row: 2; justify-self: start; }
+  .project-head-actions { grid-column: 1 / -1; grid-row: 3; width: 100%; margin-top: 0; gap: 4px; }
+  /* 选择模式：行首圆形复选框独占一列，圆点与内容顺次后移一列 */
+  .project-list.selecting .project-head { grid-template-columns: auto 10px minmax(0, 1fr) 44px; }
+  .project-list.selecting .project-head .select-check { grid-column: 1; grid-row: 1; align-self: start; margin-top: 4px; }
+  .project-list.selecting .project-head .status-dot { grid-column: 2; }
+  .project-list.selecting .project-head-main,
+  .project-list.selecting .project-head-top .cd-pill { grid-column: 3; }
+  .project-list.selecting .project-chevron-btn { grid-column: 4; }
   .project-head-actions .row-btn { flex: 1; justify-content: center; }
   .project-details.collapse.expanded > .collapse-inner { margin: 2px var(--sp-4) 0; }
-  .upcoming-item { flex-basis: 224px; }
   .trash-head { flex-wrap: wrap; }
   .trash-actions { width: 100%; }
   .trash-actions .btn { flex: 1; }
-  .toast-wrap { bottom: calc(76px + env(safe-area-inset-bottom)); }
   .checklist-add .checklist-new-input { flex-basis: 100%; }
   /* v0.35.0：手机端统计卡改 3 列 × 2 行（原先 2 列 3 行约 254px，把第一条项目挤出首屏），
      只留短标签；工具栏那组状态筛选在手机收起（统计卡就是唯一筛选入口），两处不用再同步。 */
@@ -2001,13 +2028,15 @@ body.dark { color-scheme: dark; }
   .stat-card .value { font-size: 20px; }
   .list-tools .seg-control[aria-label="按状态筛选"] { display: none; }
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单 */
+  /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单
+     v0.35.5：回到页顶时收起（页头已有「＋」）—— 它在首屏正压在保证金提示的「查看」上 */
   .fab-add {
     display: grid; place-items: center; right: 16px;
     bottom: calc(132px + env(safe-area-inset-bottom));
     width: 52px; height: 52px; font-size: 26px; font-weight: 600;
     background: var(--accent); color: #fff; box-shadow: var(--shadow-raised);
-    opacity: 1; pointer-events: auto; transform: none;
   }
+  .fab-add.visible { opacity: 1; pointer-events: auto; transform: none; }
   /* 触摸目标：行内操作与抽屉按钮达到 44pt */
   .row-btn { min-height: 44px; padding: 0 10px; display: inline-flex; align-items: center; }
   .trash-actions .btn { min-height: 44px; }
@@ -2040,9 +2069,9 @@ body.dark { color-scheme: dark; }
     right: 0;
     bottom: 0;
     z-index: 25;
-    background: color-mix(in srgb, var(--surface) 88%, transparent);
-    backdrop-filter: blur(12px);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
     -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom);
   }
@@ -2070,4 +2099,190 @@ body.dark { color-scheme: dark; }
   .header-top-actions { gap: var(--sp-2); }
   .header-top-actions .btn.primary { padding: 0; width: 44px; min-height: 44px; }
   .header-top-actions .btn.primary .btn-label-long { display: none; }
+
+  /* ===================== v0.35.5：手机竖屏全面打磨 =====================
+     依据审查报告（handoffs/🔍-手机竖屏ui深度打磨审查）逐条落地，全部收在本断点内，桌面零变化。 */
+
+  /* L3：页头「投标工作台 vX」单独占一行（28px）——手机上收进设置抽屉，首屏多一格空间 */
+  .app-version { display: none; }
+
+  /* M9：保证金卡的长标签「在途保证金（万元）」在手机被隐藏，单位跟着消失——补一个小号单位 */
+  .stat-card .value { display: inline-block; }
+  .stat-card .value-unit { display: inline; margin-left: 2px; font-size: 11px; font-weight: 600; color: var(--muted); }
+
+  /* G1：临期卡片被 nowrap 名称撑到 647px（flex 项的 min-width:auto 取了整行文字宽，flex-basis 失效）——
+     一屏一张 + 名称两行 + 右侧露 6px 下一张作为可滑暗示。 */
+  .upcoming-panel { padding: 10px var(--sp-4); margin-bottom: 12px; }
+  .upcoming-panel .panel-title { margin-bottom: 6px; }
+  .upcoming-panel .panel-title h2 { font-size: var(--fs-lg); }
+  .upcoming-panel .panel-title p { display: none; }
+  /* v0.35.5：一行摘要 + 点开才出横条 —— 面板从 243px 降到 ~64px，首张项目卡回到首屏 */
+  .up-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 2px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: var(--fs-sm);
+    color: var(--muted);
+    text-align: left;
+    cursor: pointer;
+  }
+  .up-summary-text { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .up-summary-chevron { flex: none; font-weight: 700; transition: transform var(--dur-med) var(--ease-spring); }
+  .upcoming-panel.expanded .up-summary-chevron { transform: rotate(90deg); }
+  .upcoming-panel:not(.expanded) .upcoming-list { display: none; }
+  .upcoming-panel:not(.expanded) .panel-title { margin-bottom: 0; }
+  .upcoming-item { min-width: 0; flex: 0 0 calc(100% - 6px); padding: 8px 12px; gap: 10px; }
+  .up-day { font-size: 26px; }
+  .upcoming-item .up-name {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+  .upcoming-item .up-label { white-space: normal; }
+  /* G2：空态（310px）比有内容（243px）还高——图标和说明各收一档 */
+  .upcoming-empty { padding: 10px var(--sp-2); gap: 3px; }
+  .up-empty-icon { width: 30px; height: 30px; font-size: 17px; margin-bottom: 0; }
+  .up-empty-sub { font-size: var(--fs-xs); }
+
+  /* G2/G6：手机端收起态隐藏整块内联表单（132px）——新增走右下「＋」或页头「＋」，编辑走卡片「编辑」，
+     打开后放到可见位置并聚焦；保存 / 取消后（setFormExpanded(false)）自动收起。 */
+  .form-panel:not(.expanded) { display: none; }
+
+  /* G4：长提示原来被 left:50% 压成 195px 宽、7 行、999px 圆角胶囊，文字溢出到圆角外——改成左右各留 16px */
+  .toast-wrap {
+    left: 16px;
+    right: 16px;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    transform: none;
+    justify-items: stretch;
+    max-width: none;
+  }
+  .toast { border-radius: 14px; }
+
+  /* G5：iOS Safari 聚焦 16px 以下的输入框会放大整页——所有输入控件统一 16px（含搜索 / 排序 / 抽屉 / 表单） */
+  .search-box input,
+  .sort-select,
+  .field input,
+  .field select,
+  .field textarea,
+  .checklist-new-input,
+  .settings-group input,
+  input,
+  select,
+  textarea { font-size: 16px; }
+
+  /* G6/G7：浮钮不再压「收起」胶囊、表单控件与展开的菜单 —— 表单 / 菜单 / 提示条出现时收起浮钮；
+     「↓」改到左下，右下那列留给「＋」（右侧同时是卡片的「删除」与提示条的按钮） */
+  body.form-open .fab-add,
+  body.form-open .go-to-bottom,
+  body.menu-open .fab-add,
+  body.menu-open .go-to-bottom,
+  body.toast-open .fab-add,
+  body.toast-open .go-to-bottom { display: none; }
+  .go-to-bottom { left: 16px; right: auto; bottom: calc(76px + env(safe-area-inset-bottom)); width: 44px; height: 44px; font-size: 18px; }
+
+  /* G8：抽屉底部补安全区——「保存设置 / 保存资质 / 生成订阅链接」原来落在 iPhone 底部手势区里 */
+  .sheet-panel { padding-bottom: calc(var(--sp-5) + env(safe-area-inset-bottom)); }
+
+  /* M6：375×667 上页头菜单高 542px、bottom 685 > 667 且不可滚，「退出」被裁——限高并可滚 */
+  .header-actions {
+    max-height: calc(100dvh - 168px - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* M10：列表标题的三行长说明（110px）只留标题一行，搜索计数并到搜索框右侧（省 18px） */  .list-panel .panel-title p { display: none; }
+  .search-box { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .search-input-wrap { flex: 1; min-width: 0; }
+  .filter-result-count { flex: none; margin-top: 0; white-space: nowrap; }
+
+  /* M2：工具栏 3–4 行且参差（「全部折叠」独占一行）——两列定版：排序 / 结果各一列，选择与全部折叠一行，视图段控件通栏 */
+  .list-tools {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 8px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 8px var(--sp-3);
+  }
+  .list-tools .sort-select { margin-left: 0; justify-self: start; min-width: 0; width: auto; max-width: 100%; }
+  .list-tools #sortBy { grid-column: 1; }
+  .list-tools #resultFilter { grid-column: 2; }
+  .list-tools #selectModeBtn { grid-row: 2; grid-column: 1; justify-self: start; }
+  .list-tools #collapseAllBtn { grid-row: 2; grid-column: 2; justify-self: start; }
+  .list-tools .view-seg { grid-row: 3; grid-column: 1; display: grid; grid-template-columns: 1fr 1fr; }
+  .list-tools .win-rate { grid-row: 3; grid-column: 2; justify-self: end; }
+  .list-tools .view-seg .seg-btn { min-height: 40px; padding: 10px 14px; }
+
+  /* M3：日历导航在 360/375/390 都把「下月 ›」挤到第二行（nav 92px）——只留 ‹ 标题 › 一行，「回到本月」降为下面一行小字 */
+  .cal-nav { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: 6px; row-gap: 2px; }
+  .cal-nav .cal-title { grid-column: 2; grid-row: 1; min-width: 0; }
+  .cal-nav #calPrevBtn { grid-column: 1; grid-row: 1; }
+  .cal-nav #calNextBtn { grid-column: 3; grid-row: 1; }
+  .cal-nav #calTodayBtn {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    min-height: 32px;
+    padding: 2px 10px;
+    font-size: var(--fs-xs);
+  }
+
+  /* M4：清单条目——勾选框 18px 且只有点方框能勾、文字被来源徽标与 × 挤成 103px 窄列（26 字折 4 行） */
+  .checklist-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px; align-items: start; }
+  .checklist { padding: 10px var(--sp-3); }
+  .checklist-main { grid-column: 1; grid-row: 1; display: flex; align-items: flex-start; gap: 10px; min-width: 0; cursor: pointer; }
+  .checklist-item input[type="checkbox"] { width: 22px; height: 22px; margin-top: 1px; }
+  /* 来源徽标移到第二行（与文字左对齐）—— 原来它和「×」一起把文字挤成 103–125px，26 字要折 4 行 */
+  .checklist-source { grid-column: 1; grid-row: 2; justify-self: start; margin-left: 32px; }
+  .checklist-del { grid-column: 2; grid-row: 1; }
+  .checklist-head .checklist-progress {
+    min-width: 0;
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .checklist-head .head-actions .section-collapse-btn { min-height: 32px; padding: 4px 8px; }
+
+  /* M1：三条提示条合计约 500px，把搜索框推到 y≈1341——手机端收紧：截止提示与上面的临期面板同口径，整条隐去；
+     保证金提示收成一行 + 「查看」（逐条「标记已退回」在保证金抽屉里，本地同一套按钮）；备份提示单行截断。 */
+  .deadline-tip { display: none; }
+  .refund-tip { align-items: center; gap: 4px 8px; padding: 8px 10px; font-size: var(--fs-xs); line-height: 1.5; }
+  .refund-tip .refund-text,
+  .refund-tip .refund-item,
+  .refund-tip .refund-more { display: none; }
+  .refund-tip .refund-compact { display: inline; font-weight: 700; min-width: 0; }
+  .refund-tip .refund-open-btn { display: inline-flex; margin-left: auto; padding: 4px 10px; min-height: 32px; font-size: var(--fs-xs); }
+  .backup-tip { padding: 8px 10px; gap: 6px; font-size: var(--fs-xs); line-height: 1.5; flex-wrap: nowrap; }
+  .backup-tip > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .backup-tip .btn { flex: none; padding: 4px 10px; min-height: 32px; }
+
+  /* 首屏高度再收两刀：页头下边距与列表面板上内边距 */
+  .header { margin-bottom: 12px; }
+  .list-panel { padding-top: 12px; }
+
+  /* L1：「选填信息」标题按钮两侧各 4px 外扩，右缘超出容器 4px 被裁 */
+  .form-section-title.collapsible { width: auto; margin-left: 0; margin-right: 0; }
+
+  /* L4：列表 / 日历段控件 33px → 可点 */
+  .list-tools .seg-btn { min-height: 40px; }
+
+  /* L8：底部 Tab 88% 半透明会透出下面的文字——浅色 94%、深色 96% */
+  body.dark .bottom-tabs { background: color-mix(in srgb, var(--surface) 96%, transparent); }
+}
+
+/* v0.35.5：超窄屏（320 / 340 这类）——保证金「40.00 万元」在 88px 的卡里会折成两行（统计区 140 → 158px） */
+@media (max-width: 340px) {
+  .stat-card { padding: 8px 10px; }
+  .stat-card .value { font-size: 18px; }
+  .stat-card .value-unit { font-size: 10px; }
 }

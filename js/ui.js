@@ -35,9 +35,15 @@ export function createUi(elements, getState) {
       elements.toastWrap.firstChild.remove();
     }
     elements.toastWrap.appendChild(toast);
+    // v0.35.5：提示条显示期间收起手机端浮钮 —— 它们压在提示条右下角（z-index 更高，遮字）
+    document.body.classList.add("toast-open");
     setTimeout(() => {
       toast.classList.add("out");
-      setTimeout(() => toast.remove(), 250);
+      setTimeout(() => {
+        toast.remove();
+        if (!elements.toastWrap.children.length)
+          document.body.classList.remove("toast-open");
+      }, 250);
     }, 2600);
   };
 
@@ -173,7 +179,7 @@ export function createUi(elements, getState) {
           `<span class="refund-item">「${escapeHtml(p.name)}」（${escapeHtml(formatDateDisplay(p.date))}开标）<button class="btn secondary refund-btn" type="button" data-action="mark-refunded" data-id="${escapeHtml(p.id)}">标记已退回</button></span>`
       )
       .join("");
-    el.innerHTML = `<span class="refund-text">💰 以下项目已开标且保证金已缴纳，跟进退还：</span>${rows}${more ? `<span class="refund-more">${escapeHtml(more)}</span>` : ""}`;
+    el.innerHTML = `<span class="refund-text">💰 以下项目已开标且保证金已缴纳，跟进退还：</span><span class="refund-compact">💰 ${items.length} 笔保证金待退还</span><button class="btn secondary refund-open-btn" type="button" data-action="open-guarantee">查看</button>${rows}${more ? `<span class="refund-more">${escapeHtml(more)}</span>` : ""}`;
   };
 
   const upcomingLevel = (days) =>
@@ -185,6 +191,17 @@ export function createUi(elements, getState) {
     const desc = document.getElementById("upcomingDesc");
     if (desc) {
       desc.textContent = `未来 ${reminderDays} 天内的截止事项（含报名 / 质疑 / 澄清 / 保证金 / 开标），按时间排序；浏览器通知仅在页面打开时触发。`;
+    }
+    // v0.35.5：手机端收起态的一行摘要（同一口径：事项数 + 最近一条）
+    const summary = document.getElementById("upcomingSummary");
+    if (summary) {
+      if (!upcoming.length) {
+        summary.textContent = `未来 ${reminderDays} 天内暂无截止事项`;
+      } else {
+        const first = upcoming[0];
+        const left = first.days === 0 ? "今天" : first.days === 1 ? "明天" : `还有 ${first.days} 天`;
+        summary.textContent = `未来 ${reminderDays} 天 ${upcoming.length} 个截止 · 最近：${first.label} ${left}`;
+      }
     }
     if (!upcoming.length) {
       elements.upcomingList.innerHTML = `<div class="upcoming-empty"><div class="up-empty-icon">✓</div><div class="up-empty-title">未来 ${reminderDays} 天暂无截止事项</div><div class="up-empty-sub">新的截止时间会在这里提醒你</div></div>`;
@@ -342,7 +359,9 @@ export function createUi(elements, getState) {
         ? "AI风险"
         : "手动";
 
-  /** 废标检查清单：进度 + 勾选 + 生成 + 手动新增 + 删除，文本全部 escapeHtml */
+  /** 废标检查清单：进度 + 勾选 + 生成 + 手动新增 + 删除，文本全部 escapeHtml
+   *  v0.35.5：勾选框与文字包进 <label class="checklist-main"> —— 手机上整行可点勾选（原来只有 18px 方框能勾），
+   *  来源徽标与 × 也不再和文字抢同一行宽度。 */
   const renderChecklist = (p) => {
     const list = Array.isArray(p.checklist) ? p.checklist : [];
     const { done, total } = getChecklistProgress(list);
@@ -351,7 +370,7 @@ export function createUi(elements, getState) {
       ? list
           .map(
             (item) =>
-              `<div class="checklist-item"><input type="checkbox" data-action="checklist-toggle" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""} /><span class="checklist-text ${item.done ? "done" : ""}">${escapeHtml(item.text)}</span><span class="checklist-source">${escapeHtml(checklistSourceLabel(item.source))}</span><button class="btn secondary checklist-del" type="button" data-action="checklist-delete" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" title="删除该项">×</button></div>`
+              `<div class="checklist-item"><label class="checklist-main"><input type="checkbox" data-action="checklist-toggle" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""} /><span class="checklist-text ${item.done ? "done" : ""}">${escapeHtml(item.text)}</span></label><span class="checklist-source">${escapeHtml(checklistSourceLabel(item.source))}</span><button class="btn secondary checklist-del" type="button" data-action="checklist-delete" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" title="删除该项">×</button></div>`
           )
           .join("")
       : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
@@ -1058,8 +1077,10 @@ export function createUi(elements, getState) {
       elements.scrollProgress.style.width = `${percent}%`;
     }
     // v0.24.0：浮动按钮显隐 —— 下滑 200px 后现回顶部；离底部还剩 200px 以上时现回到底部。
+    // v0.35.5：手机端「＋」同上——页顶用页头的「＋」，滚下去才现浮动新增
     elements.backToTopBtn?.classList.toggle("visible", scrollY > 200);
-    elements.goToBottomBtn?.classList.toggle("visible", max - scrollY > 200);
+    elements.goToBottomBtn?.classList.toggle("visible", max - scrollY > 200 && scrollY > 200);
+    elements.fabAdd?.classList.toggle("visible", scrollY > 200);
   };
 
   // v0.35.3：addRipple 已删 —— 它从导出后一直没人调用，配套的 .ripple / @keyframes ripple
@@ -1082,6 +1103,8 @@ export function createUi(elements, getState) {
     if (!menu) return;
     const open = force ?? !menu.classList.contains("open");
     menu.classList.toggle("open", open);
+    // v0.35.5：菜单展开时收起浮动按钮 —— 它们原本压在菜单底部条目上（「日历订阅」「设置」「退出」）
+    document.body.classList.toggle("menu-open", open);
     btn?.setAttribute("aria-expanded", open ? "true" : "false");
   };
 
