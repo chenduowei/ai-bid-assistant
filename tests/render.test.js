@@ -162,6 +162,45 @@ test("详情区：「项目状态」那一行带 kv-row-status，其余行不带
   assert.ok(allRows.length > 1);
 });
 
+// v0.35.6：卡片元信息行只剩「日期开标 · 类型」，投标公司包进 .project-sub-company
+// 由手机端隐去；详情区把与卡头重复的「项目名称 / 项目类型」挂上对应的 kv-row-* 类。
+test("项目卡：投标公司单独包在 .project-sub-company 里（手机端隐去）", () => {
+  state.projects = [project({ biddingCompany: "青海一建建筑工程有限责任公司" })];
+  state.expandedIds = new Set();
+  render();
+  const sub = elements.list.querySelector(".project-sub");
+  assert.ok(sub, "卡片副标题仍在");
+  assert.match(sub.textContent, /开标/);
+  const company = sub.querySelector(".project-sub-company");
+  assert.ok(company, "投标公司要包一层 .project-sub-company");
+  assert.match(company.textContent, /青海一建建筑工程有限责任公司/);
+  // 桌面端顺序不变：公司仍在副标题末尾
+  assert.ok(sub.textContent.trim().endsWith("青海一建建筑工程有限责任公司"));
+});
+
+test("详情区：项目名称 / 项目类型带走样式的挂点，备注带 kv-row-note", () => {
+  state.projects = [project({ name: "某某项目", type: "市政工程", notes: "资质原件已备齐" })];
+  state.expandedIds = new Set(["p1"]);
+  render();
+  const rowOfLabel = (label) =>
+    [...elements.list.querySelectorAll(".kv-row")].find(
+      (r) => r.querySelector(".kv-label")?.textContent === label
+    );
+  assert.ok(rowOfLabel("项目名称").classList.contains("kv-row-name"));
+  assert.ok(rowOfLabel("项目类型").classList.contains("kv-row-type"));
+  assert.ok(rowOfLabel("备注").classList.contains("kv-row-note"));
+});
+
+test("详情区：展开后 body 带 detail-open（手机端据此收起浮动「＋」）", () => {
+  state.projects = [project()];
+  state.expandedIds = new Set(["p1"]);
+  render();
+  assert.ok(document.body.classList.contains("detail-open"));
+  state.expandedIds = new Set();
+  render();
+  assert.equal(document.body.classList.contains("detail-open"), false);
+});
+
 test("即将到期：手机端收起态的摘要写清事项数与最近一条", () => {
   state.projects = [
     project({ id: "p1", date: "2026-11-20", registrationDeadline: "2026-11-19" }),
@@ -181,8 +220,9 @@ test("即将到期：手机端收起态的摘要写清事项数与最近一条",
     render();
     const summary = document.getElementById("upcomingSummary");
     assert.ok(summary, "index.html 里应有 #upcomingSummary");
-    assert.match(summary.textContent, /未来 7 天 3 个截止/);
-    assert.match(summary.textContent, /最近：报名截止 今天/);
+    // v0.35.6：摘要与标题排成一行，文案压到「近 7 天 · 3 个截止 · 报名截止 今天」
+    assert.match(summary.textContent, /近 7 天 · 3 个截止/);
+    assert.match(summary.textContent, /报名截止 今天/);
     // 摘要按钮包住整行（手机端是它把横条收起来的）
     const btn = document.getElementById("upcomingSummaryBtn");
     assert.equal(btn.getAttribute("aria-controls"), "upcomingList");

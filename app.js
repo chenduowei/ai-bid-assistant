@@ -298,6 +298,8 @@ import { createDrawers } from "./js/drawers.js";
     details.classList.toggle("expanded", expanded);
     toggleEl.setAttribute("aria-expanded", String(expanded));
     item.classList.toggle("expanded", expanded);
+    // v0.35.6：有展开的卡片时收起右下角浮动的「＋」（它会压住详情里的日期）
+    ui.syncDetailOpenState();
     // v0.30.0：详情懒生成 —— 展开时才补填详情 HTML（折叠卡片渲染时是空的）。
     if (expanded) {
       const project = state.projects.find((p) => p.id === id);
