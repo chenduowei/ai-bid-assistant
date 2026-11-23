@@ -343,6 +343,8 @@ import { createDrawers } from "./js/drawers.js";
     const panel = body?.closest(".form-panel");
     const title = panel?.querySelector('[data-action="toggle-form"]');
     if (body) body.classList.toggle("expanded", expanded);
+    // v0.35.5：手机上表单打开时收起右下浮钮——「＋」此刻无用，且压在表单标题的「收起」胶囊上
+    document.body.classList.toggle("form-open", expanded);
     if (title) {
       title.setAttribute("aria-expanded", String(expanded));
       const pillLabel = title.querySelector(".form-pill-label");
@@ -2371,9 +2373,22 @@ import { createDrawers } from "./js/drawers.js";
       );
     });
     // v0.34.0：「即将开标」卡片——不是筛选，而是跳到下面的即将开标面板（闪一下指位置）。
+    // v0.35.5：手机端面板默认收起成一行摘要，跳过去时顺手展开。
+    const setUpcomingExpanded = (expanded) => {
+      const panel = document.querySelector(".upcoming-panel");
+      const btn = document.getElementById("upcomingSummaryBtn");
+      if (!panel) return;
+      panel.classList.toggle("expanded", expanded);
+      btn?.setAttribute("aria-expanded", expanded ? "true" : "false");
+    };
+    document.getElementById("upcomingSummaryBtn")?.addEventListener("click", () => {
+      const panel = document.querySelector(".upcoming-panel");
+      setUpcomingExpanded(!panel?.classList.contains("expanded"));
+    });
     elements.upcomingStatCard?.addEventListener("click", () => {
       const panel = document.querySelector(".upcoming-panel");
       if (!panel) return;
+      setUpcomingExpanded(true);
       panel.scrollIntoView({ behavior: "smooth", block: "start" });
       panel.classList.add("panel-flash");
       setTimeout(() => panel.classList.remove("panel-flash"), 1600);

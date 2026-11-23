@@ -162,6 +162,57 @@ test("详情区：「项目状态」那一行带 kv-row-status，其余行不带
   assert.ok(allRows.length > 1);
 });
 
+test("即将到期：手机端收起态的摘要写清事项数与最近一条", () => {
+  state.projects = [
+    project({ id: "p1", date: "2026-11-20", registrationDeadline: "2026-11-19" }),
+    project({ id: "p2", date: "2026-11-21" }),
+  ];
+  const RealDate = Date;
+  const fixed = new RealDate("2026-11-19T08:00:00");
+  globalThis.Date = class extends RealDate {
+    constructor(...args) {
+      super(...(args.length ? args : [fixed]));
+    }
+    static now() {
+      return fixed.getTime();
+    }
+  };
+  try {
+    render();
+    const summary = document.getElementById("upcomingSummary");
+    assert.ok(summary, "index.html 里应有 #upcomingSummary");
+    assert.match(summary.textContent, /未来 7 天 3 个截止/);
+    assert.match(summary.textContent, /最近：报名截止 今天/);
+    // 摘要按钮包住整行（手机端是它把横条收起来的）
+    const btn = document.getElementById("upcomingSummaryBtn");
+    assert.equal(btn.getAttribute("aria-controls"), "upcomingList");
+    assert.ok(summary.closest("#upcomingSummaryBtn"));
+  } finally {
+    globalThis.Date = RealDate;
+  }
+});
+
+// v0.35.5：清单条目改成 label 包勾选框 + 文字 —— 手机端整行可点（原来只有 18px 方框能勾）。
+test("清单条目：勾选框与文字包在同一个 label 里（手机端整行可点）", () => {
+  state.projects = [
+    project({
+      checklist: [{ id: "c1", text: "营业执照副本复印件加盖公章", done: false, source: "manual" }],
+    }),
+  ];
+  state.expandedIds = new Set(["p1"]);
+  render();
+  const item = elements.list.querySelector(".checklist-item");
+  assert.ok(item);
+  const label = item.querySelector("label.checklist-main");
+  assert.ok(label, "勾选框与文字必须包在 label.checklist-main 里");
+  assert.ok(label.querySelector('input[type="checkbox"]'));
+  assert.match(label.textContent, /营业执照副本/);
+  // 勾选框不再是 .checklist-item 的直接子元素
+  assert.equal([...item.children].some((c) => c.tagName === "INPUT"), false);
+  assert.ok(item.querySelector(".checklist-source"));
+  assert.ok(item.querySelector(".checklist-del"));
+});
+
 test("即将到期：卡片数字与面板条数同一口径（事项），驼峰截止字段也算", () => {
   state.projects = [
     project({ id: "p1", date: "2026-11-20", registrationDeadline: "2026-11-19" }),

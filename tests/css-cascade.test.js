@@ -147,3 +147,57 @@ test("手机端状态三选一：三等分网格铺满一行，不靠 flex-wrap"
   );
   assert.equal(declOf(deskQuick, "display"), "inline-flex");
 });
+
+// v0.35.5：手机竖屏全面打磨的六条核心改法都要有样式落点，并守住桌面端两处基线
+// （临期卡仍是原来的 248px flex-basis、输入框仍不强制 16px）。
+test("v0.35.5 手机端：项目卡三行网格（名称 / 胶囊 / 操作）", () => {
+  const head = ruleIn680(".project-head");
+  assert.ok(head, "@media (max-width: 680px) 里必须有 .project-head");
+  assert.equal(declOf(head, "display"), "grid");
+  assert.equal(declOf(head, "grid-template-columns"), "10px minmax(0, 1fr) 44px");
+  const pill = ruleIn680(".project-head-top .cd-pill");
+  assert.equal(declOf(pill, "grid-column"), "2");
+  assert.equal(declOf(pill, "grid-row"), "2");
+  const actions = ruleIn680(".project-head-actions");
+  assert.equal(declOf(actions, "grid-row"), "3");
+  // 桌面端卡头仍是 flex（不被网格带去）
+  const deskHead = parseCssRules(realCss).find(
+    (r) => r.selector === ".project-head" && r.media.length === 0
+  );
+  assert.equal(declOf(deskHead, "display"), "flex");
+});
+
+test("v0.35.5 手机端：临期卡一屏一张 + 名称两行", () => {
+  const item = ruleIn680(".upcoming-item");
+  assert.ok(item);
+  assert.equal(declOf(item, "min-width"), "0");
+  assert.equal(declOf(item, "flex"), "0 0 calc(100% - 6px)");
+  const name = ruleIn680(".upcoming-item .up-name");
+  assert.equal(declOf(name, "-webkit-line-clamp"), "2");
+  // 桌面端仍是 248px
+  const deskItem = parseCssRules(realCss).find(
+    (r) => r.selector === ".upcoming-item" && r.media.length === 0
+  );
+  assert.equal(declOf(deskItem, "flex"), "0 0 248px");
+});
+
+test("v0.35.5 手机端：长提示左右留白、输入框 16px、抽屉安全区、收起态隐藏表单", () => {
+  const toast = ruleIn680(".toast-wrap");
+  assert.equal(declOf(toast, "left"), "16px");
+  assert.equal(declOf(toast, "right"), "16px");
+  assert.equal(declOf(toast, "transform"), "none");
+  const input = ruleIn680(
+    ".search-box input, .sort-select, .field input, .field select, .field textarea, .checklist-new-input, .settings-group input, input, select, textarea"
+  );
+  assert.ok(input, "输入控件 16px 那条兜底必须在 680 块里");
+  assert.equal(declOf(input, "font-size"), "16px");
+  const sheet = ruleIn680(".sheet-panel");
+  assert.match(declOf(sheet, "padding-bottom"), /env\(safe-area-inset-bottom\)/);
+  const form = ruleIn680(".form-panel:not(.expanded)");
+  assert.equal(declOf(form, "display"), "none");
+  // 桌面端表单仍在文档流里
+  const deskForm = parseCssRules(realCss).find(
+    (r) => r.selector === ".form-panel:not(.expanded)" && r.media.length === 0
+  );
+  assert.equal(deskForm, undefined);
+});

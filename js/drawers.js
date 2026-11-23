@@ -269,6 +269,11 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
 
     // 保证金退还提醒横幅 + 保证金清单：标记已退回（共用一套更新路径）
     const handleMarkRefunded = async (event) => {
+      // v0.35.5：手机端横幅收成一行，「查看」打开保证金抽屉（逐条「标记已退还」在那里）
+      if (event.target.closest('button[data-action="open-guarantee"]')) {
+        openGuaranteeSheet();
+        return;
+      }
       const button = event.target.closest('button[data-action="mark-refunded"]');
       if (!button) return;
       const ok = await projectsApi.updateProjectFields(button.dataset.id, {
@@ -327,6 +332,7 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
     bindDrawers,
     closeTop,
     closeTrashSheet,
+    openGuaranteeSheet,
     closeGuaranteeSheet,
     closeQualSheet,
     closeCalendarSheet,
