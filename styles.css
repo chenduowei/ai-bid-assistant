@@ -18,26 +18,37 @@
    v0.29.0 P1 四件套：AI 终稿上限 4000→8000 与截断/网络中文提示、表单草稿保护、定位残留闪修复、企业资质库对照。
    ============================================================ */
 :root {
-  --bg: #F2F2F7;
+  /* v0.35.9：按 Apple HIG 收拢色板 —— macOS / iOS 分组底色 + 纯白卡片 +
+     极轻 hairline；全站只留一支系统蓝，强调色不再有第二支。 */
+  --bg: #F5F5F7;
   --surface: #FFFFFF;
   --surface-raised: #FFFFFF;
   --surface-soft: #F2F2F7;
-  --text: #1C1C1E;
-  --muted: #6C6C70;
-  --border: rgba(60, 60, 67, 0.12);
+  --text: #1D1D1F;
+  --muted: #6E6E73;
+  --border: rgba(60, 60, 67, 0.13);
+  /* 卡片 / 列表 / 抽屉的细描边：比 --border 还轻一档（rgba(0,0,0,0.06)） */
+  --hairline: rgba(0, 0, 0, 0.06);
+  /* iOS 分段控件的轨道与滑块、控件填充灰 */
+  --seg-track: rgba(118, 118, 128, 0.12);
+  --seg-knob: #FFFFFF;
+  --seg-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --field-fill: rgba(118, 118, 128, 0.10);
+  --hover: rgba(0, 0, 0, 0.035);
   --accent: #007AFF;
   --accent-soft: rgba(0, 122, 255, 0.10);
   --danger: #D70015;
   --success: #34C759;
   --warning: #FF9500;
-  --btn-fill: rgba(120, 120, 128, 0.14);
-  --tint-blue-bg: rgba(0, 122, 255, 0.12);
-  --tint-blue-text: #007AFF;
-  --tint-red-bg: rgba(255, 59, 48, 0.12);
-  --tint-red-text: #E5322B;
-  --tint-orange-bg: rgba(255, 149, 0, 0.14);
+  --btn-fill: rgba(118, 118, 128, 0.12);
+  /* 低饱和柔色底：状态 / 倒计时 / 提示条都用这一档，不堆高饱和色块 */
+  --tint-blue-bg: rgba(0, 122, 255, 0.09);
+  --tint-blue-text: #0A6EDB;
+  --tint-red-bg: rgba(255, 59, 48, 0.10);
+  --tint-red-text: #D70015;
+  --tint-orange-bg: rgba(255, 149, 0, 0.12);
   --tint-orange-text: #8A4F00;
-  --tint-green-bg: rgba(52, 199, 89, 0.14);
+  --tint-green-bg: rgba(52, 199, 89, 0.12);
   --tint-green-text: #1E7A34;
   --sd-info: #007AFF;
   --sd-info-glow: rgba(0, 122, 255, 0.18);
@@ -45,10 +56,14 @@
   --sd-warn-glow: rgba(255, 149, 0, 0.20);
   --sd-done: #AEAEB2;
   --sd-done-glow: rgba(174, 174, 178, 0.25);
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.10);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
   --radius-lg: 16px;
   --radius-md: 12px;
+  /* 页面左右内边距：页头的毛玻璃应用栏靠它做通栏出血，各断点只改这一个值 */
+  --page-x: 20px;
+  /* 吸顶应用栏高度：列表工具栏 / 定位滚动都让开它 */
+  --appbar-h: 80px;
   /* v0.10.0：间距与字阶 token —— 新代码一律用 token，旧值按映射表迁移 */
   --sp-1: 4px;
   --sp-2: 8px;
@@ -75,35 +90,42 @@
 }
 
 body.dark {
+  /* iOS / macOS 深色原生层次：纯黑画布 → #1C1C1E 卡面 → #2C2C2E 抬升面 */
   --bg: #000000;
   --surface: #1C1C1E;
   --surface-raised: #2C2C2E;
   --surface-soft: #2C2C2E;
-  --text: #FFFFFF;
+  --text: #F5F5F7;
   --muted: #98989F;
-  --border: rgba(84, 84, 88, 0.65);
+  --border: rgba(84, 84, 88, 0.60);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --seg-track: rgba(118, 118, 128, 0.24);
+  --seg-knob: #636366;
+  --seg-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --field-fill: rgba(118, 118, 128, 0.20);
+  --hover: rgba(255, 255, 255, 0.05);
   --accent: #0A84FF;
-  --accent-soft: rgba(10, 132, 255, 0.18);
+  --accent-soft: rgba(10, 132, 255, 0.16);
   --danger: #FF453A;
   --success: #30D158;
   --warning: #FF9F0A;
-  --btn-fill: rgba(120, 120, 128, 0.28);
-  --tint-blue-bg: rgba(10, 132, 255, 0.18);
-  --tint-blue-text: #5EB2FF;
-  --tint-red-bg: rgba(255, 69, 58, 0.18);
-  --tint-red-text: #FF7A72;
-  --tint-orange-bg: rgba(255, 159, 10, 0.20);
-  --tint-orange-text: #FFB340;
-  --tint-green-bg: rgba(48, 209, 88, 0.18);
-  --tint-green-text: #4ADE80;
+  --btn-fill: rgba(118, 118, 128, 0.22);
+  --tint-blue-bg: rgba(10, 132, 255, 0.16);
+  --tint-blue-text: #64B5FF;
+  --tint-red-bg: rgba(255, 69, 58, 0.16);
+  --tint-red-text: #FF8A80;
+  --tint-orange-bg: rgba(255, 159, 10, 0.16);
+  --tint-orange-text: #FFC061;
+  --tint-green-bg: rgba(48, 209, 88, 0.16);
+  --tint-green-text: #5CE07C;
   --sd-info: #0A84FF;
   --sd-info-glow: rgba(10, 132, 255, 0.25);
   --sd-warn: #FF9F0A;
   --sd-warn-glow: rgba(255, 159, 10, 0.25);
   --sd-done: #636366;
   --sd-done-glow: rgba(99, 99, 102, 0.35);
-  --shadow: 0 1px 3px rgba(0, 0, 0, 0.30);
-  --shadow-raised: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.60), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 
 * { box-sizing: border-box; }
@@ -114,7 +136,8 @@ body.dark {
 body {
   margin: 0;
   min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  /* v0.35.9：字族按 Apple 平台优先排 —— 先系统 SF Pro，再苹方，最后才是 Windows 回退 */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Segoe UI", "Microsoft YaHei", sans-serif;
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -142,13 +165,20 @@ html { scroll-behavior: smooth; }
 
 /* ---------- 页头：iOS 大标题 ---------- */
 .header {
-  background: transparent;
+  /* v0.35.9：顶栏改 iOS / macOS 的半透明应用栏 —— 吸顶 + 提饱和毛玻璃 + 1px hairline；
+     负外边距让它通栏（各断点只改 --page-x），滚动时内容在它下面虚化掠过。 */
+  position: sticky;
+  top: 0;
+  z-index: 22;
+  margin: 0 calc(-1 * var(--page-x)) var(--sp-4);
+  padding: 8px var(--page-x) 8px;
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
   border: 0;
-  box-shadow: none;
+  border-bottom: 1px solid var(--hairline);
   border-radius: 0;
-  padding: var(--sp-4) var(--sp-1) 0;
-  margin-bottom: var(--sp-5);
-  position: relative;
+  box-shadow: none;
 }
 .header-top {
   display: flex;
@@ -166,8 +196,9 @@ html { scroll-behavior: smooth; }
   border-radius: 14px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #007AFF, #5856D6);
-  box-shadow: 0 6px 16px rgba(0, 122, 255, 0.35);
+  /* v0.35.9：单一系统蓝，去紫、去重投影 —— 只留一层内高光让它像一枚实体按键 */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, #FFFFFF) 0%, var(--accent) 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.30);
 }
 .brand-mark svg { display: block; width: 52%; height: 52%; }
 /* v0.14.0：品牌角标即首页按钮——去默认按钮样式，保留原尺寸与触摸区 */
@@ -294,8 +325,8 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .stat-card:hover { background: var(--accent-soft); }
 .stat-card:active { transform: scale(0.97); }
 .stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-/* 当前筛选：浅色底 + 顶部一条品牌色指示线 + 数值换品牌色 */
-.stat-card.active { background: var(--accent-soft); box-shadow: inset 0 2px 0 var(--accent); }
+/* 当前筛选：柔色底 + 数值换品牌色（v0.35.9 去掉顶部色条——iOS 的选中态是填充，不是划线） */
+.stat-card.active { background: var(--accent-soft); box-shadow: none; }
 .stat-card.active .value { color: var(--accent); }
 .stat-card.active .label { color: var(--text); font-weight: 600; }
 
@@ -394,15 +425,14 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 
 /* ---------- 工具栏 ---------- */
 .list-tools { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-4); }
-/* v0.7.0：工具栏 sticky 毛玻璃，滚动时跟手 */
+/* v0.7.0：工具栏 sticky 毛玻璃，滚动时跟手；v0.35.9 让开吸顶应用栏，毛玻璃与顶栏同一档 */
 .list-tools {
   position: sticky;
-  top: 0;
+  top: var(--appbar-h);
   z-index: 15;
-  background: var(--surface);
-  background: color-mix(in srgb, var(--surface) 88%, transparent);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
   padding: 12px var(--sp-3);
   margin: 0 -12px var(--sp-4);
   border-radius: var(--radius-md);
@@ -774,8 +804,10 @@ body.dark .sort-select {
   font-size: 22px;
   font-weight: 600;
   line-height: 1;
-  background: linear-gradient(135deg, #0A84FF, #5856D6);
-  box-shadow: 0 4px 12px rgba(0, 122, 255, 0.30);
+  /* v0.35.9：改柔蓝底 + 蓝图标（原来是蓝紫渐变的实心块，比标题还重） */
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
   transition: transform var(--dur-fast) var(--ease-spring);
   user-select: none;
 }
@@ -1050,7 +1082,7 @@ body.dark .sort-select {
 /* ---------- 废标检查清单 ---------- */
 /* v0.35.7：默认收起成一条紧凑标题栏 —— 清单名 + 「已完成 X/Y」+ 箭头，点整条展开。
    标题栏本身是一个按钮（触摸目标比原来那颗 32px 小按钮大得多，整行可点）。 */
-.checklist { margin-top: 14px; padding: 14px var(--sp-4); border-radius: var(--radius-md); background: var(--accent-soft); }
+.checklist { margin-top: 14px; padding: 14px var(--sp-4); border-radius: var(--radius-md); background: var(--surface-soft); }
 .checklist.collapsed { padding: 8px var(--sp-4); }
 .checklist-toggle {
   display: flex;
@@ -1108,8 +1140,9 @@ body.dark .sort-select {
 .checklist-add .btn { padding: 9px 14px; font-size: var(--fs-sm); }
 
 /* ---------- 风险报告 / AI 结果 ---------- */
-.risk-report { margin-top: 14px; padding: 14px var(--sp-4); border-radius: var(--radius-md); background: var(--tint-red-bg); }
+.risk-report { margin-top: 14px; padding: 14px var(--sp-4); border-radius: var(--radius-md); background: var(--surface-soft); }
 .risk-title { font-size: var(--fs-md); font-weight: 700; color: var(--tint-red-text); margin-bottom: var(--sp-2); }
+/* v0.35.9：风险区不再整块铺柔红 —— 大块红色在详情里像警报灯；标题与等级胶囊保留红色即可 */
 .risk-summary { margin: 0 0 var(--sp-2); font-size: var(--fs-md); color: var(--text); line-height: 1.6; }
 .risk-points { margin: 0; padding-left: 0; list-style: none; display: grid; gap: var(--sp-2); }
 .risk-points li { font-size: var(--fs-md); display: flex; gap: var(--sp-2); align-items: flex-start; color: var(--muted); line-height: 1.55; }
@@ -1751,8 +1784,7 @@ body.sheet-open { overflow: hidden; }
 
 /* ========== v0.13.0 ========== */
 
-/* —— 底部 Tab 选中态：顶部一条品牌色指示线，更像原生应用 —— */
-.bottom-tab.active { box-shadow: inset 0 2px 0 var(--accent); }
+/* —— 底部 Tab 选中态：v0.35.9 起只靠图标与文字变品牌色（iOS Tab Bar 没有顶部指示线） —— */
 
 /* —— 窄屏标题区：允许换行兜底，角标与字号同步缩小，避免 320px 屏挤爆 —— */
 
@@ -1828,8 +1860,9 @@ body.sheet-open { overflow: hidden; }
 /* —— 设置弹窗：桌面居中弹窗 / 移动端底部抽屉（复用 .sheet 骨架），分组卡片排版 —— */
 .settings-panel { width: min(560px, 100%); }
 .settings-group {
+  /* v0.35.9：分组只靠浅灰底分块，不再套一层描边（卡中卡在 iOS 里没有这种写法） */
   background: var(--surface-soft);
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius-md);
   padding: var(--sp-3) var(--sp-4);
   margin-bottom: var(--sp-3);
@@ -1860,7 +1893,7 @@ body.sheet-open { overflow: hidden; }
 .settings-row-desc { font-size: var(--fs-xs); color: var(--muted); line-height: 1.5; margin-top: 2px; }
 .settings-row .btn { flex: none; white-space: nowrap; }
 .settings-save-row { margin-top: 0; margin-bottom: var(--sp-3); }
-.settings-panel .danger-zone { background: var(--tint-red-bg); border-color: var(--tint-red-text); }
+.settings-panel .danger-zone { background: var(--tint-red-bg); border: 0; }
 .settings-panel .danger-title { color: var(--tint-red-text); }
 body.dark .settings-panel .danger-title { color: #FF453A; }
 /* v0.35.0：同一断点的规则已合并（之前 680px 出现 7 次，改窄屏样式容易只改到一处） */
@@ -1956,7 +1989,229 @@ body.dark { color-scheme: dark; }
     只在手机端变成独占一行的次级操作行 */
 .list-tools-actions { display: contents; }
 
-/* ========== v0.35.3：max-width 断点块统一放到文件末尾 ========== */
+/* ============================================================
+   v0.35.9：Apple HIG 视觉层（iOS / macOS：简单、高级、实用、克制）
+   ------------------------------------------------------------
+   只动观感，不动交互、数据与 v0.35.8 的双端版式；触控目标（44pt）与
+   手机端字号下限（16px）保持不变。四条准则的落点：
+     1) 克制色板与分组层级：画布 #F5F5F7 / 纯白卡面 / rgba(0,0,0,0.06) hairline /
+        极轻阴影；全站只剩一支系统蓝；状态与倒计时一律低饱和柔色底。
+     2) 毛玻璃：页头应用栏、手机底栏、抽屉标题栏、提示胶囊 —— blur(20px) saturate(180%)。
+     3) 原生控件：分段控件（浅灰轨道 + 白滑块 + 微阴影）、iOS 搜索框、10px 圆角输入。
+     4) 排版：SF Pro → 苹方字族、标题字重降一档、等宽数字、对齐基准。
+   ============================================================ */
+
+/* ---------- 1. 材质：卡片 / 列表 / 抽屉只用 hairline，不用硬边框 ---------- */
+.card,
+.project-list,
+.stats {
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow);
+}
+.project-item { border-bottom: 1px solid var(--hairline); }
+.project-item:last-child { border-bottom: 0; }
+.stat-card + .stat-card { border-left: 1px solid var(--hairline); }
+.form-group { border: 1px solid var(--hairline); }
+.form-group > .field { border-bottom: 1px solid var(--hairline); }
+.kv-row { border-bottom: 1px solid var(--hairline); }
+.guarantee-row,
+.qual-row { border-bottom-color: var(--hairline); }
+.settings-row + .settings-row { border-top-color: var(--hairline); }
+.project-details.collapse.expanded > .collapse-inner { border-top: 1px solid var(--hairline); }
+
+/* 行悬停 / 按压：iOS 列表式的浅色高亮，不做位移、不叠投影 */
+.project-head:hover { background: var(--hover); }
+.project-head:active { background: var(--seg-track); }
+.stat-card:hover { background: var(--hover); }
+.cal-day-row:hover { background: var(--hover); }
+
+/* ---------- 2. 页头：毛玻璃应用栏里的排版与品牌角标 ---------- */
+button.brand-mark:hover { filter: brightness(1.04); }
+.header-title h1 { font-weight: 700; letter-spacing: -0.022em; }
+.header-title p { font-size: 13px; }
+.menu-toggle { background: var(--btn-fill); color: var(--text); }
+.menu-toggle:hover { background: var(--seg-track); filter: none; }
+.header-actions {
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ---------- 3. 统计：分组卡 + 单一蓝强调，选中是柔色底而不是色条 ---------- */
+.stat-card { padding: 14px 16px 15px; }
+.stat-card .label { font-size: 12px; letter-spacing: 0.01em; margin-bottom: 4px; }
+.stat-card .value { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; }
+.stat-card.active { background: var(--accent-soft); box-shadow: none; }
+.stat-card.active .value { color: var(--accent); }
+.stat-card.active .label { color: var(--text); font-weight: 600; }
+.stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ---------- 4. 按钮：扁平、圆角 12，按压只用轻微缩放 ---------- */
+.btn { border-radius: 12px; font-weight: 600; letter-spacing: -0.005em; }
+.btn:hover { transform: none; filter: brightness(1.03); }
+.btn:active { transform: scale(0.98); }
+.btn.secondary { background: var(--btn-fill); color: var(--text); }
+.btn.secondary:hover { background: var(--seg-track); filter: none; }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.05); }
+.btn-text { font-weight: 500; }
+.row-btn { font-weight: 500; }
+
+/* ---------- 5. 分段控件：iOS 浅灰轨道 + 白滑块（视图切换 / 状态三选一 / 登录注册） ---------- */
+.seg-control,
+.status-quick,
+.auth-tabs {
+  background: var(--seg-track);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+.seg-btn {
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 13px;
+  color: var(--text);
+}
+.seg-btn.active,
+.status-chip.active {
+  background: var(--seg-knob);
+  color: var(--text);
+  box-shadow: var(--seg-shadow);
+}
+.seg-btn:active,
+.status-chip:active { transform: none; opacity: 0.72; }
+.status-chip { border-radius: 7px; font-size: 13px; font-weight: 600; padding: 5px 11px; }
+.status-chip.active { color: var(--accent); }
+.auth-tab-indicator { background: var(--seg-knob); box-shadow: var(--seg-shadow); border-radius: 7px; }
+
+/* ---------- 6. 搜索框与输入控件：iOS 填充灰 + 聚焦柔光环 ---------- */
+.search-box input {
+  background: var(--field-fill);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px var(--sp-3) 10px 36px;
+  box-shadow: none;
+}
+.search-box input::placeholder { color: var(--muted); }
+.search-box input:focus {
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+.field label { font-weight: 500; }
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.form-group > .field > input,
+.form-group > .field > select,
+.form-group > .field > textarea { box-shadow: none; }
+
+/* ---------- 7. 提示条：同一套低饱和柔色，圆角与卡片同一档 ---------- */
+.deadline-tip,
+.refund-tip,
+.backup-tip,
+.offline-banner { border-radius: 12px; }
+/* 截止提示与备份提示是「信息」，不是「警报」—— 中性底 + 小图标，只有保证金退还保留柔橙 */
+.deadline-tip { background: var(--surface-soft); color: var(--text); }
+.deadline-tip .tip-ico { color: var(--accent); }
+.backup-tip { background: var(--surface-soft); color: var(--text); }
+.refund-tip { background: var(--surface-soft); color: var(--text); }
+.refund-tip .refund-text,
+.refund-tip .refund-compact { color: var(--tint-orange-text); }
+.refund-tip .refund-more { color: var(--muted); }
+
+/* ---------- 8. 项目行 / 详情：iOS 列表的字重与分隔 ---------- */
+.project-head { padding: 13px 16px; }
+.project-head .project-name { font-weight: 600; letter-spacing: -0.008em; }
+.project-chevron { color: #C7C7CC; font-weight: 500; }
+body.dark .project-chevron { color: #636366; }
+.cd-pill { font-weight: 600; font-size: 12px; padding: 5px 10px; }
+.cd-normal,
+.cd-done { color: var(--muted); background: var(--btn-fill); }
+.project-chevron-btn { border-radius: 8px; }
+.project-chevron-btn:hover { background: var(--hover); }
+.kv-label { color: var(--muted); }
+.badge { font-weight: 600; }
+
+/* ---------- 9. 抽屉 / 浮层：原生 sheet 质感（描边 + 柔投影 + 深遮罩） ---------- */
+.sheet-panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
+.sheet-backdrop { background: rgba(0, 0, 0, 0.36); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+.sheet-head h2 { font-weight: 600; letter-spacing: -0.018em; }
+.toast {
+  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  font-weight: 500;
+}
+
+/* ---------- 10. 浮动按钮 / 空状态 / 表单角标 ---------- */
+.float-btn {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+}
+.empty-icon { background: var(--accent-soft); color: var(--accent); }
+.form-title:hover .form-badge { transform: none; }
+
+/* ---------- 11. 临期事项 / 日历：卡片回中性灰，紧急度只由倒计时胶囊与日期承担 ----------
+   v0.35.8 的整卡柔红/柔橙在桌面竖排后是一列彩色块，右侧信息栏被拉成「一片警报」；
+   iOS 的做法是列表本身安静，只让那一枚状态胶囊有色。 */
+.upcoming-item { border: 1px solid var(--hairline); background: var(--surface-soft); }
+.upcoming-item:hover { transform: none; box-shadow: none; background: var(--seg-track); }
+.upcoming-item.urgent,
+.upcoming-item.red,
+.upcoming-item.orange { border-color: transparent; background: var(--surface-soft); }
+.upcoming-item.urgent:hover,
+.upcoming-item.red:hover,
+.upcoming-item.orange:hover { background: var(--seg-track); }
+.upcoming-item.urgent .up-day,
+.upcoming-item.red .up-day { color: var(--tint-red-text); }
+.upcoming-item.orange .up-day { color: var(--tint-orange-text); }
+.cal-day:hover { background: var(--hover); }
+.cal-day.is-selected { background: var(--accent-soft); }
+.cal-day-row { border: 1px solid var(--hairline); box-shadow: none; }
+
+/* ---------- 12. 排版：标题字重降一档、数字等宽 ---------- */
+.panel-title h2,
+.sheet-head h2,
+.confirm-panel h2,
+.auth-title,
+.parser-header h1 { font-weight: 600; letter-spacing: -0.018em; }
+.stat-card .value,
+.countdown,
+.cd-pill,
+.cal-num,
+.up-day,
+.guarantee-totals,
+.win-rate,
+.app-version-badge,
+.select-count { font-variant-numeric: tabular-nums; }
+
+/* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
    max-width 块若留在它们之前，同优先级下就会被盖掉 —— v0.35.2 手机端四条优化失效就是这样来的。
    断点块放到最后，加上 check:css 的「跨断点顺序覆盖」检查，两边一起守住。顺序：980 → 900 → 680，
@@ -1967,8 +2222,8 @@ body.dark { color-scheme: dark; }
   /* v0.23.0：窄屏统计卡片各自成卡——独立边框 + 圆角 + 间距
      v0.34.0：6 张卡两列排成 3 行，与之前 5 张（末张通栏）的行数一致；取消通栏规则 */
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
-  .stat-card { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
-  .stat-card.active { box-shadow: inset 0 2px 0 var(--accent), var(--shadow); }
+  .stat-card { border: 1px solid var(--hairline); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+  .stat-card.active { box-shadow: var(--shadow); }
 }
 
 
@@ -2020,7 +2275,7 @@ body.dark { color-scheme: dark; }
 @media (max-width: 680px) {
   .back-to-top { display: none; }
   /* 底部留白由本块末尾那条按「有底部 Tab」写的 padding-bottom 决定 */
-  .page { padding: var(--sp-4); }
+  .page { padding: 10px var(--sp-4) var(--sp-4); --page-x: 16px; --appbar-h: 80px; }
   .panel { padding: var(--sp-4); }
   .panel-title h2 { font-size: var(--fs-xl); }
   .form-group > .field > input,
@@ -2125,7 +2380,7 @@ body.dark { color-scheme: dark; }
   .stat-card .label-short { display: inline; }
   .stat-card .value { font-size: 19px; line-height: 1.12; letter-spacing: -0.02em; }
   .stat-card .value-unit { margin-left: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0; }
-  .stat-card.active { background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .stat-card.active { background: var(--accent-soft); box-shadow: var(--shadow); }
   .list-tools .seg-control[aria-label="按状态筛选"] { display: none; }
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单 */
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单
@@ -2171,10 +2426,10 @@ body.dark { color-scheme: dark; }
     right: 0;
     bottom: 0;
     z-index: 25;
-    background: color-mix(in srgb, var(--surface) 84%, transparent);
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     backdrop-filter: blur(20px) saturate(180%);
-    border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    border-top: 1px solid var(--hairline);
     padding-bottom: env(safe-area-inset-bottom);
   }
   .bottom-tab {
@@ -2203,10 +2458,10 @@ body.dark { color-scheme: dark; }
   /* v0.35.3：页头在 390px 被挤成「竖条」（实测标题宽 104px、副标题三行高 42px）——
      窄屏去掉副标题、标题收到 20px，「新增项目」只留「＋」（文案给读屏）。
      v0.35.6：版本号回到标题旁（小徽标）；品牌角标 52 → 48，右上两个动作改成 44px 圆钮，页头高 94 → 不足 80px。 */
-  .header { padding-top: 4px; margin-bottom: 10px; }
+  .header { padding: 6px var(--page-x) 7px; margin: 0 calc(-1 * var(--page-x)) 10px; }
   .header-top { flex-wrap: wrap; gap: 10px; align-items: center; }
   .header-title { gap: 10px; }
-  .header-title h1 { font-size: 20px; letter-spacing: -0.01em; line-height: 1.25; margin-bottom: 0; }
+  .header-title h1 { font-size: 19px; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 0; }
   .brand-text p { display: none; }
   .app-version-badge {
     display: inline-block;
@@ -2222,11 +2477,11 @@ body.dark { color-scheme: dark; }
     vertical-align: 3px;
     font-variant-numeric: tabular-nums;
   }
-  .brand-mark { width: 48px; height: 48px; border-radius: 12px; }
+  .brand-mark { width: 44px; height: 44px; border-radius: 11px; }
   .header-top-actions { gap: var(--sp-2); }
   .header-top-actions .btn.primary { padding: 0; width: 44px; min-height: 44px; border-radius: 50%; font-size: 24px; font-weight: 500; line-height: 1; }
   .header-top-actions .btn.primary .btn-label-long { display: none; }
-  .user-menu { padding-top: 5px; gap: 6px; font-size: 11.5px; }
+  .user-menu { padding-top: 2px; gap: 6px; font-size: 11px; line-height: 1.35; }
   #userEmail { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
   /* ===================== v0.35.5：手机竖屏全面打磨 =====================
@@ -2459,8 +2714,7 @@ body.dark { color-scheme: dark; }
   /* L4：列表 / 日历段控件 33px → 可点（v0.35.6 统一成 36px，与胶囊同高） */
   .list-tools .seg-btn { min-height: 36px; }
 
-  /* L8：底部 Tab 88% 半透明会透出下面的文字——浅色 84% + 提饱和，深色 88% */
-  body.dark .bottom-tabs { background: color-mix(in srgb, var(--surface) 88%, transparent); }
+  body.dark .bottom-tabs { background: color-mix(in srgb, var(--surface) 96%, transparent); }
 
   /* ===================== v0.35.6：手感与质感收尾 ===================== */
 
@@ -2469,11 +2723,11 @@ body.dark { color-scheme: dark; }
   .list-panel .panel-title h2 { font-size: var(--fs-xl); }
 
   /* 搜索框：38px 高、11px 圆角（原 44px / 10px，比工具栏其他控件高一截） */
-  .search-box input { height: 38px; padding: 0 12px 0 34px; border-radius: 11px; }
+  .search-box input { height: 38px; padding: 0 12px 0 34px; border-radius: 10px; }
   .search-input-wrap .search-icon { left: 11px; }
 
-  /* 定位到卡片时不被吸顶的工具栏盖住头一行 */
-  .project-item { scroll-margin-top: 58px; }
+  /* 定位到卡片时不被吸顶的应用栏 + 工具栏盖住头一行 */
+  .project-item { scroll-margin-top: calc(var(--appbar-h) + 52px); }
 
   /* 触屏点击不要那层灰色闪烁（原生 tab / 列表 cell 都是按下即高亮） */
   .project-head,
@@ -2521,6 +2775,9 @@ body.dark { color-scheme: dark; }
 
 /* v0.35.5：超窄屏（320 / 340 这类）——保证金「40.00 万元」在 88px 的卡里会折成两行（统计区 140 → 158px） */
 @media (max-width: 340px) {
+  /* v0.35.9：320 上标题 + 版本徽标超出一行，徽标被挤到第二行、页头 +2px —— 标题降半档、徽标收窄 */
+  .header-title h1 { font-size: 18px; }
+  .app-version-badge { margin-left: 4px; padding: 1px 5px; font-size: 10px; }
   /* v0.35.8：320 上「搜索框 + 共 N 个项目」挤一行，占位文案被切成「搜索项目 / 公 / 联」——
      结果数让位（总数在统计卡里，筛完没结果也有空状态），搜索框吃满一行。 */
   .list-panel .filter-result-count { display: none; }
@@ -2638,22 +2895,34 @@ body.dark .theme-moon { display: none; }
 /* ---------- 右侧信息栏（桌面端专用容器；手机/平板透明，孩子照旧走文档流） ---------- */
 .side-rail { display: contents; }
 
+/* 平板段（681–1023）：页头沿用桌面的品牌 46 与标题 23，页头高度落在 80px，
+   吸顶工具栏的 top 才与它对齐（这一段原本把 64px 角标原样带过来，页头 108px）。 */
+@media (min-width: 681px) and (max-width: 1023px) {
+  .brand-mark { width: 46px; height: 46px; border-radius: 12px; }
+  .header-title h1 { font-size: 23px; margin: 0; }
+  /* 标题与副标题排同一基线（桌面端也是这样），页头从 95px 收到 80px */
+  .brand-text { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+  .header { padding: 6px var(--page-x); }
+  .user-menu { padding-top: 5px; font-size: 11.5px; }
+  .page { --appbar-h: 80px; }
+}
+
 /* ============================================================
    桌面端：≥1024px
    ============================================================ */
 @media (min-width: 1024px) {
   /* ---------- 画布 ---------- */
-  .page { max-width: 1264px; padding: 22px 28px 80px; }
+  .page { max-width: 1264px; padding: 14px 28px 80px; --page-x: 28px; --appbar-h: 80px; }
 
   /* ---------- 页头：一行式应用栏（107 → 63px） ----------
      品牌 46px + 标题与副标题同一基线，同步状态 / 邮箱 / 版本收成下面一行 12px。 */
-  .header { padding: 0; margin-bottom: 16px; }
+  .header { padding: 8px var(--page-x); }
   .header-title { gap: 14px; }
-  .brand-mark { width: 46px; height: 46px; border-radius: 13px; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.28); }
+  .brand-mark { width: 42px; height: 42px; border-radius: 12px; }
   .brand-text { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
-  .header-title h1 { font-size: 25px; margin: 0; letter-spacing: -0.015em; }
+  .header-title h1 { font-size: 23px; margin: 0; letter-spacing: -0.018em; }
   .header-title p { font-size: 13px; line-height: 1.45; }
-  .user-menu { padding: 7px 2px 0; font-size: 12px; gap: 10px; }
+  .user-menu { padding: 5px 2px 0; font-size: 11.5px; gap: 10px; line-height: 1.35; }
   .header-top-actions { gap: 10px; }
   #addProjectBtn { padding: 9px 16px; }
   .header-actions {
@@ -2681,14 +2950,12 @@ body.dark .theme-moon { display: none; }
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas:
-      "header header"
       "banner banner"
       "stats  stats"
       "list   rail";
     column-gap: 20px;
     align-items: start;
   }
-  .header { grid-area: header; }
   #offlineBanner { grid-area: banner; }
   .stats { grid-area: stats; }
   .list-panel { grid-area: list; }
@@ -2704,7 +2971,6 @@ body.dark .theme-moon { display: none; }
      .side-rail 在这一刻 display:contents，两个孩子直接成为网格项。 */
   #dashboardView:has(.form-panel.expanded) {
     grid-template-areas:
-      "header header"
       "banner banner"
       "stats  stats"
       "form   form"
@@ -2719,7 +2985,7 @@ body.dark .theme-moon { display: none; }
   .stat-card { padding: 12px 16px 13px; }
   .stat-card .label { margin-bottom: 3px; font-size: 11.5px; }
   .stat-card .value { font-size: 24px; }
-  .stat-card.active { box-shadow: inset 0 2px 0 var(--accent); }
+  .stat-card.active { box-shadow: none; }
 
   /* ---------- 项目列表面板 ---------- */
   .list-panel { padding: 16px 16px 8px; margin-bottom: 24px; }
@@ -2909,7 +3175,10 @@ body.dark .theme-moon { display: none; }
   .cal-nav #calTodayBtn { margin-left: auto; }
   .cal-grid { gap: 6px; }
   .cal-day { height: 72px; border-radius: 10px; gap: 5px; align-items: flex-start; justify-content: flex-start; padding: 8px 9px; }
-  .cal-day.is-today, .cal-day.is-selected { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .cal-day.is-today { box-shadow: none; }
+  .cal-day.is-today .cal-num { color: var(--accent); font-weight: 700; }
+  .cal-day.is-selected { box-shadow: none; background: var(--accent-soft); }
+  .cal-day.is-selected .cal-num { color: var(--accent); font-weight: 700; }
   .cal-num { font-size: 13px; font-weight: 600; }
   .cal-dot { width: 7px; height: 7px; }
   .cal-weekday { font-size: 12px; padding: 6px 0; }
@@ -2927,8 +3196,10 @@ body.dark .theme-moon { display: none; }
     z-index: 4;
     margin: -20px -24px 14px;
     padding: 20px 48px 12px 24px;
-    background: var(--surface);
-    border-bottom: 1px solid transparent;
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--hairline);
   }
   .sheet-head h2 { font-size: 20px; }
   .sheet-head p { font-size: 13px; max-width: 620px; }
@@ -2963,6 +3234,9 @@ body.dark .theme-moon { display: none; }
   .parser-sheet-panel .drop-zone { min-height: 150px; }
   .parser-sheet-panel .parser-actions { gap: 8px; }
   .parser-sheet-panel .parser-actions .btn { padding: 9px 14px; font-size: 13.5px; }
+
+  /* 定位到卡片时让开吸顶应用栏 */
+  .project-item { scroll-margin-top: calc(var(--appbar-h) + 12px); }
 
   /* ---------- 空状态 / 收尾 ---------- */
   .empty-state { padding: 44px 24px; }

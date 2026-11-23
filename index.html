@@ -66,7 +66,8 @@
     </div>
   </main>
   <section id="appView" class="page hidden">
-    <div id="dashboardView">
+    <!-- v0.35.9：页头移出 #dashboardView —— 它成了吸顶毛玻璃应用栏，在任何视图状态下都在；
+         同时也让它不再受桌面网格行高限制（网格项里的 sticky 没有滚动余地）。 -->
     <header class="header">
       <div class="header-top">
         <div class="header-title">
@@ -74,7 +75,7 @@
           <div class="brand-text">
             <!-- v0.35.6：版本号回到手机顶栏标题旁（v0.35.5 藏进设置抽屉后，手机上没法一眼确认 PWA 是否更新）。
                  桌面端由 CSS 隐藏（桌面那条在下方 user-menu 里）。 -->
-            <h1>投标工作台<span class="app-version-badge" aria-label="应用版本">v0.35.8</span></h1>
+            <h1>投标工作台<span class="app-version-badge" aria-label="应用版本">v0.35.9</span></h1>
             <p id="headerSubtitle">让每一次投标，都心里有数。</p>
           </div>
         </div>
@@ -83,7 +84,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false"><svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.2h16M4 12h16M4 16.8h16"/></svg></button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.8</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.9</span></div>
       <!-- v0.34.0：菜单只留内容与视图动作 —— 导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，
            菜单项从 12 个收到 9 个，找东西不用先在一长串里挑。 -->
       <div id="headerMenu" class="header-actions">
@@ -102,6 +103,8 @@
         <button id="signOutBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.6 4.6h2.6a1.8 1.8 0 0 1 1.8 1.8v11.2a1.8 1.8 0 0 1-1.8 1.8h-2.6"/><path d="M9.8 15.4 6 12l3.8-3.4"/><path d="M6 12h8.3"/></svg>退出</button>
       </div>
     </header>
+
+    <div id="dashboardView">
 
     <!-- v0.12.0：离线快照横幅（仅快照模式下显示，见 ui.renderOfflineBanner） -->
     <div id="offlineBanner" class="offline-banner hidden" role="status"></div>
@@ -135,7 +138,7 @@
       </button>
     </section>
 
-    <!-- v0.35.8：电脑端右侧信息栏（临期事项 + 新增/编辑项目）—— 桌面端并到列表右侧，
+    <!-- v0.35.9：电脑端右侧信息栏（临期事项 + 新增/编辑项目）—— 桌面端并到列表右侧，
          手机/平板保持原样（.side-rail 默认 display:contents，孩子照旧按原顺序排在页面流里）。 -->
     <div class="side-rail">
     <section class="card upcoming-panel">
@@ -500,7 +503,7 @@
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
       <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
-      <p class="settings-version">投标工作台 v0.35.8</p>
+      <p class="settings-version">投标工作台 v0.35.9</p>
     </section>
   </div>
 
