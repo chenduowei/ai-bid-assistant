@@ -42,9 +42,9 @@
         <button class="auth-tab active" type="button" data-mode="login" aria-pressed="true">登录</button>
         <button class="auth-tab" type="button" data-mode="signup" aria-pressed="false">注册</button>
       </div>
-      <form id="authForm" class="auth-form">
+      <form id="authForm" class="auth-form" novalidate>
         <div class="field"><label for="authEmail">邮箱</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com" required /></div>
-        <div class="field"><label for="authPassword">密码</label><div class="password-wrap"><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" title="显示密码">👁️</button></div></div>
+        <div class="field"><label for="authPassword">密码</label><div class="password-wrap"><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" title="显示密码"><svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="m4 20 16-16"/></svg></button></div></div>
         <div id="authConfirmField" class="field hidden"><label for="authConfirmPassword">确认密码</label><input id="authConfirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="再次输入密码" /></div>
         <button id="authSubmit" class="btn primary" type="submit">登录</button>
         <div id="authMessage" class="auth-message" role="alert"></div>
@@ -65,7 +65,7 @@
     </section>
     </div>
   </main>
-  <main id="appView" class="page hidden">
+  <section id="appView" class="page hidden">
     <div id="dashboardView">
     <header class="header">
       <div class="header-top">
@@ -77,11 +77,11 @@
           </div>
         </div>
         <div class="header-top-actions">
-          <button id="addProjectBtn" class="btn primary" type="button">＋ 新增项目</button>
+          <button id="addProjectBtn" class="btn primary" type="button" aria-label="新增项目" title="新增项目"><span aria-hidden="true">＋</span><span class="btn-label-long">&nbsp;新增项目</span></button>
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false">☰</button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.2</span></div>
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.35.3</span></div>
       <!-- v0.34.0：菜单只留内容与视图动作 —— 导出备份 / 从备份恢复 / 主题切换搬进「⚙️ 设置」，
            菜单项从 12 个收到 9 个，找东西不用先在一长串里挑。 -->
       <div id="headerMenu" class="header-actions">
@@ -153,7 +153,7 @@
         <span class="form-pill"><span class="form-pill-label">展开</span><span class="form-pill-chevron" aria-hidden="true">›</span></span>
       </div>
 
-      <div id="formBody" class="form-body collapse"><div class="collapse-inner">
+      <div id="formBody" class="form-body collapse"><div class="collapse-inner" inert>
       <!-- v0.35.0：表单改成真 <form> —— 桌面按回车即可提交；novalidate 是为了用自己的中文提示，
            不依赖浏览器原生气泡（各平台语言与样式不一致）。 -->
       <form id="projectForm" class="project-form" novalidate>
@@ -225,7 +225,7 @@
             <span>选填信息 · <span id="optionalCount">11</span> 项</span>
             <span class="section-chevron" aria-hidden="true">›</span>
           </button>
-          <div id="optionalBody" class="collapse"><div class="collapse-inner">
+          <div id="optionalBody" class="collapse"><div class="collapse-inner" inert>
           <div class="form-group">
             <div class="field">
               <label for="tenderer">招标单位</label>
@@ -386,7 +386,7 @@
     <button id="goToBottomBtn" class="float-btn go-to-bottom" type="button" aria-label="回到底部">↓</button>
     <!-- v0.35.0：手机端浮动新增 —— 列表滑到很下面也能直接开表单 -->
     <button id="fabAdd" class="float-btn fab-add" type="button" aria-label="新增项目" title="新增项目">＋</button>
-  </main>
+  </section>
   <!-- v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内一块面板，
        一点设置就把下面的项目列表整块推下去，很容易迷失位置；现在盖在页面上，
        遮罩点击 / Esc / ✕ 都能关，焦点锁在层内，关后焦点回到菜单按钮。

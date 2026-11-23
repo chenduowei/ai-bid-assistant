@@ -156,9 +156,6 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
     elements.guaranteeSheet?.addEventListener("click", (event) => {
       if (event.target.closest("[data-action='close-guarantee']")) closeGuaranteeSheet();
     });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && guaranteeOpen) closeGuaranteeSheet();
-    });
     elements.guaranteeStatCard?.addEventListener("click", openGuaranteeSheet);
 
     // 我的资质
@@ -166,9 +163,6 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
     elements.qualSheetClose?.addEventListener("click", closeQualSheet);
     elements.qualSheet?.addEventListener("click", (event) => {
       if (event.target.closest("[data-action='close-qual']")) closeQualSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && qualOpen) closeQualSheet();
     });
     elements.qualSaveBtn?.addEventListener("click", async () => {
       const btn = elements.qualSaveBtn;
@@ -219,9 +213,6 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
     elements.calendarSheetClose?.addEventListener("click", closeCalendarSheet);
     elements.calendarSheet?.addEventListener("click", (event) => {
       if (event.target.closest("[data-action='close-calendar']")) closeCalendarSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && calendarOpen) closeCalendarSheet();
     });
     elements.calendarGenerateBtn?.addEventListener("click", async () => {
       const btn = elements.calendarGenerateBtn;
@@ -294,9 +285,7 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
     elements.trashSheet?.addEventListener("click", (event) => {
       if (event.target.closest("[data-action='close-trash']")) closeTrashSheet();
     });
-    document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && trashOpen) closeTrashSheet();
-    });
+    // v0.35.3：四个抽屉的 Esc 不再各注册一份 —— 统一走 closeTop()，由 app.js 那一个 keydown 调。
     // v0.22.0：清空回收站 —— 先取最新列表（防抽屉开着时数据已变），
     // 空了直接提示；有内容则走批量彻底删除（自带确认框），成功后刷新列表。
     elements.emptyTrashBtn?.addEventListener("click", async () => {

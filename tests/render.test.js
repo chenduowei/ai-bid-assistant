@@ -226,6 +226,34 @@ test("三出口确认框：确定 / 次按钮 / 取消分别返回 confirm / alt
   assert.equal(await p2, true);
 });
 
+test("未展开的项目卡片：详情区带 inert（不可聚焦、不被读屏读出）", () => {
+  state.projects = [project()];
+  state.expandedIds = new Set();
+  render();
+  const collapsed = elements.list.querySelector(".project-details .collapse-inner");
+  assert.ok(collapsed.hasAttribute("inert"));
+
+  state.expandedIds = new Set(["p1"]);
+  render();
+  const opened = elements.list.querySelector(".project-details .collapse-inner");
+  assert.equal(opened.hasAttribute("inert"), false);
+});
+
+test("日历视图隐藏时不重建日历网格（切到日历视图再渲染才动）", () => {
+  state.projects = [project()];
+  state.expandedIds = new Set();
+  elements.calendarView.classList.add("hidden");
+  elements.calendarGrid.innerHTML = '<span id="sentinel"></span>';
+  render();
+  // 隐藏时 render() 不碰日历格：上一步放进去的哨兵还在
+  assert.ok(elements.calendarGrid.querySelector("#sentinel"));
+
+  elements.calendarView.classList.remove("hidden");
+  render();
+  assert.equal(elements.calendarGrid.querySelector("#sentinel"), null);
+  elements.calendarView.classList.add("hidden");
+});
+
 test("中标率：只在有结果时显示，并标在工具栏", () => {
   state.projects = [
     project({ id: "a", result: "已中标" }),

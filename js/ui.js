@@ -462,7 +462,7 @@ export function createUi(elements, getState) {
     const checkHtml = selectMode
       ? `<button class="select-check" type="button" role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-label="选择项目" data-action="toggle-select" data-id="${escapeHtml(p.id)}"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.8 5.3 9.5 10.5 3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
       : "";
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner">${detailsHtml}</div></div></div>`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
   };
 
   /** v0.6.0：列表到底趣味文案（按数量轮换） */
@@ -977,7 +977,11 @@ export function createUi(elements, getState) {
     renderRefundReminder(state.projects);
     renderList(state.projects, filters);
     renderGuaranteeList(state.projects);
-    renderCalendar(state.projects, filters);
+    // v0.35.3：日历视图隐藏时不重建网格 —— 项目一多，每次 render 都白算一遍 DOM 字符串
+    // （切到日历视图时 setViewMode 先摘 hidden 再 render，不影响正常显示）。
+    if (!elements.calendarView?.classList.contains("hidden")) {
+      renderCalendar(state.projects, filters);
+    }
   };
 
   // v0.29.0：我的资质列表 —— 按类别分组；过期 / 90 天内到期标出来（日期只比 YYYY-MM-DD 字符串，不碰时区）。
@@ -1056,17 +1060,9 @@ export function createUi(elements, getState) {
     elements.goToBottomBtn?.classList.toggle("visible", max - scrollY > 200);
   };
 
-  const addRipple = (event) => {
-    const button = event.target.closest(".btn");
-    if (!button) return;
-    const ripple = document.createElement("span");
-    const size = Math.max(button.clientWidth, button.clientHeight);
-    const rect = button.getBoundingClientRect();
-    ripple.className = "ripple";
-    ripple.style.cssText = `width:${size}px;height:${size}px;left:${event.clientX - rect.left - size / 2}px;top:${event.clientY - rect.top - size / 2}px`;
-    button.appendChild(ripple);
-    ripple.addEventListener("animationend", () => ripple.remove());
-  };
+  // v0.35.3：addRipple 已删 —— 它从导出后一直没人调用，配套的 .ripple / @keyframes ripple
+  // 也是死代码（按钮的触感由已有的 :active 缩放给）。
+
 
   // v0.35.0：关浮层后的焦点归还 —— 入口按钮在菜单里、菜单已收起（display:none）时
   // focus() 会落到 body；能看见就回原按钮，否则回 ☰。与 closeSettingsSheet 同一套逻辑，抽出来一处维护。
@@ -1229,7 +1225,6 @@ export function createUi(elements, getState) {
     highlightFormPanel,
     focusProjectInList,
     updateScrollUi,
-    addRipple,
     toggleMobileMenu,
     restoreFocusTo,
     confirmDialog,

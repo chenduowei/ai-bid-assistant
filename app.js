@@ -266,6 +266,22 @@ import { createDrawers } from "./js/drawers.js";
   const setState = (patch) => Object.assign(state, patch);
   const getClient = () => client;
 
+  /** v0.35.3：折叠区收起时给内层挂 inert。
+   *  `.collapse` 用的是 grid-template-rows:0fr + opacity:0，只藏了视觉：实测折叠表单里的
+   *  input 仍能 focus()、读屏也会把 11 个选填字段全念一遍。inert 把整棵子树移出焦点序与无障碍树。
+   */
+  const syncCollapseInert = (collapseEl) => {
+    if (!collapseEl) return;
+    const inner =
+      collapseEl.querySelector(".collapse-inner") ||
+      (collapseEl.firstElementChild?.classList?.contains("collapse-inner")
+        ? collapseEl.firstElementChild
+        : null);
+    if (!inner) return;
+    if (collapseEl.classList.contains("expanded")) inner.removeAttribute("inert");
+    else inner.setAttribute("inert", "");
+  };
+
   /** v0.4.1：切换项目卡片展开 / 折叠。只更新对应卡片 DOM，不全量 ui.render()（避免焦点丢失）。 */
   const toggleProjectDetails = (toggleEl) => {
     const item = toggleEl.closest(".project-item");
@@ -287,6 +303,8 @@ import { createDrawers } from "./js/drawers.js";
       const project = state.projects.find((p) => p.id === id);
       ui.fillProjectDetails(item, project);
     }
+    // v0.35.3：收起后详情区不可聚焦、不被读屏读出
+    syncCollapseInert(details);
   };
 
   /**
@@ -331,6 +349,7 @@ import { createDrawers } from "./js/drawers.js";
       if (pillLabel) pillLabel.textContent = expanded ? "收起" : "展开";
     }
     if (panel) panel.classList.toggle("expanded", expanded);
+    syncCollapseInert(body);
   };
 
   /** v0.4.3：展开表单 → 滚动定位 → 高亮 → 聚焦第一个可见输入框 */
@@ -366,6 +385,7 @@ import { createDrawers } from "./js/drawers.js";
     state.optionalExpanded = expanded;
     elements.optionalBody?.classList.toggle("expanded", expanded);
     elements.optionalToggle?.setAttribute("aria-expanded", String(expanded));
+    syncCollapseInert(elements.optionalBody);
   };
   /** 选填区是否有"有效"值（单位/状态的默认值不算） */
   const hasOptionalValues = () =>
@@ -779,6 +799,8 @@ import { createDrawers } from "./js/drawers.js";
   };
 
   async function requestNotificationPermission() {
+    // v0.35.3：只在设置里的「开启通知」按钮里调用（有用户手势）。登录时自动申请在 iOS 上
+    // 本来就被忽略（Safari 与主屏 PWA 都要求手势触发），第一次点了「不允许」还会永久没机会。
     if (!("Notification" in window) || Notification.permission !== "default")
       return;
     try {
@@ -823,7 +845,8 @@ import { createDrawers } from "./js/drawers.js";
     )
       return;
     // v0.30.0：通知去重键过期清理（30 天以上的直接清掉，防 localStorage 越攒越多）。
-    pruneNotificationKeys(localStorage);
+    // v0.35.3：从每次（60 秒一轮）全量遍历挪到登录时跑一次 —— 去重键的生命周期以“天”计，
+    // 每分钟扫一遍整个 localStorage 没有意义。
     const urlHint = String(config.url || "").slice(-12);
     state.projects.forEach((project) => {
       for (const item of getDeadlineItems(project)) {
@@ -908,7 +931,10 @@ import { createDrawers } from "./js/drawers.js";
     elements.userEmail.textContent = user.email || "";
     elements.authView.classList.add("hidden");
     elements.appView.classList.remove("hidden");
-    requestNotificationPermission();
+    // v0.35.3：登录时只刷新通知状态行，不再自动申请权限（见 requestNotificationPermission 注释）；
+    // 去重键清理也从每分钟一轮挪到这里跑一次。
+    updateNotificationRow();
+    pruneNotificationKeys(localStorage);
     ui.showListSkeleton();
     // v0.29.0：登录后拉一次资质库（表未建时 projectsApi 只提示一次，不阻塞项目加载）
     projectsApi.loadQualifications().then((list) => {
@@ -937,6 +963,28 @@ import { createDrawers } from "./js/drawers.js";
         sendBidNotifications();
       }
     });
+    runStartupAction();
+  }
+
+  /** v0.35.3：PWA 快捷方式入口（manifest.shortcuts 的 ?action=add / ?action=calendar）。
+   *  登录后执行一次，然后把参数从地址栏抹掉（刷新不会再触发）。直接复用按钮点击，
+   *  选中态 / Tab 高亮 / 滚动都跟着既有逻辑走，不另外复制一份。 */
+  function runStartupAction() {
+    let action = "";
+    try {
+      action = new URLSearchParams(location.search).get("action") || "";
+    } catch {
+      return;
+    }
+    if (!action) return;
+    try {
+      history.replaceState(null, "", location.pathname + location.hash);
+    } catch {
+      // 不支持就算了，不影响下面的动作
+    }
+    if (action === "add") elements.addProjectBtn?.click();
+    else if (action === "calendar")
+      document.querySelector('.view-btn[data-view="calendar"]')?.click();
   }
 
   function showAuth() {
@@ -1070,6 +1118,14 @@ import { createDrawers } from "./js/drawers.js";
     );
   };
 
+  /** v0.35.3：登录卡提示统一走一个口 —— 文本 + 成功/失败类（原本四处零散写 textContent、
+   *  两处还内联 style.color 切色）。 */
+  const setAuthMessage = (text, kind = "error") => {
+    if (!elements.authMessage) return;
+    elements.authMessage.textContent = text || "";
+    elements.authMessage.classList.toggle("is-success", kind === "success" && Boolean(text));
+  };
+
   function bindEvents() {
     // v0.35.0：四个抽屉（保证金 / 资质 / 日历订阅 / 回收站）的事件与开关在 js/drawers.js
     drawers.bindDrawers();
@@ -1099,7 +1155,7 @@ import { createDrawers } from "./js/drawers.js";
         if (!signup) elements.authConfirmPassword.value = "";
       }
       elements.authMessage.textContent = "";
-      elements.authMessage.style.color = "var(--danger)";
+      elements.authMessage.classList.remove("is-success");
     };
     elements.authTabs.forEach((tab) =>
       tab.addEventListener("click", () => applyAuthMode(tab.dataset.mode))
@@ -1115,7 +1171,8 @@ import { createDrawers } from "./js/drawers.js";
       if (!input) return;
       const show = input.type === "password";
       input.type = show ? "text" : "password";
-      elements.togglePasswordBtn.textContent = show ? "🙈" : "👁️";
+      // v0.35.3：两个内联 SVG 眼睛图标靠类切换，不再换 emoji 文字
+      elements.togglePasswordBtn.classList.toggle("is-visible", show);
       elements.togglePasswordBtn.setAttribute(
         "aria-label",
         show ? "隐藏密码" : "显示密码"
@@ -1128,15 +1185,43 @@ import { createDrawers } from "./js/drawers.js";
       // v0.35.1：确认密码不一致时提前 return，原来会漏掉 preventDefault，
       // 表单照旧原生提交（页面刷成 ./?），提示一闪即失、注册模式也被重置。
       event.preventDefault();
-      elements.authMessage.textContent = "";
-      elements.authMessage.style.color = "var(--danger)";
+      setAuthMessage("");
+      // v0.35.3：登录表单改 novalidate + 自定义中文提示（与项目表单一致）——
+      // 原先交给浏览器原生气泡，文案随系统语言、样式也不统一。
+      const email = elements.authEmail.value.trim();
+      const password = elements.authPassword.value;
+      if (!email) {
+        setAuthMessage("请填写邮箱。");
+        elements.authEmail.focus();
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        setAuthMessage("邮箱格式不对，例如 name@example.com。");
+        elements.authEmail.focus();
+        return;
+      }
+      if (!password) {
+        setAuthMessage("请填写密码。");
+        elements.authPassword.focus();
+        return;
+      }
+      if (password.length < 6) {
+        setAuthMessage("密码至少 6 位。");
+        elements.authPassword.focus();
+        return;
+      }
       // v0.35.0：注册要输两遍密码 —— 打错一个字就要走一整轮找回流程。
+      if (state.authMode === "signup" && !elements.authConfirmPassword?.value) {
+        setAuthMessage("请再输入一次密码。");
+        elements.authConfirmPassword?.focus();
+        return;
+      }
       if (
         state.authMode === "signup" &&
         elements.authConfirmPassword &&
         elements.authConfirmPassword.value !== elements.authPassword.value
       ) {
-        elements.authMessage.textContent = "两次输入的密码不一致。";
+        setAuthMessage("两次输入的密码不一致。");
         elements.authConfirmPassword.focus();
         return;
       }
@@ -1144,17 +1229,16 @@ import { createDrawers } from "./js/drawers.js";
       const result = await auth.handleAuth(
         event,
         state.authMode,
-        elements.authEmail.value.trim(),
-        elements.authPassword.value
+        email,
+        password
       );
       elements.authSubmit.disabled = false;
       if (result.error) {
-        elements.authMessage.textContent = result.error;
+        setAuthMessage(result.error);
         return;
       }
       if (result.successMessage) {
-        elements.authMessage.style.color = "var(--success)";
-        elements.authMessage.textContent = result.successMessage;
+        setAuthMessage(result.successMessage, "success");
       }
     });
 
@@ -1407,15 +1491,7 @@ import { createDrawers } from "./js/drawers.js";
       if (event.target.closest("[data-action='close-parser']"))
         closeParserSheet();
     });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape" || !parserSheetOpen) return;
-      if (
-        elements.confirmDialog &&
-        !elements.confirmDialog.classList.contains("hidden")
-      )
-        return;
-      closeParserSheet();
-    });
+    // v0.35.3：Esc 统一由 bindEvents 末尾那一个监听处理（按“最上层先关”链，见后）。
     elements.dropZone?.addEventListener("click", () =>
       elements.pdfInput.click()
     );
@@ -1686,12 +1762,6 @@ import { createDrawers } from "./js/drawers.js";
     elements.settingsSheetClose?.addEventListener("click", closeSettingsSheet);
     elements.settingsSheet?.addEventListener("click", (event) => {
       if (event.target.closest("[data-action='close-settings']")) closeSettingsSheet();
-    });
-    document.addEventListener("keydown", (event) => {
-      if (event.key !== "Escape" || !settingsSheetOpen) return;
-      // 确认框自己处理 Esc，别连带把底下的设置也关掉
-      if (elements.confirmDialog && !elements.confirmDialog.classList.contains("hidden")) return;
-      closeSettingsSheet();
     });
     elements.aiSaveSettings?.addEventListener("click", async () => {
       await ensureParserModules();
@@ -2251,12 +2321,30 @@ import { createDrawers } from "./js/drawers.js";
         ui.toggleMobileMenu(false);
       }
     });
-    // v0.7.0：Esc 关闭菜单；在菜单内点任何按钮后收起菜单
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") ui.toggleMobileMenu(false);
-    });
+    // v0.7.0：在菜单内点任何按钮后收起菜单
     document.getElementById("headerMenu")?.addEventListener("click", (e) => {
       if (e.target.closest("button")) ui.toggleMobileMenu(false);
+    });
+    // v0.35.3：Esc 收口到一处 —— 之前解析抽屉 / 设置 / 菜单 / 四个抽屉各注册一份 keydown，
+    // 互不干扰全靠各自的 xOpen 布尔量。现在按「最上层先关」一条链处理：
+    // 确认框（js/ui.js 自己处理）> 解析抽屉 > 设置 > 四个抽屉 > 手机端菜单。
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (
+        elements.confirmDialog &&
+        !elements.confirmDialog.classList.contains("hidden")
+      )
+        return; // 确认框在最上层，它自己收
+      if (parserSheetOpen) {
+        closeParserSheet();
+        return;
+      }
+      if (settingsSheetOpen) {
+        closeSettingsSheet();
+        return;
+      }
+      if (drawers.closeTop()) return;
+      ui.toggleMobileMenu(false);
     });
     // v0.7.0：header 新增项目主按钮
     elements.addProjectBtn?.addEventListener("click", () => revealForm());
@@ -2361,14 +2449,14 @@ import { createDrawers } from "./js/drawers.js";
     }
 
     if (!configured) {
-      elements.authMessage.textContent =
-        "请先复制 supabase-config.example.js 为 supabase-config.js，并填入 Supabase URL 与 anon key。";
+      setAuthMessage(
+        "请先复制 supabase-config.example.js 为 supabase-config.js，并填入 Supabase URL 与 anon key。"
+      );
       return;
     }
     if (!(await ensureSupabase())) {
       // v0.35.0：配置是好的、只是依赖没加载 —— 不再误报“你没配置 Supabase”，并给一个重试入口。
-      elements.authMessage.textContent =
-        "依赖加载失败（Supabase SDK 没下载成功），请检查网络后重试。";
+      setAuthMessage("依赖加载失败（Supabase SDK 没下载成功），请检查网络后重试。");
       elements.authRetryBtn?.classList.remove("hidden");
       return;
     }
