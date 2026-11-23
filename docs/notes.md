@@ -1,6 +1,6 @@
 # 维护说明
 
-当前以 **v0.35.3 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
+当前以 **v0.35.4 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
 
 ---
 
@@ -22,6 +22,8 @@
 | `supabase/functions/` | 邮件提醒 Edge Function（未部署，见 `docs/reminders.md`） |
 
 ## 版本维护记录
+
+- v0.35.4：手机竖屏两处。① 项目卡片高度 145 → 121.5px（390×844 / 375×667 / 360 实测同值）：`@media (max-width:680px)` 里换行后的 `row-gap`（12px）与操作行 `margin-top`（6px）叠了 18px，加上下内边距各 10px；现改为内边距 `8px 16px 6px`、`row-gap: 2px`、`margin-top: 0`、按钮间距 6→4，行内按钮仍 44px、两行结构不变。② 详情区状态三选一不再被挤成 2+1：`.kv-row` 是「标签 56px + 间距 16px + 值」，值只剩 194px 而三枚胶囊要 201px；手机端给这一行挂 `kv-row-status`（`js/ui.js` 的 `kv()` 支持第三个 class 参数），标签与控件各占一整行，控件改 `display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))`，360/375/390 实测三枚同 top、无截断、无横向溢出。桌面布局未变（1440 卡片 70.3 → 69.5px，只因名称行高 1.3→1.25）。
 
 - v0.35.3：复审报告逐条修复。手机端四条优化真正生效（`.bottom-tabs` / `.fab-add` / `.label-short` 的桌面隐藏改成 `@media (min-width:681px)`，980 断点挪到 680 之前，`.toast-wrap` 的 28px 只留给桌面，删掉互盖的 `.page` padding），并且把**所有 max-width 断点块移到 styles.css 文件末尾**——部分组件基础样式（`.status-chip`、`.project-chevron-btn`、`.cal-day`、`.cal-nav`）历史上写在断点块之后，留在中部就永远被盖掉；`check:css` 新增跨断点顺序覆盖检查（`tests/css-cascade.test.js`）。页头窄屏收窄（隐藏副标题、标题 20px、主按钮只留＋）、点击区补到 44pt、矮屏登录页压缩海报与内边距、折叠区收起时挂 `inert`、通知权限改为设置内主动申请、登录表单 `novalidate` + 中文提示、眼睛图标改内联 SVG；CSP `connect-src` 放行 `https:`、`sw.js` 离线兜底返回 504、manifest 补 `lang` / `start_url` / `shortcuts`；清理 `addRipple` 死代码、`.single().single()`、双 `<main>`、隐藏时重建日历、六处 Esc 监听合并、`pruneNotificationKeys` 改登录时一次。README 重写。测试 136→147。
 
