@@ -1952,6 +1952,12 @@ body.dark { color-scheme: dark; }
   .auth-poster-en { font-size: 10px; letter-spacing: 0.1em; }
 }
 
+/* v0.35.3：568px 高的小屏（320×568 这类）连海报都放不下 —— 直接收起海报，先保证登录表单整屏可见 */
+@media (max-width: 900px) and (max-height: 620px) {
+  .auth-poster { display: none; }
+  .auth-split .auth-card { padding: 12px 16px; }
+}
+
 
 /* v0.35.0：同一断点的规则已合并（之前 680px 出现 7 次，改窄屏样式容易只改到一处） */
 @media (max-width: 680px) {

@@ -199,8 +199,10 @@ export function analyzeCss(raw) {
       /(?:padding|margin|gap)(?:-(?:top|right|bottom|left))?\s*:[^;}{]*?(?=\s*[a-z-]+\s*:)/g
     ) || [];
   const mediaCounts = new Map();
-  for (const m of stripped.matchAll(/@media\s*\(([^()]*)\)/g)) {
-    const cond = m[1].trim();
+  // v0.35.3：同一断点按「完整条件」算（`(max-width:900px)` 与
+  // `(max-width:900px) and (max-height:720px)` 是两个不同断点，不该合并计数）。
+  for (const m of stripped.matchAll(/@media([^{]+)\{/g)) {
+    const cond = m[1].replace(/\s+/g, " ").trim();
     mediaCounts.set(cond, (mediaCounts.get(cond) || 0) + 1);
   }
   const spread = [...mediaCounts.entries()].filter(([, n]) => n > 2);
@@ -219,7 +221,7 @@ function main() {
   }
   if (spread.length) {
     console.error(`同一断点的媒体查询超过 2 处（请合并到已有块里）：`);
-    for (const [cond, n] of spread) console.error(`  @media (${cond}) × ${n}`);
+    for (const [cond, n] of spread) console.error(`  @media ${cond} × ${n}`);
     process.exit(1);
   }
   if (bad.length) {

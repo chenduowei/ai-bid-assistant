@@ -97,7 +97,16 @@ test("仍能抓到丢分号与同一断点超过 2 处", () => {
 @media (max-width: 680px) { .c { color: red; } }
 `);
   assert.equal(spread.spread.length, 1);
-  assert.equal(spread.spread[0][0], "max-width: 680px");
+  assert.equal(spread.spread[0][0], "(max-width: 680px)");
+});
+
+test("同一断点按完整条件计数：max-width:900px 与带 max-height 的组合算两个断点", () => {
+  const css = `
+@media (max-width: 900px) { .a { color: red; } }
+@media (max-width: 900px) and (max-height: 720px) { .a { color: blue; } }
+@media (max-width: 900px) and (max-height: 620px) { .a { color: green; } }
+`;
+  assert.deepEqual(analyzeCss(css).spread, []);
 });
 
 test("大括号不平衡能被发现", () => {
