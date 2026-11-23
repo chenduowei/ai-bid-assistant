@@ -28,7 +28,7 @@
 - 页头从文档流里的透明块改成**吸顶应用栏**：`position: sticky; top: 0`、`background: color-mix(bg 94%, transparent)`、`backdrop-filter: saturate(180%) blur(20px)`、1px hairline 底边；负外边距通栏，各断点只改 `--page-x`。
 - 结构上把 `<header>` 从 `#dashboardView` 里移出来（网格项里的 sticky 没有滚动余地），桌面网格模板去掉 `header` 行；右栏、列表、离线横幅的网格区域不变。
 - 页头高度 71（桌面）/ 79（手机）→ **80px**，`--appbar-h` 统一 80；吸顶工具栏 `top: var(--appbar-h)`，定位滚动 `scroll-margin-top` 也加 80；页面上内边距 22 / 16 → 14 / 10，首卡位置基本不动（1440：600 → 602；390：605 → 601）。
-- 桌面抽屉标题栏、提示胶囊、浮钮、手机底栏（86% + blur 20 + hairline）统一到同一档毛玻璃。
+- 抽屉标题栏（桌面与手机都吸顶；`sticky` 的 `top` 与负外边距同值，滚动时不会从 20px 内边距里透出下面的内容）、提示胶囊、浮钮、手机底栏（94% + blur 20 + hairline）统一到同一档毛玻璃。
 
 ### 三、原生控件
 
