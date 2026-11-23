@@ -28,8 +28,6 @@ import {
 const ICON = {
   clock:
     '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.6v4.8l3.1 1.9"/>',
-  wallet:
-    '<path d="M3.6 8.2h13.2a3.2 3.2 0 0 1 3.2 3.2v5.8a3 3 0 0 1-3 3H6.5a2.9 2.9 0 0 1-2.9-2.9V8.2Z"/><path d="M3.6 8.2V7a2 2 0 0 1 2-2h9.1"/><path d="M16.6 14.2h.01"/>',
   warning:
     '<path d="M12 4.6 3.4 19.2h17.2L12 4.6Z"/><path d="M12 9.9v4.2"/><path d="M12 17h.01"/>',
   clipboard:
