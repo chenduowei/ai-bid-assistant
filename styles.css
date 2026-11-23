@@ -2585,6 +2585,22 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   /* G8：抽屉底部补安全区——「保存设置 / 保存资质 / 生成订阅链接」原来落在 iPhone 底部手势区里 */
   .sheet-panel { padding-bottom: calc(var(--sp-5) + env(safe-area-inset-bottom)); }
 
+  /* v0.35.9：手机抽屉标题栏也吸顶 + 毛玻璃（长抽屉滚到一半时标题与关闭按钮还在），
+     与桌面端 .sheet-head 同一档；负边距抵消面板 20px 内边距，底边一条 hairline。 */
+  .sheet-head {
+    position: sticky;
+    /* 面板自身有 20px 内边距，负外边距把标题栏提到面板上沿；sticky 的 top 也要跟着负回去，
+       否则滚动时标题停在内容盒顶，上面留出 20px 让下面的内容透出来。 */
+    top: calc(-1 * var(--sp-5));
+    z-index: 4;
+    margin: calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5)) 12px;
+    padding: var(--sp-5) var(--sp-5) 10px;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--hairline);
+  }
+
   /* M6：375×667 上页头菜单高 542px、bottom 685 > 667 且不可滚，「退出」被裁——限高并可滚 */
   .header-actions {
     max-height: calc(100dvh - 168px - env(safe-area-inset-bottom));
@@ -3192,7 +3208,8 @@ body.dark .theme-moon { display: none; }
   .sheet-panel.parser-sheet-panel { width: min(920px, 100%); }
   .sheet-head {
     position: sticky;
-    top: 0;
+    /* 面板内边距 20px：负外边距把标题栏提到面板上沿，sticky 的 top 同样负回去（v0.35.9 修） */
+    top: -20px;
     z-index: 4;
     margin: -20px -24px 14px;
     padding: 20px 48px 12px 24px;
