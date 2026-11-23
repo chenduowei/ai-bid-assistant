@@ -13,6 +13,7 @@ import {
   getNextDeadline,
   getUpcomingDeadlines,
   getChecklistProgress,
+  isSectionOpen,
   getGuaranteeRefundReminders,
   getTrashRemainingDays,
   getWinRate,
@@ -269,7 +270,7 @@ export function createUi(elements, getState) {
       (p.qualification && p.qualification.length) ||
       (p.invalidBidClauses && p.invalidBidClauses.length);
     if (!hasRisk && !hasStruct) return "";
-    const collapsed = getState().collapsedSections?.has(`${p.id}:risk`);
+    const riskOpen = isSectionOpen(getState(), p.id, "risk");
     const points = Array.isArray(p.riskPoints) ? p.riskPoints : [];
     const pointsHtml = points.length
       ? `<ul class="risk-points">${points
@@ -279,7 +280,7 @@ export function createUi(elements, getState) {
           )
           .join("")}</ul>`
       : "";
-    return `<div class="risk-report${collapsed ? " collapsed" : ""}"><div class="risk-head"><div class="risk-title">⚠️ 风险与条款</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-risk" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></span></div><div class="risk-body">${
+    return `<div class="risk-report${riskOpen ? " expanded" : " collapsed"}"><div class="risk-head"><div class="risk-title">⚠️ 风险与条款</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-risk" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${riskOpen ? "true" : "false"}">${riskOpen ? "收起" : "展开"}</button></span></div><div class="risk-body">${
       p.riskSummary
         ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
         : ""
@@ -364,11 +365,15 @@ export function createUi(elements, getState) {
 
   /** 废标检查清单：进度 + 勾选 + 生成 + 手动新增 + 删除，文本全部 escapeHtml
    *  v0.35.5：勾选框与文字包进 <label class="checklist-main"> —— 手机上整行可点勾选（原来只有 18px 方框能勾），
-   *  来源徽标与 × 也不再和文字抢同一行宽度。 */
+   *  来源徽标与 × 也不再和文字抢同一行宽度。
+   *  v0.35.7：手机端与电脑端都默认收起 —— 只剩一条紧凑标题栏（清单名 + 已完成 X/Y + 箭头），
+   *  点整条标题栏展开（动画在 CSS 的 grid-template-rows）。标题栏是一个按钮，
+   *  「清空」只在展开时出现，避免收着的时候误触清空。 */
   const renderChecklist = (p) => {
     const list = Array.isArray(p.checklist) ? p.checklist : [];
     const { done, total } = getChecklistProgress(list);
-    const collapsed = getState().collapsedSections?.has(`${p.id}:checklist`);
+    const open = isSectionOpen(getState(), p.id, "checklist");
+    const bodyId = `checklist-body-${p.id}`;
     const itemsHtml = list.length
       ? list
           .map(
@@ -377,7 +382,22 @@ export function createUi(elements, getState) {
           )
           .join("")
       : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
-    return `<div class="checklist${collapsed ? " collapsed" : ""}"><div class="checklist-head"><div class="checklist-progress">📋 废标检查清单：已完成 ${done}/${total}</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-checklist" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${collapsed ? "false" : "true"}">${collapsed ? "展开" : "收起"}</button></span></div><div class="checklist-body"><div class="checklist-items">${itemsHtml}</div><div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div></div></div>`;
+    const toggleBtn =
+      `<button class="checklist-toggle" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${open ? "true" : "false"}" aria-controls="${escapeHtml(bodyId)}" title="${open ? "收起清单" : "展开清单"}">` +
+      `<span class="checklist-title">📋 废标检查清单</span>` +
+      `<span class="checklist-count">已完成 ${done}/${total}</span>` +
+      `<span class="checklist-chevron" aria-hidden="true">⌄</span>` +
+      `</button>`;
+    const headActions =
+      `<span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-checklist" data-id="${escapeHtml(p.id)}">清空</button></span>`;
+    return (
+      `<div class="checklist ${open ? "expanded" : "collapsed"}">` +
+      `<div class="checklist-head">${toggleBtn}${headActions}</div>` +
+      `<div class="checklist-body" id="${escapeHtml(bodyId)}"><div class="checklist-body-inner">` +
+      `<div class="checklist-items">${itemsHtml}</div>` +
+      `<div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div>` +
+      `</div></div></div>`
+    );
   };
 
   /** v0.4.5：列表 cell 右侧倒计时 pill —— 短文案 + 紧急度 class（60s 刷新只更新文字）

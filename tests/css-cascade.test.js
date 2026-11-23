@@ -219,22 +219,86 @@ test("v0.35.6 手机端：版本徽标回到标题旁，桌面隐藏", () => {
   assert.equal(declOf(badge, "display"), "inline-block");
 });
 
-test("v0.35.6 手机端：详情区不重复卡头信息，备注改块状", () => {
-  const hideName = ruleIn680For(".kv-row-name");
-  assert.ok(hideName, "@media (max-width: 680px) 里必须有 .kv-row-name");
+test("v0.35.7 手机端：项目名称完整回到详情区（折行不截），项目类型仍隐去，备注块状", () => {
+  // 名称不再被隐去——卡头名称最多两行，长名字会被截，展开后要能看全
+  const nameRule = ruleIn680For(".kv-row-name");
+  assert.ok(nameRule, "@media (max-width: 680px) 里必须有 .kv-row-name");
+  assert.notEqual(declOf(nameRule, "display"), "none", "项目名称不能再被隐去");
+  // 名称与备注都是「标签一行、正文一行」的块状行
+  assert.equal(declOf(nameRule, "flex-direction"), "column");
+  const nameValue = ruleIn680(".kv-row-name .kv-value");
+  assert.ok(nameValue, "@media (max-width: 680px) 里必须有 .kv-row-name .kv-value");
+  assert.equal(declOf(nameValue, "text-align"), "left");
+  assert.equal(declOf(nameValue, "white-space"), "normal");
+  assert.equal(declOf(nameValue, "word-break"), "break-word");
+  // 项目类型卡头元信息行已有，手机上仍隐去
   const hideType = ruleIn680For(".kv-row-type");
   assert.ok(hideType, "@media (max-width: 680px) 里必须有 .kv-row-type");
-  assert.equal(declOf(hideName, "display"), "none");
   assert.equal(declOf(hideType, "display"), "none");
-  const note = ruleIn680(".kv-row-note");
+  const note = ruleIn680For(".kv-row-note");
   assert.equal(declOf(note, "flex-direction"), "column");
-  // 桌面端三项都不动
+  // 桌面端三项都不动（仍是原有 kv 行，名称本来就完整显示）
   for (const sel of [".kv-row-name", ".kv-row-type", ".kv-row-note"]) {
     const desk = parseCssRules(realCss).find(
       (r) => r.selector === sel && r.media.length === 0
     );
     assert.equal(desk, undefined, `${sel} 不应有桌面规则`);
   }
+});
+
+test("v0.35.7 手机端：保证金「查看」按钮文字上下居中（不再被 UA 的 flex-start 顶到上边）", () => {
+  const btn = ruleIn680(".refund-tip .refund-open-btn");
+  assert.ok(btn, "@media (max-width: 680px) 里必须有 .refund-tip .refund-open-btn");
+  assert.equal(declOf(btn, "display"), "inline-flex");
+  assert.equal(declOf(btn, "align-items"), "center");
+  assert.equal(declOf(btn, "justify-content"), "center");
+  // 行高不随父级 1.5 行高拉出半个行盒的上下留白
+  assert.equal(declOf(btn, "line-height"), "1");
+});
+
+test("v0.35.7：废标检查清单默认收起、展开有过渡（手机与桌面同一套）", () => {
+  // 收起/展开态由 JS 落到 .collapsed / .expanded，CSS 不再用 display:none
+  const deskBody = parseCssRules(realCss).find(
+    (r) => r.selector === ".checklist-body" && r.media.length === 0
+  );
+  assert.ok(deskBody, "基础样式里应有 .checklist-body");
+  assert.equal(declOf(deskBody, "display"), "grid");
+  assert.match(declOf(deskBody, "transition"), /grid-template-rows/);
+  const collapsed = parseCssRules(realCss).find(
+    (r) => r.selector === ".checklist.collapsed .checklist-body" && r.media.length === 0
+  );
+  assert.ok(collapsed, "基础样式里应有 .checklist.collapsed .checklist-body");
+  assert.equal(declOf(collapsed, "grid-template-rows"), "0fr");
+  const expanded = parseCssRules(realCss).find(
+    (r) => r.selector === ".checklist-body" && r.media.length === 0
+  );
+  assert.equal(declOf(expanded, "grid-template-rows"), "1fr");
+  // 内层 min-height:0 + overflow:hidden 是把高度收到 0 的必备条件
+  const inner = parseCssRules(realCss).find(
+    (r) => r.selector === ".checklist-body-inner" && r.media.length === 0
+  );
+  assert.ok(inner, "基础样式里应有 .checklist-body-inner");
+  assert.equal(declOf(inner, "min-height"), "0");
+  assert.equal(declOf(inner, "overflow"), "hidden");
+  // 整条标题栏都是点击区（按钮），不再只有右边一颗 32px 小按钮
+  const toggle = parseCssRules(realCss).find(
+    (r) => r.selector === ".checklist-toggle" && r.media.length === 0
+  );
+  assert.ok(toggle, "基础样式里应有 .checklist-toggle");
+  assert.equal(declOf(toggle, "display"), "flex");
+  assert.equal(declOf(toggle, "flex"), "1");
+  // 收着时不露「清空」（避免误触清掉整份清单）
+  const hideClear = parseCssRules(realCss).find(
+    (r) =>
+      r.selector === ".checklist.collapsed .checklist-head .head-actions" &&
+      r.media.length === 0
+  );
+  assert.ok(hideClear, "收起的清单必须隐藏「清空」");
+  assert.equal(declOf(hideClear, "display"), "none");
+  // 手机端整条标题栏 40px 高
+  const tap = ruleIn680(".checklist-toggle");
+  assert.ok(tap, "@media (max-width: 680px) 里必须有 .checklist-toggle");
+  assert.equal(declOf(tap, "min-height"), "40px");
 });
 
 test("v0.35.6 手机端：卡片展开时收起浮动新增按钮", () => {

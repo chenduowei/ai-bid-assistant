@@ -5,7 +5,7 @@
  * 首次进解析页或打开 AI 设置时才 import，首屏不再付账；
  * pdf.js 本身早已在解析时才动态 import，此处只懒加载本地薄壳。
  */
-import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts } from "./js/utils.js";
+import { THEME_KEY, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, stripPdfFilenameSuffix, countPdfPagesFromText, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { createAuth } from "./js/auth.js";
@@ -240,8 +240,10 @@ import { createDrawers } from "./js/drawers.js";
     channel: null,
     /** v0.4.1：项目卡片详情展开态（内存 Set，render/筛选/排序/分页/保存后恢复） */
     expandedIds: new Set(),
-    /** v0.16.0：卡片内分区折叠态（key 为 `${projectId}:risk` / `${projectId}:checklist`） */
+    /** v0.16.0：卡片内分区折叠态（key 为 `${projectId}:risk`；默认展开的记这里） */
     collapsedSections: new Set(),
+    /** v0.35.7：默认收起的分区（key 为 `${projectId}:checklist`）——点开过才记这里 */
+    expandedSections: new Set(),
     /** v0.4.3：新增 / 编辑表单默认折叠 */
     formExpanded: false,
     /** v0.6.0：选填信息默认折叠（与 formExpanded 独立） */
@@ -2122,17 +2124,21 @@ import { createDrawers } from "./js/drawers.js";
         if (ok) ui.showToast("已添加检查项。");
       }
       // v0.16.0：卡片内分区折叠（风险与条款 / 废标检查清单）——只动 DOM 与内存态，不重渲染。
+      // v0.35.7：默认态交给 utils.isSectionOpen / toggleSectionOpen（风险默认展开、清单默认收起），
+      // 这里只负责把结果落到 DOM——清单的展开动画由 CSS 的 grid-template-rows 完成。
       if (button.dataset.action === "toggle-section") {
         const section = button.dataset.section;
         if (section !== "risk" && section !== "checklist") return;
-        const key = `${id}:${section}`;
-        const collapsed = state.collapsedSections.has(key);
-        if (collapsed) state.collapsedSections.delete(key);
-        else state.collapsedSections.add(key);
+        const open = toggleSectionOpen(state, id, section);
         const container = button.closest(".risk-report, .checklist");
-        container?.classList.toggle("collapsed", !collapsed);
-        button.textContent = collapsed ? "收起" : "展开";
-        button.setAttribute("aria-expanded", String(collapsed));
+        container?.classList.toggle("collapsed", !open);
+        container?.classList.toggle("expanded", open);
+        button.setAttribute("aria-expanded", String(open));
+        if (section === "checklist") {
+          button.title = open ? "收起清单" : "展开清单";
+        } else {
+          button.textContent = open ? "收起" : "展开";
+        }
       }
       // v0.16.0：AI 结论单条删除 —— 先确认，再整列回写；原始 JSON 仍在 extractedMeta 里。
       if (button.dataset.action === "delete-evidence") {
