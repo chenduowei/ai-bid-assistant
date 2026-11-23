@@ -6,7 +6,7 @@
 [![CI](https://github.com/chenduowei/ai-bid-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/chenduowei/ai-bid-assistant/actions/workflows/ci.yml)
 [线上地址](https://chenduowei.vercel.app/) · [更新记录](docs/changelog.md) · [维护说明](docs/notes.md)
 
-当前版本：**v0.35.5**
+当前版本：**v0.35.6**
 
 ![桌面端登录页](docs/screenshots/desktop.png)
 ![手机端工作台](docs/screenshots/mobile.png)
@@ -23,7 +23,7 @@
 - **💰 保证金台账与废标清单**：保证金按金额、单位与缴纳状态记账，在途金额单独统计、可一键标记退回；AI 抽出的废标条款可转成逐项勾选的检查清单。
 - **📅 开标日历与系统日历订阅**：月历视图按紧急度标点；「日历订阅」生成一条 .ics 链接，同步到手机系统日历，每个项目在开标前一天 9 点、当天 8 点各提醒一次（关页也有效）。
 - **🔄 数据进出**：CSV / Excel 导入（自动去重）、CSV 导出、一键备份与恢复（默认不含招标全文，可勾选包含）、导入模板。
-- **📱 手机可用**：可装到桌面（PWA），断网时展示最近一次同步的只读快照，联网自动恢复。竖屏下项目名整行两行显示、卡片信息分三行（名称 / 倒计时 / 操作），「即将到期」收成一行摘要点开看横条，登录后首屏就能看到第一个项目。
+- **📱 手机可用**：可装到桌面（PWA），断网时展示最近一次同步的只读快照，联网自动恢复。竖屏下项目名两行整行显示、倒计时与开标日排在同一行、操作条轻量（卡片 126px，一屏三张），「即将到期」与标题并成一行摘要点开看横条，底部导航是一套单色图标，顶栏标题旁能看到当前版本号。
 
 ## 🔒 数据去向与边界
 
@@ -50,7 +50,7 @@ cp supabase-config.example.js supabase-config.js   # 填入 Project URL 与 anon
 
 | 命令 | 作用 |
 | --- | --- |
-| `npm test` | 155 个单元/渲染测试（`node --test`，无外部框架） |
+| `npm test` | 165 个单元/渲染测试（`node --test`，无外部框架） |
 | `npm run check:version` | 版本号一致性（package.json / sw.js 缓存名 / 页眉 / README / notes / changelog） |
 | `npm run check:css` | 样式表回归校验（丢分号、大括号平衡、同断点重复、**跨断点顺序覆盖**） |
 | `npm run build` | 从环境变量生成 `supabase-config.js` |

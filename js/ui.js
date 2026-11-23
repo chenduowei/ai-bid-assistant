@@ -200,7 +200,10 @@ export function createUi(elements, getState) {
       } else {
         const first = upcoming[0];
         const left = first.days === 0 ? "今天" : first.days === 1 ? "明天" : `还有 ${first.days} 天`;
-        summary.textContent = `未来 ${reminderDays} 天 ${upcoming.length} 个截止 · 最近：${first.label} ${left}`;
+        // v0.35.6：摘要与标题排成一行，文案压到 12 字上下（原「未来 7 天 5 个截止 · 最近：…」
+        // 连标题 90px 一起放不进 360 的屏）。事项数不在这里重复 —— 上面统计卡的「临近」就是它，
+        // 这里只留「窗口 + 最近一条」，360/320 都不会把「今天」截掉。
+        summary.textContent = `近 ${reminderDays} 天 · ${first.label} ${left}`;
       }
     }
     if (!upcoming.length) {
@@ -446,12 +449,14 @@ export function createUi(elements, getState) {
               `<span class="badge ${p.result === "已中标" ? "success" : "danger"}">${escapeHtml(p.result)}</span>`
             )
           : "") +
-        kv("项目类型", escapeHtml(p.type)) +
-        kv("项目名称", escapeHtml(p.name)) +
+        // v0.35.6：项目类型 / 项目名称 与卡头完全重复，手机端由 CSS 隐去（.kv-row-type / .kv-row-name）；
+        // 备注是长文本，右对齐会折成参差的几行，手机端改成「标签在上、正文左对齐」的块状行。
+        kv("项目类型", escapeHtml(p.type), "kv-row-type") +
+        kv("项目名称", escapeHtml(p.name), "kv-row-name") +
         kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
         kv("联系人", escapeHtml(p.contact || "-")) +
         // v0.23.0：备注改回定义列表行，与项目名称 / 联系人同一格式（之前是小灰字 kv-note）。
-        kv("备注", escapeHtml(p.notes || "—")) +
+        kv("备注", escapeHtml(p.notes || "—"), "kv-row-note") +
         `</div>` +
         (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
         deadlineHtml +
@@ -475,7 +480,11 @@ export function createUi(elements, getState) {
     const detailsHtml = expanded ? buildDetailsHtml(p) : "";
     const cd = countdownCell(p);
     const dateShort = shortDateDisplay(p.date);
-    const subLine = `${dateShort ? `${dateShort}开标` : "未设置开标时间"} · ${p.type} · ${p.biddingCompany || "-"}`;
+    // v0.35.6：手机端元信息行只剩「日期开标 · 类型」，投标公司包在 .project-sub-company 里
+    // 由手机端隐去——它原来总被截成「青海一建…」，省略号比不显示更难看；公司仍能在详情里看。
+    const subLine = `${dateShort ? `${escapeHtml(dateShort)}开标` : "未设置开标时间"} · ${escapeHtml(
+      p.type
+    )}<span class="project-sub-company"> · ${escapeHtml(p.biddingCompany || "-")}</span>`;
     // v0.6.0：选择模式下行首显示 iOS 圆形复选框
     const st = getState();
     const selectMode = !!(st && st.selectMode);
@@ -483,7 +492,7 @@ export function createUi(elements, getState) {
     const checkHtml = selectMode
       ? `<button class="select-check" type="button" role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-label="选择项目" data-action="toggle-select" data-id="${escapeHtml(p.id)}"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.8 5.3 9.5 10.5 3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
       : "";
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${escapeHtml(subLine)}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${subLine}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
   };
 
   /** v0.6.0：列表到底趣味文案（按数量轮换） */
@@ -550,11 +559,23 @@ export function createUi(elements, getState) {
     updateCollapseAllBtn();
   };
 
+  // v0.35.6：有卡片展开时把浮动新增按钮收起来——它固定在右下角，展开的详情里
+  // 「报名截止」那几行的日期正好被它压住（实测 390×844 盖住 44×44）。
+  // 展开 / 收起走的是 toggleProjectDetails（只改 DOM，不全量重渲染），所以两边都要调它。
+  const syncDetailOpenState = () => {
+    if (!document.body) return;
+    document.body.classList.toggle(
+      "detail-open",
+      Boolean(getState().expandedIds?.size)
+    );
+  };
+
   // v0.32.0：没有展开的卡片时“全部折叠”不可点。
   const updateCollapseAllBtn = () => {
     if (elements.collapseAllBtn) {
       elements.collapseAllBtn.disabled = !(getState().expandedIds?.size);
     }
+    syncDetailOpenState();
   };
 
   // v0.31.0：列表增量同步 —— 按当前筛选 / 排序算出应显示的卡片，与 DOM 现有卡片逐个对账：
@@ -1244,6 +1265,7 @@ export function createUi(elements, getState) {
     renderQualList,
     getCurrentFilteredProjects,
     fillProjectDetails,
+    syncDetailOpenState,
     trapFocusIn,
     releaseFocusTrap,
     updateCountdowns,

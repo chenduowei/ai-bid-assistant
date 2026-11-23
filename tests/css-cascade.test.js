@@ -122,15 +122,24 @@ const ruleIn680 = (selector) =>
     (r) => r.selector === selector && r.media.some((m) => /max-width:\s*680px/.test(m))
   );
 
+/** 同 ruleIn680，但认逗号分组里的单个选择器（.a, .b { … } 里的 .b） */
+const ruleIn680For = (selector) =>
+  parseCssRules(realCss).find(
+    (r) =>
+      r.media.some((m) => /max-width:\s*680px/.test(m)) &&
+      r.selector.split(",").map((x) => x.trim()).includes(selector)
+  );
+
 const declOf = (rule, prop) => rule?.decls.find((d) => d.prop === prop)?.value;
 
 test("手机端卡片：.project-head 的内边距与行距是收紧后的一档", () => {
   const rule = ruleIn680(".project-head");
   assert.ok(rule, "@media (max-width: 680px) 里必须有 .project-head");
-  assert.equal(declOf(rule, "padding"), "8px var(--sp-4) 6px");
+  // v0.35.6：上 10px、左右 16px、下 0（底部留白交给操作条自己）
+  assert.equal(declOf(rule, "padding"), "10px var(--sp-4) 0");
   assert.equal(declOf(rule, "row-gap"), "2px");
   const actions = ruleIn680(".project-head-actions");
-  assert.equal(declOf(actions, "margin-top"), "0");
+  assert.equal(declOf(actions, "margin"), "2px 0 0");
 });
 
 test("手机端状态三选一：三等分网格铺满一行，不靠 flex-wrap", () => {
@@ -148,16 +157,31 @@ test("手机端状态三选一：三等分网格铺满一行，不靠 flex-wrap"
   assert.equal(declOf(deskQuick, "display"), "inline-flex");
 });
 
-// v0.35.5：手机竖屏全面打磨的六条核心改法都要有样式落点，并守住桌面端两处基线
-// （临期卡仍是原来的 248px flex-basis、输入框仍不强制 16px）。
-test("v0.35.5 手机端：项目卡三行网格（名称 / 胶囊 / 操作）", () => {
+// v0.35.6：手机端项目卡改「名称两行 / 元信息 + 倒计时同一行 / 操作条」三段网格。
+// 名称与副标题、胶囊要能各自成为网格项，靠的是三层 display:contents；
+// 桌面端卡头仍是 flex、胶囊仍跟着 project-head-top 排在一行。
+test("v0.35.6 手机端：项目卡四列网格，倒计时与元信息同一行", () => {
   const head = ruleIn680(".project-head");
   assert.ok(head, "@media (max-width: 680px) 里必须有 .project-head");
   assert.equal(declOf(head, "display"), "grid");
-  assert.equal(declOf(head, "grid-template-columns"), "10px minmax(0, 1fr) 44px");
+  assert.equal(
+    declOf(head, "grid-template-columns"),
+    "10px minmax(0, 1fr) auto 44px"
+  );
+  for (const sel of [".project-head-right", ".project-head-main", ".project-head-top"]) {
+    const r = ruleIn680For(sel);
+    assert.ok(r, `@media (max-width: 680px) 里必须有 ${sel}`);
+    assert.equal(declOf(r, "display"), "contents");
+  }
   const pill = ruleIn680(".project-head-top .cd-pill");
-  assert.equal(declOf(pill, "grid-column"), "2");
+  assert.equal(declOf(pill, "grid-column"), "3");
   assert.equal(declOf(pill, "grid-row"), "2");
+  const sub = ruleIn680(".project-head .project-sub");
+  assert.equal(declOf(sub, "grid-column"), "2");
+  assert.equal(declOf(sub, "grid-row"), "2");
+  const name = ruleIn680(".project-head .project-name");
+  assert.equal(declOf(name, "grid-column"), "2 / span 2");
+  assert.equal(declOf(name, "-webkit-line-clamp"), "2");
   const actions = ruleIn680(".project-head-actions");
   assert.equal(declOf(actions, "grid-row"), "3");
   // 桌面端卡头仍是 flex（不被网格带去）
@@ -165,6 +189,66 @@ test("v0.35.5 手机端：项目卡三行网格（名称 / 胶囊 / 操作）", 
     (r) => r.selector === ".project-head" && r.media.length === 0
   );
   assert.equal(declOf(deskHead, "display"), "flex");
+});
+
+test("v0.35.6 手机端：工具栏第二行（选择 / 全部折叠 / 中标率）独占一行", () => {
+  // 桌面端包裹层必须仍是 display:contents，否则那三项会从工具栏那一行里掉出去
+  const deskActions = parseCssRules(realCss).find(
+    (r) => r.selector === ".list-tools-actions" && r.media.length === 0
+  );
+  assert.ok(deskActions, "基础样式里应有 .list-tools-actions");
+  assert.equal(declOf(deskActions, "display"), "contents");
+  const actions = ruleIn680(".list-tools-actions");
+  assert.ok(actions, "@media (max-width: 680px) 里必须有 .list-tools-actions");
+  assert.equal(declOf(actions, "display"), "flex");
+  assert.equal(declOf(actions, "flex"), "1 0 100%");
+  // 排序 / 结果筛选变成胶囊
+  const sort = ruleIn680(".list-tools .sort-select");
+  assert.equal(declOf(sort, "height"), "40px");
+  assert.equal(declOf(sort, "border-radius"), "10px");
+});
+
+test("v0.35.6 手机端：版本徽标回到标题旁，桌面隐藏", () => {
+  const desk = parseCssRules(realCss).find(
+    (r) => r.selector === ".app-version-badge" && r.media.length === 0
+  );
+  assert.ok(desk, "基础样式里应有 .app-version-badge");
+  assert.equal(declOf(desk, "display"), "none");
+  const badge = ruleIn680(".app-version-badge");
+  assert.ok(badge, "@media (max-width: 680px) 里必须有 .app-version-badge");
+  assert.equal(declOf(badge, "display"), "inline-block");
+});
+
+test("v0.35.6 手机端：详情区不重复卡头信息，备注改块状", () => {
+  const hideName = ruleIn680For(".kv-row-name");
+  assert.ok(hideName, "@media (max-width: 680px) 里必须有 .kv-row-name");
+  const hideType = ruleIn680For(".kv-row-type");
+  assert.ok(hideType, "@media (max-width: 680px) 里必须有 .kv-row-type");
+  assert.equal(declOf(hideName, "display"), "none");
+  assert.equal(declOf(hideType, "display"), "none");
+  const note = ruleIn680(".kv-row-note");
+  assert.equal(declOf(note, "flex-direction"), "column");
+  // 桌面端三项都不动
+  for (const sel of [".kv-row-name", ".kv-row-type", ".kv-row-note"]) {
+    const desk = parseCssRules(realCss).find(
+      (r) => r.selector === sel && r.media.length === 0
+    );
+    assert.equal(desk, undefined, `${sel} 不应有桌面规则`);
+  }
+});
+
+test("v0.35.6 手机端：卡片展开时收起浮动新增按钮", () => {
+  const rule = ruleIn680("body.detail-open .fab-add");
+  assert.ok(rule, "@media (max-width: 680px) 里必须有 body.detail-open .fab-add");
+  assert.equal(declOf(rule, "display"), "none");
+});
+
+test("v0.35.6 手机端：底部导航是 24px 单色 SVG 图标 + 更强毛玻璃", () => {
+  const tabs = ruleIn680(".bottom-tabs");
+  assert.match(declOf(tabs, "backdrop-filter"), /blur\(20px\) saturate\(180%\)/);
+  const icon = ruleIn680(".bottom-tab-icon svg");
+  assert.equal(declOf(icon, "width"), "24px");
+  assert.equal(declOf(icon, "height"), "24px");
 });
 
 test("v0.35.5 手机端：临期卡一屏一张 + 名称两行", () => {

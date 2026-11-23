@@ -298,6 +298,8 @@ import { createDrawers } from "./js/drawers.js";
     details.classList.toggle("expanded", expanded);
     toggleEl.setAttribute("aria-expanded", String(expanded));
     item.classList.toggle("expanded", expanded);
+    // v0.35.6：有展开的卡片时收起右下角浮动的「＋」（它会压住详情里的日期）
+    ui.syncDetailOpenState();
     // v0.30.0：详情懒生成 —— 展开时才补填详情 HTML（折叠卡片渲染时是空的）。
     if (expanded) {
       const project = state.projects.find((p) => p.id === id);
@@ -1066,6 +1068,16 @@ import { createDrawers } from "./js/drawers.js";
     }
   };
 
+  // v0.16.0：清掉上一份解析的 AI 结果 —— 新文件解析前、查看已保存文本时、
+  // 点"清空"时都调，避免旧面板配新文本、旧结果带进下次保存。
+  // v0.35.6：它原来定义在 bindEvents() 里，而 resetParserState / setParseTarget（模块级）
+  // 也在调它 —— 每次打开解析抽屉都会抛 ReferenceError，抽屉打不开（v0.35.0 重构时挪漏了）。
+  const clearStaleAiResult = () => {
+    lastAiResult = null;
+    if (elements.aiResultPanel) elements.aiResultPanel.innerHTML = "";
+    if (elements.applyAiToFormBtn) elements.applyAiToFormBtn.disabled = true;
+  };
+
   // v0.18.0：解析区复位 —— 清文本、AI 面板、进度与按钮态，不动表单；
   // 绑定目标本身不在这里动（换目标由 setParseTarget 管，清空按钮只清内容）。
   const resetParserState = () => {
@@ -1539,14 +1551,6 @@ import { createDrawers } from "./js/drawers.js";
     elements.dropZone?.addEventListener("drop", (event) => {
       startParse(event.dataTransfer.files?.[0]);
     });
-    // v0.16.0：清掉上一份解析的 AI 结果 —— 新文件解析前、查看已保存文本时、
-    // 点"清空"时都调，避免旧面板配新文本、旧结果带进下次保存。
-    const clearStaleAiResult = () => {
-      lastAiResult = null;
-      if (elements.aiResultPanel) elements.aiResultPanel.innerHTML = "";
-      if (elements.applyAiToFormBtn)
-        elements.applyAiToFormBtn.disabled = true;
-    };
     elements.toggleTextBtn?.addEventListener("click", () => {
       const hidden = elements.parsedText.classList.toggle("hidden");
       elements.toggleTextBtn.textContent = hidden
