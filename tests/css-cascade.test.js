@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { analyzeCss, findCascadeOverrides } from "../scripts/check-css.mjs";
+import { analyzeCss, findCascadeOverrides, parseCssRules } from "../scripts/check-css.mjs";
 
 const realCss = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
 
@@ -112,4 +112,38 @@ test("同一断点按完整条件计数：max-width:900px 与带 max-height 的�
 test("大括号不平衡能被发现", () => {
   assert.equal(analyzeCss(`.a { color: red; }`).bracesOk, true);
   assert.equal(analyzeCss(`.a { color: red; `).bracesOk, false);
+});
+
+// v0.35.4：手机竖屏的两条排版修复必须有样式落点——
+// 卡片内边距/行距收紧（卡片高度），以及详情区状态三选一的「标签一行 + 三等分网格一行」。
+// 之前这两处没任何测试，改断点块时容易被连坐。
+const ruleIn680 = (selector) =>
+  parseCssRules(realCss).find(
+    (r) => r.selector === selector && r.media.some((m) => /max-width:\s*680px/.test(m))
+  );
+
+const declOf = (rule, prop) => rule?.decls.find((d) => d.prop === prop)?.value;
+
+test("手机端卡片：.project-head 的内边距与行距是收紧后的一档", () => {
+  const rule = ruleIn680(".project-head");
+  assert.ok(rule, "@media (max-width: 680px) 里必须有 .project-head");
+  assert.equal(declOf(rule, "padding"), "8px var(--sp-4) 6px");
+  assert.equal(declOf(rule, "row-gap"), "2px");
+  const actions = ruleIn680(".project-head-actions");
+  assert.equal(declOf(actions, "margin-top"), "0");
+});
+
+test("手机端状态三选一：三等分网格铺满一行，不靠 flex-wrap", () => {
+  const quick = ruleIn680(".kv-row-status .status-quick");
+  assert.ok(quick, "@media (max-width: 680px) 里必须有 .kv-row-status .status-quick");
+  assert.equal(declOf(quick, "display"), "grid");
+  assert.equal(declOf(quick, "grid-template-columns"), "repeat(3, minmax(0, 1fr))");
+  assert.equal(declOf(quick, "width"), "100%");
+  const chip = ruleIn680(".kv-row-status .status-chip");
+  assert.equal(declOf(chip, "min-width"), "0");
+  // 桌面端仍是一行「标签 + 值」，不能被手机端的上下两段带跑
+  const deskQuick = parseCssRules(realCss).find(
+    (r) => r.selector === ".status-quick" && r.media.length === 0
+  );
+  assert.equal(declOf(deskQuick, "display"), "inline-flex");
 });

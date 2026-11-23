@@ -6,7 +6,7 @@
 [![CI](https://github.com/chenduowei/ai-bid-assistant/actions/workflows/ci.yml/badge.svg)](https://github.com/chenduowei/ai-bid-assistant/actions/workflows/ci.yml)
 [线上地址](https://chenduowei.vercel.app/) · [更新记录](docs/changelog.md) · [维护说明](docs/notes.md)
 
-当前版本：**v0.35.3**
+当前版本：**v0.35.4**
 
 ![桌面端登录页](docs/screenshots/desktop.png)
 ![手机端登录页](docs/screenshots/mobile.png)

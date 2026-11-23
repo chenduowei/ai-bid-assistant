@@ -145,6 +145,23 @@ test("详情区：项目状态是带 aria-pressed 的三选一", () => {
   assert.ok(chips[1].classList.contains("active"));
 });
 
+// v0.35.4：手机端让状态三选一平铺一行的样式靠 kv-row-status 这一类挂钩，
+// 它只出现在「项目状态」那一行（其余 kv 行仍是左标签 + 右值）。
+test("详情区：「项目状态」那一行带 kv-row-status，其余行不带", () => {
+  state.projects = [project({ status: "制作中" })];
+  state.expandedIds = new Set(["p1"]);
+  render();
+  const rowOf = (chip) => chip.closest(".kv-row");
+  const chips = [...elements.list.querySelectorAll(".status-chip")];
+  assert.equal(chips.length, 3);
+  const statusRow = rowOf(chips[0]);
+  assert.ok(statusRow.classList.contains("kv-row-status"));
+  assert.equal(statusRow.querySelector(".kv-label").textContent, "项目状态");
+  const allRows = [...elements.list.querySelectorAll(".kv-row")];
+  assert.equal(allRows.filter((r) => r.classList.contains("kv-row-status")).length, 1);
+  assert.ok(allRows.length > 1);
+});
+
 test("即将到期：卡片数字与面板条数同一口径（事项），驼峰截止字段也算", () => {
   state.projects = [
     project({ id: "p1", date: "2026-11-20", registrationDeadline: "2026-11-19" }),

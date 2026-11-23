@@ -1576,6 +1576,8 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
   -webkit-box-orient: vertical;
   white-space: normal;
   overflow: hidden;
+  /* v0.35.4：行高 1.3 → 1.25 —— 两行少 2px，长项目名在手机上更紧凑 */
+  line-height: 1.25;
 }
 .trash-head { align-items: flex-start; }
 .trash-head .project-name {
@@ -1836,7 +1838,7 @@ body.dark { color-scheme: dark; }
 .status-chip {
   border: 0; background: transparent; color: var(--text); font: inherit;
   font-size: var(--fs-sm); font-weight: 600; padding: 5px 10px;
-  border-radius: 8px; cursor: pointer; min-height: 32px;
+  border-radius: 8px; cursor: pointer; min-height: 32px; white-space: nowrap;
 }
 .status-chip.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14); }
 .status-chip:active { transform: scale(0.96); }
@@ -1972,12 +1974,15 @@ body.dark { color-scheme: dark; }
   .form-group > .field > input,
   .form-group > .field > select,
   .form-group > .field > textarea { font-size: var(--fs-lg); }
-  /* v0.23.0：窄屏行内布局改两行——名称行（圆点 + 名称 + 倒计时 + 箭头）+ 操作行（四个按钮一排通栏），
-     右侧栏不再以 max-content 宽度挤占名称（之前窄屏名称只剩一两个字宽）；行内边距 14→12px */
-  .project-head { padding: 10px var(--sp-4); flex-wrap: wrap; }
+  /* v0.23.0：窄屏行内布局改两行——名称行（圆点 + 名称 + 倒计时 + 箭头）+ 操作行（四个按钮一排通栏）；行内边距 14→12px
+     v0.35.4：卡片高度再收一档。实测 390×844 一条卡片 145px，其中「行间空白」占 18px：
+     换行后的 row-gap（12px）和操作行自己的 margin-top（6px）叠加，上下内边距又各 10px。
+     现在内边距 10→8（下 6）、行间 12+6 → row-gap 2 + margin-top 0，操作行按钮间距 6→4，
+     卡片降到约 121px（短名一行时约 104px）；交互区（行内按钮 44px）与排版结构不变。 */
+  .project-head { padding: 8px var(--sp-4) 6px; flex-wrap: wrap; row-gap: 2px; }
   .project-head-right { display: contents; }
   .project-head-top { order: 1; align-self: center; }
-  .project-head-actions { order: 2; flex: 1 1 100%; margin-top: 6px; }
+  .project-head-actions { order: 2; flex: 1 1 100%; margin-top: 0; gap: 4px; }
   .project-head-actions .row-btn { flex: 1; justify-content: center; }
   .project-details.collapse.expanded > .collapse-inner { margin: 2px var(--sp-4) 0; }
   .upcoming-item { flex-basis: 224px; }
@@ -2010,6 +2015,19 @@ body.dark { color-scheme: dark; }
   /* v0.35.3：剩余三处高频点击区补到 44pt（此前实测 32/32/33px）——
      详情区状态三选一、行尾展开箭头、工具栏「选择 / 全部折叠」。 */
   .status-chip { min-height: 44px; padding: 8px 12px; }
+  /* v0.35.4：状态三选一在手机竖屏稳定平铺单行三列 —— 之前是 inline-flex + wrap，
+     「项目状态」标签（56px）+ 间距（16px）后只剩 194px，三枚 63px 的胶囊共 201px 放不下，被挤成 2+1 两行。
+     现在这一行改成上下两段（标签一行、控件整行），控件本身用三等分 grid，360/375/390 都是单行、不截断、不溢出。 */
+  .kv-row-status { flex-wrap: wrap; align-items: center; row-gap: 6px; }
+  .kv-row-status .kv-label { flex: 1 1 100%; }
+  .kv-row-status .kv-value { flex: 1 1 100%; }
+  .kv-row-status .status-quick {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    gap: 4px;
+  }
+  .kv-row-status .status-chip { min-width: 0; padding: 8px 4px; }
   .project-chevron-btn { width: 44px; height: 44px; }
   .project-chevron-btn .project-chevron { font-size: 18px; }
   .list-tools .btn-text { min-height: 44px; padding: 0 8px; }
