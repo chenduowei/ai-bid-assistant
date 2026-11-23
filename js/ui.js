@@ -200,9 +200,10 @@ export function createUi(elements, getState) {
       } else {
         const first = upcoming[0];
         const left = first.days === 0 ? "今天" : first.days === 1 ? "明天" : `还有 ${first.days} 天`;
-        // v0.35.6：摘要与标题排成一行，文案压到 16 字上下（原「未来 7 天 5 个截止 · 最近：…」
-        // 连标题 90px 一起放不进 360 的屏）；「N 天」保留，截图里仍能对上设置里的提醒天数。
-        summary.textContent = `近 ${reminderDays} 天 · ${upcoming.length} 个截止 · ${first.label} ${left}`;
+        // v0.35.6：摘要与标题排成一行，文案压到 12 字上下（原「未来 7 天 5 个截止 · 最近：…」
+        // 连标题 90px 一起放不进 360 的屏）。事项数不在这里重复 —— 上面统计卡的「临近」就是它，
+        // 这里只留「窗口 + 最近一条」，360/320 都不会把「今天」截掉。
+        summary.textContent = `近 ${reminderDays} 天 · ${first.label} ${left}`;
       }
     }
     if (!upcoming.length) {

@@ -220,9 +220,11 @@ test("即将到期：手机端收起态的摘要写清事项数与最近一条",
     render();
     const summary = document.getElementById("upcomingSummary");
     assert.ok(summary, "index.html 里应有 #upcomingSummary");
-    // v0.35.6：摘要与标题排成一行，文案压到「近 7 天 · 3 个截止 · 报名截止 今天」
-    assert.match(summary.textContent, /近 7 天 · 3 个截止/);
+    // v0.35.6：摘要与标题排成一行，文案压到「近 7 天 · 报名截止 今天」
+    // （事项数交给上面的「临近」统计卡，这里不再重复，360 才不会截掉「今天」）
+    assert.match(summary.textContent, /近 7 天/);
     assert.match(summary.textContent, /报名截止 今天/);
+    assert.doesNotMatch(summary.textContent, /个截止/);
     // 摘要按钮包住整行（手机端是它把横条收起来的）
     const btn = document.getElementById("upcomingSummaryBtn");
     assert.equal(btn.getAttribute("aria-controls"), "upcomingList");
