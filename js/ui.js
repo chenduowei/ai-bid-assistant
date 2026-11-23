@@ -24,6 +24,22 @@ import {
   getEvidenceState,
 } from "./utils.js";
 
+// v0.35.8：内联 SVG 图标（与 index.html 里菜单/设置同一套 1.7 线宽、24 栅格）
+const ICON = {
+  clock:
+    '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.6v4.8l3.1 1.9"/>',
+  wallet:
+    '<path d="M3.6 8.2h13.2a3.2 3.2 0 0 1 3.2 3.2v5.8a3 3 0 0 1-3 3H6.5a2.9 2.9 0 0 1-2.9-2.9V8.2Z"/><path d="M3.6 8.2V7a2 2 0 0 1 2-2h9.1"/><path d="M16.6 14.2h.01"/>',
+  warning:
+    '<path d="M12 4.6 3.4 19.2h17.2L12 4.6Z"/><path d="M12 9.9v4.2"/><path d="M12 17h.01"/>',
+  clipboard:
+    '<rect x="5.3" y="4.5" width="13.4" height="16.1" rx="2.4"/><path d="M9.1 4.5a1.6 1.6 0 0 1 1.6-1.6h2.6a1.6 1.6 0 0 1 1.6 1.6"/><path d="m8.7 11.3 1.3 1.3 2.3-2.4M8.7 16.3l1.3 1.3 2.3-2.4"/>',
+  search:
+    '<circle cx="10.8" cy="10.8" r="6.1"/><path d="m15.5 15.5 3.9 3.9"/>',
+};
+const svgIcon = (path, cls = "ico") =>
+  `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;
+
 export function createUi(elements, getState) {
   // v0.7.0：统计 count-up 上次值（及进行中的 rAF id）
   const prevStats = {};
@@ -64,7 +80,9 @@ export function createUi(elements, getState) {
     if (elements.themeBtn) {
       // v0.34.0：主题按钮搬进了设置页的「外观」行 —— 文案改成动作（切换为深色 / 浅色），
       // 不会再把「⏿ 深色」误读成当前就是深色。
-      elements.themeBtn.textContent = darkMode ? "☀️ 切换为浅色" : "🌙 切换为深色";
+      // v0.35.8：图标改成内联 SVG（月亮 / 太阳由 CSS 按 body.dark 切换），这里只改文字
+      const label = elements.themeBtn.querySelector(".btn-label");
+      if (label) label.textContent = darkMode ? "切换为浅色" : "切换为深色";
     }
   };
 
@@ -157,7 +175,12 @@ export function createUi(elements, getState) {
       const first = upcoming[0];
       const left =
         first.days === 0 ? "今天" : `还有 ${first.days} 天`;
-      elements.deadlineTip.textContent = `⏰ 未来 ${reminderDays} 天有 ${upcoming.length} 个截止事项，最近的是「${first.project.name}」· ${first.label}（${formatDateDisplay(first.date)}，${left}）。`;
+      // v0.35.8：⏰ → 线性时钟图标（emoji 各平台渲染不一）
+      // v0.35.8：临近的用「今天 / 明天」，隔得远的才报日期 —— 桌面端这一条原来在 1440 上正好多出
+      // 半个字折到第二行（「天）。」孤零零一行），压掉重复的日期后一行放得下。
+      const when =
+        first.days === 0 ? "今天" : first.days === 1 ? "明天" : `${formatDateDisplay(first.date)}，${left}`;
+      elements.deadlineTip.innerHTML = `${svgIcon(ICON.clock, "ico tip-ico")}未来 ${reminderDays} 天有 ${upcoming.length} 个截止事项，最近的是「${escapeHtml(first.project.name)}」· ${escapeHtml(first.label)}（${when}）。`;
     }
   };
 
@@ -180,7 +203,7 @@ export function createUi(elements, getState) {
           `<span class="refund-item">「${escapeHtml(p.name)}」（${escapeHtml(formatDateDisplay(p.date))}开标）<button class="btn secondary refund-btn" type="button" data-action="mark-refunded" data-id="${escapeHtml(p.id)}">标记已退回</button></span>`
       )
       .join("");
-    el.innerHTML = `<span class="refund-text">💰 以下项目已开标且保证金已缴纳，跟进退还：</span><span class="refund-compact">💰 ${items.length} 笔保证金待退还</span><button class="btn secondary refund-open-btn" type="button" data-action="open-guarantee">查看</button>${rows}${more ? `<span class="refund-more">${escapeHtml(more)}</span>` : ""}`;
+    el.innerHTML = `<span class="refund-text">${svgIcon(ICON.refund, "ico tip-ico")}以下项目已开标且保证金已缴纳，跟进退还：</span><span class="refund-compact">${svgIcon(ICON.refund, "ico tip-ico")}${items.length} 笔保证金待退还</span><button class="btn secondary refund-open-btn" type="button" data-action="open-guarantee">查看</button>${rows}${more ? `<span class="refund-more">${escapeHtml(more)}</span>` : ""}`;
   };
 
   const upcomingLevel = (days) =>
@@ -240,11 +263,13 @@ export function createUi(elements, getState) {
       : "";
     // v0.16.0：结论单条删除（卡片上才有；AI 面板是只读预览，不放删除）。
     const del = project
-      ? `<button class="btn secondary evidence-del" type="button" data-action="delete-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" title="删除这条结论">×</button>`
+      ? `<button class="evidence-del" type="button" data-action="delete-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" title="删除这条结论" aria-label="删除这条结论">×</button>`
       : "";
     // v0.29.0：资质对照徽标（只在资格要求条目上）。
     const matchBadge = kind === "qualification" ? qualMatchBadge(item) : "";
-    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${matchBadge}${toggle}${del}</div>`;
+    // v0.35.8：两个操作包成一组 —— 窄屏折行时整组一起走，不再让「×」自己掉到下一行当第二个勾选框
+    const actions = toggle || del ? `<span class="evidence-actions">${toggle}${del}</span>` : "";
+    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${matchBadge}${actions}</div>`;
   };
 
   const renderStructList = (title, items, project, kind) => {
@@ -262,6 +287,8 @@ export function createUi(elements, getState) {
 
   const sanitizeLevel = (level) =>
     ["high", "medium", "low"].includes(level) ? level : "medium";
+  // v0.35.8：界面上不出现 high / medium / low（模型返回的枚举），换成中文等级
+  const LEVEL_LABEL = { high: "高", medium: "中", low: "低" };
 
   const renderRiskCard = (p) => {
     const hasRisk =
@@ -276,11 +303,11 @@ export function createUi(elements, getState) {
       ? `<ul class="risk-points">${points
           .map(
             (pt, i) =>
-              `<li><span class="risk-level ${sanitizeLevel(pt.level)}">${escapeHtml(pt.level || "注意")}</span><div class="risk-point-body"><div>${escapeHtml(pt.text || pt)}</div>${evidenceMeta(pt, p, "risk", i)}</div></li>`
+              `<li><span class="risk-level ${sanitizeLevel(pt.level)}" title="风险等级">${LEVEL_LABEL[sanitizeLevel(pt.level)] || "注意"}</span><div class="risk-point-body"><div>${escapeHtml(pt.text || pt)}</div>${evidenceMeta(pt, p, "risk", i)}</div></li>`
           )
           .join("")}</ul>`
       : "";
-    return `<div class="risk-report${riskOpen ? " expanded" : " collapsed"}"><div class="risk-head"><div class="risk-title">⚠️ 风险与条款</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-risk" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${riskOpen ? "true" : "false"}">${riskOpen ? "收起" : "展开"}</button></span></div><div class="risk-body">${
+    return `<div class="risk-report${riskOpen ? " expanded" : " collapsed"}"><div class="risk-head"><div class="risk-title">${svgIcon(ICON.warning)}风险与条款</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-risk" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${riskOpen ? "true" : "false"}">${riskOpen ? "收起" : "展开"}</button></span></div><div class="risk-body">${
       p.riskSummary
         ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
         : ""
@@ -384,7 +411,7 @@ export function createUi(elements, getState) {
       : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
     const toggleBtn =
       `<button class="checklist-toggle" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${open ? "true" : "false"}" aria-controls="${escapeHtml(bodyId)}" title="${open ? "收起清单" : "展开清单"}">` +
-      `<span class="checklist-title">📋 废标检查清单</span>` +
+      `<span class="checklist-title">${svgIcon(ICON.clipboard)}废标检查清单</span>` +
       `<span class="checklist-count">已完成 ${done}/${total}</span>` +
       `<span class="checklist-chevron" aria-hidden="true">⌄</span>` +
       `</button>`;
@@ -529,7 +556,7 @@ export function createUi(elements, getState) {
   // v0.35.0：搜/筛无结果时不再说“还没有项目”（上方计数还写着“筛选结果 0 个”，两句对不上）；
   // 有关键词或筛选时给一句“没有匹配的项目”与一键清除。
   const NO_MATCH_HTML =
-    '<div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">没有匹配的项目</div><div class="empty-sub">换个关键词，或清除搜索与筛选条件</div><button class="btn secondary" type="button" data-action="clear-filters">清除搜索与筛选</button></div>';
+    `<div class="empty-state"><div class="empty-icon">${svgIcon(ICON.search, "empty-ico")}</div><div class="empty-title">没有匹配的项目</div><div class="empty-sub">换个关键词，或清除搜索与筛选条件</div><button class="btn secondary" type="button" data-action="clear-filters">清除搜索与筛选</button></div>`;
   const emptyStateHtml = (hasActiveFilter) =>
     emptyStateKind(hasActiveFilter) === "no-match" ? NO_MATCH_HTML : EMPTY_STATE_HTML;
   const listTailHtml = (filtered, visible, remaining) =>

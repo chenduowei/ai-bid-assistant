@@ -2055,7 +2055,12 @@ body.dark { color-scheme: dark; }
     line-clamp: 2;
     white-space: normal;
     overflow: hidden;
-    line-height: 1.32;
+    /* v0.35.8：行高 1.32（16px 字 21.12px 行）比字体自身的字面高（PingFang 约 1.4em）还小，
+       第二行之后的第三行字头会从 42.2px 的裁切边下缘露出来 —— 实测漏 1.5px，长项目名下面一条
+       「鬼影」。改成 line-height 1.4 + max-height 2.8em：每行行盒不小于字面高，第三行整体落在盒外，
+       裁切边正好切在行缝里。整卡高度只多 2.5px（126 → 129），首屏可见张数不变。 */
+    line-height: 1.4;
+    max-height: 2.8em;
   }
   .project-chevron-btn { grid-column: 4; grid-row: 1; align-self: start; }
   .project-head .project-sub { grid-column: 2; grid-row: 2; margin: 0; align-self: center; font-size: 12px; line-height: 1.4; }
@@ -2516,6 +2521,9 @@ body.dark { color-scheme: dark; }
 
 /* v0.35.5：超窄屏（320 / 340 这类）——保证金「40.00 万元」在 88px 的卡里会折成两行（统计区 140 → 158px） */
 @media (max-width: 340px) {
+  /* v0.35.8：320 上「搜索框 + 共 N 个项目」挤一行，占位文案被切成「搜索项目 / 公 / 联」——
+     结果数让位（总数在统计卡里，筛完没结果也有空状态），搜索框吃满一行。 */
+  .list-panel .filter-result-count { display: none; }
   .stat-card { padding: 8px 10px; }
   .stat-card .value { font-size: 18px; }
   .stat-card .value-unit { font-size: 10px; }
@@ -2523,4 +2531,435 @@ body.dark { color-scheme: dark; }
      否则「全部结果」自己另起一行 */
   .list-tools .view-seg .seg-btn { padding: 0 8px; font-size: 12px; }
   .list-tools .sort-select { padding: 0 20px 0 8px; font-size: 12px; }
+}
+
+/* ============================================================
+   v0.35.8：电脑端（Desktop）深度打磨 + 双端精修
+   ------------------------------------------------------------
+   诊断（1440×900 实测）：整个界面是「放大的手机」——
+   · 页头 107px + 统计 90 + 临期 207 + 表单条 90 + 列表标题/提示/搜索/工具栏，
+     首张项目卡 top 1082px，一屏（900px）里连一张卡都看不到；
+   · 临期面板是手机用的横向滑动条：卡片 557px 宽，2 张就撑到 1710px，
+     1024/1440 下第二张被面板右缘切断，也没有任何「还能滑」的提示；
+   · 表单 19 个字段全宽单列，每行 67px，整张表 1000px 以上；详情 10 行单列右对齐；
+   · 日历格 129×56 的空格子、工具栏文字基线不齐、emoji 与线性图标混用。
+   本轮把桌面端改成「左列表 + 右信息栏」的工作台版式，手机端布局不动（只修两处微瑕）。
+   ============================================================ */
+
+/* ---------- 图标：emoji → 同线宽单色 SVG ----------
+   v0.35.6 把手机底栏的 emoji 换成了线性 SVG 之后，菜单 / 设置 / 解析里的 emoji 更显突兀
+   （📥📤 在 Windows 上是彩色方块、🗑️ 在 iOS 上是拟物垃圾桶），这里统一成同一套 1.7 线宽图标。 */
+.auth-poster-en { white-space: normal; }
+
+.ico {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  flex: none;
+  opacity: 0.9;
+}
+.header-actions .btn .ico { width: 17px; height: 17px; margin-right: 10px; vertical-align: -3.5px; opacity: 0.7; }
+.sheet-head h2 .ico { width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; }
+.risk-title .ico { width: 15px; height: 15px; margin-right: 5px; vertical-align: -2.5px; opacity: 1; }
+.tip-ico { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2.5px; flex: none; opacity: 0.85; }
+
+/* ---------- 结论证据行：核对 / 删除成组，× 不再是「第二个复选框」 ----------
+   手机上每条风险 / 废标条款下面是「页码 + 状态 + 核对 + ×」，窄屏时 × 会单独掉到下一行，
+   它的灰底 36×36 圆胶囊看着像第二个勾选框。改成：两个操作包进 .evidence-actions 整组右对齐，
+   × 去掉底色（常态只有一个小灰叉，悬停泛红）。 */
+.evidence-meta { gap: 6px 8px; margin-top: 4px; }
+.evidence-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin-left: auto;
+}
+.evidence-actions .verify-btn { min-height: 30px; padding: 3px 10px; }
+.evidence-del {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.evidence-del:hover { background: var(--tint-red-bg); color: var(--tint-red-text); }
+.evidence-del:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- 风险等级：high / medium / low → 高 / 中 / 低 ----------
+   之前直接把模型返回的英文枚举印在胶囊里（high、medium），中文界面里很扎眼。 */
+.risk-level { min-width: 24px; text-align: center; letter-spacing: 0; }
+/* 分区标题不折行：320 屏上「风险与条款」曾被右侧两个按钮挤成两行 */
+.risk-head .risk-title { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.risk-head .head-actions { gap: 4px; }
+
+/* ---------- 图标在各容器里的尺寸 ---------- */
+.menu-toggle .menu-ico { width: 18px; height: 18px; display: block; }
+.fab-add .ico { width: 22px; height: 22px; margin: 0; }
+.form-badge .ico { width: 20px; height: 20px; margin: 0; vertical-align: 0; }
+.float-btn .float-ico { width: 18px; height: 18px; display: block; margin: 0; }
+.checklist-title .ico { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2.5px; opacity: 0.8; }
+.empty-icon .empty-ico { width: 28px; height: 28px; margin: 0; }
+#addProjectBtn .ico { margin-right: 0; }
+#addProjectBtn .btn-label-long { margin-left: 7px; }
+/* 主题按钮：图标随 body.dark 在月亮 / 太阳之间切换（文字由 ui.applyTheme 改） */
+.theme-sun { display: none; }
+body.dark .theme-sun { display: inline-block; }
+body.dark .theme-moon { display: none; }
+
+/* ---------- 键盘焦点：统一品牌色细环（原来落到 UA 的黑色 1px 自动环） ---------- */
+.btn:focus-visible,
+.row-btn:focus-visible,
+.btn-text:focus-visible,
+.seg-btn:focus-visible,
+.evidence-del:focus-visible,
+.upcoming-item:focus-visible,
+.cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sheet-head .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- 右侧信息栏（桌面端专用容器；手机/平板透明，孩子照旧走文档流） ---------- */
+.side-rail { display: contents; }
+
+/* ============================================================
+   桌面端：≥1024px
+   ============================================================ */
+@media (min-width: 1024px) {
+  /* ---------- 画布 ---------- */
+  .page { max-width: 1264px; padding: 22px 28px 80px; }
+
+  /* ---------- 页头：一行式应用栏（107 → 63px） ----------
+     品牌 46px + 标题与副标题同一基线，同步状态 / 邮箱 / 版本收成下面一行 12px。 */
+  .header { padding: 0; margin-bottom: 16px; }
+  .header-title { gap: 14px; }
+  .brand-mark { width: 46px; height: 46px; border-radius: 13px; box-shadow: 0 4px 12px rgba(0, 122, 255, 0.28); }
+  .brand-text { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
+  .header-title h1 { font-size: 25px; margin: 0; letter-spacing: -0.015em; }
+  .header-title p { font-size: 13px; line-height: 1.45; }
+  .user-menu { padding: 7px 2px 0; font-size: 12px; gap: 10px; }
+  .header-top-actions { gap: 10px; }
+  #addProjectBtn { padding: 9px 16px; }
+  .header-actions {
+    min-width: 236px;
+    padding: 6px 0;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+  }
+  .header-actions .btn.secondary {
+    background: transparent;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .header-actions .btn.secondary + .btn.secondary { border-top: 1px solid var(--border); }
+  .header-actions .btn.secondary:hover { background: var(--accent-soft); filter: none; }
+  .header-actions .menu-label { padding: 8px 16px 3px; font-size: 11px; }
+  body.dark .header-actions { box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); }
+  .menu-toggle { width: 40px; height: 40px; min-width: 40px; min-height: 40px; }
+
+  /* ---------- 主版式：左「项目列表」/ 右「临期 + 新增」 ---------- */
+  #dashboardView {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-areas:
+      "header header"
+      "banner banner"
+      "stats  stats"
+      "list   rail";
+    column-gap: 20px;
+    align-items: start;
+  }
+  .header { grid-area: header; }
+  #offlineBanner { grid-area: banner; }
+  .stats { grid-area: stats; }
+  .list-panel { grid-area: list; }
+  .side-rail {
+    grid-area: rail;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  /* 展开表单时：表单升到左栏（宽表单、字段两列），临期事项留在右栏。
+     .side-rail 在这一刻 display:contents，两个孩子直接成为网格项。 */
+  #dashboardView:has(.form-panel.expanded) {
+    grid-template-areas:
+      "header header"
+      "banner banner"
+      "stats  stats"
+      "form   form"
+      "list   rail";
+  }
+  #dashboardView:has(.form-panel.expanded) .side-rail { display: contents; }
+  #dashboardView:has(.form-panel.expanded) .upcoming-panel { grid-area: rail; }
+  #dashboardView:has(.form-panel.expanded) .form-panel { grid-area: form; }
+
+  /* ---------- 统计卡：一屏六格，矮一档 ---------- */
+  .stats { margin-bottom: 16px; }
+  .stat-card { padding: 12px 16px 13px; }
+  .stat-card .label { margin-bottom: 3px; font-size: 11.5px; }
+  .stat-card .value { font-size: 24px; }
+  .stat-card.active { box-shadow: inset 0 2px 0 var(--accent); }
+
+  /* ---------- 项目列表面板 ---------- */
+  .list-panel { padding: 16px 16px 8px; margin-bottom: 24px; }
+  .list-panel .panel-title { margin-bottom: 10px; }
+  .list-panel .panel-title h2 { font-size: 18px; }
+  .list-panel .panel-title p { font-size: 12.5px; line-height: 1.5; }
+
+  /* 提示条：手机上已收成一行，桌面同理 —— 一条一行，不再各自占两行 */
+  .deadline-tip,
+  .refund-tip,
+  .backup-tip { padding: 8px 12px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; border-radius: 10px; }
+  .deadline-tip { align-items: flex-start; }
+  .deadline-tip .tip-ico { margin-top: 2.5px; }
+  .backup-tip { align-items: center; }
+  .backup-tip #backupTipClose {
+    width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1;
+    display: inline-grid;
+    place-items: center;
+  }
+  .backup-tip #backupTipClose:hover { background: rgba(60, 60, 67, 0.1); color: var(--text); }
+  .refund-tip { gap: 6px 10px; }
+  .refund-tip .refund-btn { padding: 4px 10px; min-height: 28px; }
+  .backup-tip .btn { padding: 5px 12px; min-height: 30px; font-size: 12.5px; }
+
+  /* 搜索框与结果数同一行：省一行，且搜索框不再拉满 940px */
+  .search-box { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .search-input-wrap { flex: 0 1 440px; min-width: 200px; }
+  .search-box input { height: 38px; padding: 0 12px 0 34px; }
+  .filter-result-count { margin: 0; flex: none; font-size: 12px; }
+
+  /* 工具栏：状态筛选不再被拉满，视图切换靠右；文字基线统一（选择 / 全部折叠原来偏上 4px） */
+  .list-tools { padding: 7px 9px; margin: 0 -9px 8px; gap: 8px; border-radius: 10px; }
+  .list-tools .seg-control { flex: 0 0 auto; overflow: visible; }
+  .list-tools .seg-btn { padding: 6px 11px; font-size: 13px; }
+  .list-tools .btn-text { font-size: 13px; }
+  .list-tools .win-rate { font-size: 12px; padding: 4px 9px; }
+  .list-tools .sort-select { min-height: 32px; padding: 0 18px 0 6px; font-size: 13px; background-position: right 5px center; }
+  .list-tools .btn-text { display: inline-flex; align-items: center; min-height: 32px; }
+  .list-tools .view-seg { margin-left: auto; }
+  .list-tools .win-rate { line-height: 24px; }
+
+  /* 列表行：高度 69 → 64，名称与副标题贴紧，行内操作小一档 */
+  .project-head { padding: 11px 14px; gap: 12px; }
+  .project-head .project-name { font-size: 15.5px; line-height: 1.4; }
+  .project-sub { font-size: 12.5px; margin-top: 2px; }
+  .row-btn { min-height: 30px; padding: 5px 9px; font-size: 13px; border-radius: 7px; }
+  .project-chevron-btn { width: 28px; height: 28px; }
+  .cd-pill { font-size: 12px; padding: 5px 10px; }
+
+  /* 详情：定义列表两列，10 行 → 5 行；风险 / 清单仍通栏 */
+  .project-details.collapse.expanded > .collapse-inner { margin: 0 14px; padding: 4px 0 14px; }
+  .kv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 26px; }
+  .kv-row { padding: 9px 4px; font-size: 14px; }
+  .kv-row .kv-label { font-size: 13px; }
+  .kv-list .kv-row:nth-last-child(-n + 2) { border-bottom: 0; }
+  .deadline-line { margin: 10px 0 0; }
+  .risk-report { padding: 12px 14px; }
+  .risk-head .section-collapse-btn { background: transparent; box-shadow: none; padding: 4px 8px; min-height: 28px; font-size: 12.5px; color: var(--muted); }
+  .risk-head .section-collapse-btn:hover { background: rgba(255, 59, 48, 0.08); }
+  .risk-head [data-action="clear-risk"]:hover { color: var(--tint-red-text); }
+  .checklist { margin-top: 10px; }
+  .risk-points li { font-size: 13.5px; }
+
+  /* ---------- 右栏：临期事项改成竖排名片 ----------
+     横向滚动条在桌面是错的（第二张卡 557px 宽、1024/1440 下都被右缘切断）。 */
+  .upcoming-panel { padding: 14px 14px 16px; margin-bottom: 0; }
+  .upcoming-panel .panel-title { margin-bottom: 10px; }
+  .upcoming-panel .panel-title h2 { font-size: 16px; }
+  .upcoming-panel #upcomingDesc { font-size: 12px; line-height: 1.5; }
+  .upcoming-list {
+    flex-direction: column;
+    overflow: visible;
+    scroll-snap-type: none;
+    gap: 8px;
+    padding: 0;
+    margin: 0;
+  }
+  .upcoming-item { flex: 0 0 auto; width: 100%; padding: 9px 11px; gap: 10px; border-radius: 12px; }
+  .upcoming-item:hover { transform: translateY(-1px); }
+  .up-date { min-width: 34px; }
+  .up-day { font-size: 21px; }
+  .up-month { font-size: 10.5px; margin-top: 2px; }
+  .up-name { font-size: 13px; }
+  .up-label { font-size: 11.5px; margin-top: 2px; }
+  .up-pill { font-size: 10.5px; padding: 4px 8px; }
+  .upcoming-empty { padding: 18px 10px; }
+  .up-empty-icon { width: 38px; height: 38px; font-size: 18px; }
+  .up-empty-title { font-size: 14px; }
+  .up-empty-sub { font-size: 12px; }
+
+  /* ---------- 右栏：新增 / 编辑项目（收起态一行卡） ---------- */
+  .form-panel.panel { padding: 12px 14px; margin-bottom: 0; }
+  .form-title { gap: 11px; padding: 5px; margin: -4px; }
+  .form-badge { width: 38px; height: 38px; border-radius: 11px; font-size: 19px; }
+  .form-title-text h2 { font-size: 15px; }
+  .form-title-text p { font-size: 11.5px; line-height: 1.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .form-pill { padding: 5px 10px; font-size: 12px; }
+
+  /* ---------- 展开后的表单：宽表单、字段两列 ---------- */
+  #dashboardView:has(.form-panel.expanded) .form-panel.panel { padding: 18px 20px 16px; }
+  #dashboardView:has(.form-panel.expanded) .form-title { padding: 8px; margin: -8px -8px 6px; }
+  #dashboardView:has(.form-panel.expanded) .form-title-text h2 { font-size: 17px; }
+  #dashboardView:has(.form-panel.expanded) .form-title-text p { font-size: 12.5px; }
+  #dashboardView:has(.form-panel.expanded) .form-grid { display: block; }
+  #dashboardView:has(.form-panel.expanded) .form-section + .form-section {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  #dashboardView:has(.form-panel.expanded) .form-section-title { margin: 0 0 12px; font-size: 12px; font-weight: 600; letter-spacing: 0.02em; color: var(--muted); }
+  #dashboardView:has(.form-panel.expanded) .form-section-title.collapsible { display: flex; align-items: center; gap: 6px; width: 100%; padding: 0; }
+  #dashboardView:has(.form-panel.expanded) .form-section-title.collapsible .section-chevron { margin-left: auto; }
+  #dashboardView:has(.form-panel.expanded) .form-group {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 16px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field {
+    padding: 0;
+    border: 0;
+    gap: 5px;
+    background: transparent;
+    border-radius: 0;
+  }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > label { font-size: 12px; font-weight: 600; }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > input,
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > select,
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > textarea {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    font-size: 14px;
+    transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+  }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > textarea {
+    height: auto;
+    min-height: 72px;
+    padding: 9px 12px;
+    line-height: 1.5;
+    resize: vertical;
+  }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > input:focus,
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > select:focus,
+  #dashboardView:has(.form-panel.expanded) .form-group > .field > textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field:focus-within { background: transparent; }
+  /* 长字段占两列：项目名称、保证金要求原文；备注整行 */
+  #dashboardView:has(.form-panel.expanded) .form-group > .field:has(#name),
+  #dashboardView:has(.form-panel.expanded) .form-group > .field:has(#guarantee) { grid-column: span 2; }
+  #dashboardView:has(.form-panel.expanded) .form-group > .field:has(#notes) { grid-column: 1 / -1; }
+  #dashboardView:has(.form-panel.expanded) .form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  #dashboardView:has(.form-panel.expanded) .form-actions .btn-block {
+    width: auto;
+    min-width: 168px;
+    padding: 10px 22px;
+    font-size: 14px;
+  }
+  #dashboardView:has(.form-panel.expanded) .form-parser-row { padding: 0 0 16px; justify-content: flex-start; gap: 14px; }
+
+  /* ---------- 日历：格子 129×56 的空洞 → 76px 高、号码大一档 ---------- */
+  .cal-nav { margin-bottom: 10px; }
+  .cal-nav .cal-title { font-size: 16px; }
+  .cal-nav #calTodayBtn { margin-left: auto; }
+  .cal-grid { gap: 6px; }
+  .cal-day { height: 72px; border-radius: 10px; gap: 5px; align-items: flex-start; justify-content: flex-start; padding: 8px 9px; }
+  .cal-day.is-today, .cal-day.is-selected { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  .cal-num { font-size: 13px; font-weight: 600; }
+  .cal-dot { width: 7px; height: 7px; }
+  .cal-weekday { font-size: 12px; padding: 6px 0; }
+  .cal-day-title { margin: 18px 0 8px; }
+  .cal-day-row { padding: 11px 14px; }
+
+  /* ---------- 抽屉：统一的桌面宽度，标题栏吸顶 ---------- */
+  .sheet { padding: 32px; }
+  .sheet-panel { width: min(720px, 100%); max-height: 84vh; padding: 20px 24px; }
+  .sheet-panel.settings-panel { width: min(600px, 100%); }
+  .sheet-panel.parser-sheet-panel { width: min(920px, 100%); }
+  .sheet-head {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+    margin: -20px -24px 14px;
+    padding: 20px 48px 12px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid transparent;
+  }
+  .sheet-head h2 { font-size: 20px; }
+  .sheet-head p { font-size: 13px; max-width: 620px; }
+  .sheet-head .btn {
+    position: absolute;
+    top: 18px;
+    right: 20px;
+    width: 30px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 8px;
+    border: 0;
+    background: var(--btn-fill);
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1;
+    box-shadow: none;
+  }
+  .sheet-head .btn:hover { background: rgba(60, 60, 67, 0.2); color: var(--text); filter: none; }
+  body.dark .sheet-head .btn:hover { background: rgba(120, 120, 128, 0.4); }
+  .sheet-panel .field { gap: 6px; }
+  .sheet-panel .field input,
+  .sheet-panel .field select { padding: 10px 12px; font-size: 14px; }
+  .sheet-panel .settings-group { padding: 12px 14px; }
+  .sheet-panel .settings-group-title { margin-bottom: 6px; }
+  .settings-panel .settings-save-row { display: flex; }
+  .settings-panel .settings-save-row .btn-block { width: auto; min-width: 148px; padding: 10px 22px; font-size: 14px; }
+  /* 解析抽屉：拖拽区 240 → 150px，两段内容左右排开 */
+  .parser-sheet-panel .drop-zone { min-height: 150px; }
+  .parser-sheet-panel .parser-actions { gap: 8px; }
+  .parser-sheet-panel .parser-actions .btn { padding: 9px 14px; font-size: 13.5px; }
+
+  /* ---------- 空状态 / 收尾 ---------- */
+  .empty-state { padding: 44px 24px; }
+  .list-end { font-size: 12.5px; }
 }

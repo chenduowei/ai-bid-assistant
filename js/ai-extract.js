@@ -881,6 +881,8 @@ ${qualBlock}
     }
     const sanitizeLevel = (level) =>
       ["high", "medium", "low"].includes(level) ? level : "medium";
+    // v0.35.8：卡片与解析面板口径一致 —— 英文枚举换成中文等级
+    const LEVEL_LABEL = { high: "高", medium: "中", low: "低" };
     // v0.15.0：分析结果面板只读展示证据（页码 + 原文 + 状态），核对开关在项目卡片上。
     const evidenceMeta = (item) => {
       const it = item && typeof item === "object" ? item : {};
@@ -897,7 +899,7 @@ ${qualBlock}
     const points = (result.riskPoints || [])
       .map(
         (p) =>
-          `<li><span class="risk-level ${sanitizeLevel(p.level)}">${escape(p.level || "medium")}</span><div class="risk-point-body"><div>${escape(p.text)}</div>${evidenceMeta(p)}</div></li>`
+          `<li><span class="risk-level ${sanitizeLevel(p.level)}" title="风险等级">${LEVEL_LABEL[sanitizeLevel(p.level)] || "中"}</span><div class="risk-point-body"><div>${escape(p.text)}</div>${evidenceMeta(p)}</div></li>`
       )
       .join("");
     const qual = (result.qualification || [])
