@@ -30,7 +30,7 @@
 - **CSP 放宽 `connect-src`**：原写 `https://*.supabase.co wss://*.supabase.co`，而核心功能是用户自备 OpenAI 兼容 Base URL —— Report-Only 一旦转强制，AI 分析会全线失败且报错看不懂。现改为 `'self' https: wss://*.supabase.co`，理由写进 `docs/notes.md`。
 - **`sw.js` 离线兜底不再 `respondWith(undefined)`**：离线访问未缓存的同源资源会抛 TypeError，现在兜底返回空 `504`。
 - **manifest 补全**：`lang: zh-CN`、`start_url` 与 `id` 统一为 `/`、`display_override`、两个快捷方式（新增项目 / 开标日历 ↓ 带 `?action=`，登录后执行一次并从地址栏抹掉）。
-- **死代码清理**：`ui.addRipple` + `.ripple` + `@keyframes ripple`（导出后无人调用）、`projects.js` 的 `.single().single()`、两个 `<main>` 只留一个（工作台改 `<section>`）、日历视图隐藏时不再重建网格、六个分散的 Esc 监听收成一处「最上层先关」链、`pruneNotificationKeys` 从每分钟一轮挪到登录时一次、`utils.getCountdownInfo` 的双空格。
+- **死代码清理**：`ui.addRipple` + `.ripple` + `@keyframes ripple`（导出后无人调用）、`projects.js` 的 `.single().single()`、两个 `<main>` 只留一个（工作台改 `<section>`）、日历视图隐藏时不再重建网格、六个分散的 Esc 监听收成一处「最上层先关」链、`pruneNotificationKeys` 从每分钟一轮挪到登录时一次、`utils.getCountdownInfo` 的双空格。测试 136 → 147（新增 `tests/css-cascade.test.js` 与折叠 inert / 日历跳过渲染两条渲染测试）。
 
 ### 对外形象
 

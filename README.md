@@ -49,7 +49,7 @@ cp supabase-config.example.js supabase-config.js   # 填入 Project URL 与 anon
 
 | 命令 | 作用 |
 | --- | --- |
-| `npm test` | 146 个单元/渲染测试（`node --test`，无外部框架） |
+| `npm test` | 147 个单元/渲染测试（`node --test`，无外部框架） |
 | `npm run check:version` | 版本号一致性（package.json / sw.js 缓存名 / 页眉 / README / notes / changelog） |
 | `npm run check:css` | 样式表回归校验（丢分号、大括号平衡、同断点重复、**跨断点顺序覆盖**） |
 | `npm run build` | 从环境变量生成 `supabase-config.js` |
@@ -81,7 +81,7 @@ js/                                业务模块
 vendor/                            随仓库分发的 supabase-js（CDN 只作兜底）
 assets/                            登录页海报
 api/calendar.js                    .ics 订阅端点（Vercel Serverless）
-tests/                             14 个测试文件 / 146 个用例
+tests/                             14 个测试文件 / 147 个用例
 supabase.sql                       建表、RLS、安全策略、订阅函数
 docs/                              changelog、维护说明、迁移脚本（docs/migrations/）
 scripts/                           配置生成、版本与样式校验
