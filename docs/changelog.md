@@ -37,13 +37,17 @@
 
 - 四个 tab 的 emoji（📋 📅 📄 ☰）换成同线宽的内联 SVG（24px、`currentColor`），选中态整组变品牌色；底栏毛玻璃加强到 `blur(20px) saturate(180%)`、浅色 84% / 深色 88% 透明度、56px + `env(safe-area-inset-bottom)`、`-webkit-tap-highlight-color: transparent`。图标不再随系统/安卓换一套表情。
 
+### 顺带修掉的一个真 bug：「解析招标文件」抽屉一直在抛异常（v0.35.0 起）
+
+查漏时点开解析抽屉，控制台报 `ReferenceError: clearStaleAiResult is not defined`：这个函数在 v0.35.0 的重构里被挪进了 `bindEvents()`，而模块级的 `resetParserState()` / `setParseTarget()` 仍在调它 —— 抽屉能打开，但每次打开时复位流程跑到第一行就断，**上一次的 AI 结果面板、文本区、按钮态都没被清**（旧结果可能被带进下一次保存）。现在把它移回模块作用域（`app.js` 第 1075 行，`resetParserState` 之前），并补了 `tests/app-scope.test.js` 两条静态断言（必须模块级、声明早于调用），防止下次重构又挪进去。
+
 ### 其它手感
 
 - 定位到卡片时 `scroll-margin-top: 58px`，不被吸顶工具栏盖住头一行；表单标题说明 13 → 12px、解析按钮不再折成两行；`-webkit-tap-highlight-color: transparent` 用到卡片、统计卡、段控件上。
 
 ### 测试
 
-- `npm test` 155 → **163**：重写 2 条卡片样式断言（四列网格 / 胶囊与副标题同一行 / 三层 `display:contents`）、新增 4 条 CSS 落点（工具栏第二行、版本徽标、详情去重与备注块状、`detail-open` 收浮钮、底部 SVG 图标）、3 条渲染断言（`.project-sub-company`、`kv-row-*` 挂点、`detail-open` 状态类）；桌面基线继续钉住（`.project-head` 仍是 flex、`.list-tools-actions` 仍是 `display: contents`、248px 临期卡不动）。
+- `npm test` 155 → **165**：重写 2 条卡片样式断言（四列网格 / 胶囊与副标题同一行 / 三层 `display:contents`）、新增 4 条 CSS 落点（工具栏第二行、版本徽标、详情去重与备注块状、`detail-open` 收浮钮、底部 SVG 图标）、3 条渲染断言（`.project-sub-company`、`kv-row-*` 挂点、`detail-open` 状态类）；桌面基线继续钉住（`.project-head` 仍是 flex、`.list-tools-actions` 仍是 `display: contents`、248px 临期卡不动）。
 - `npm run check:version`、`npm run check:css` 通过。无头 Chromium 实测 390×844 / 375×667 / 360×800 / 320×568（浅色 + 深色）与 1440×900 / 1024×768：0 console error、0 pageerror、横向溢出 0；功能冒烟（新增 → 展开 → 改状态 → 搜索 → 日历 → 选择模式 → 抽屉）全通。
 
 ## [0.35.5] — 2026-11-23

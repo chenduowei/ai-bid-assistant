@@ -50,7 +50,7 @@ cp supabase-config.example.js supabase-config.js   # 填入 Project URL 与 anon
 
 | 命令 | 作用 |
 | --- | --- |
-| `npm test` | 163 个单元/渲染测试（`node --test`，无外部框架） |
+| `npm test` | 165 个单元/渲染测试（`node --test`，无外部框架） |
 | `npm run check:version` | 版本号一致性（package.json / sw.js 缓存名 / 页眉 / README / notes / changelog） |
 | `npm run check:css` | 样式表回归校验（丢分号、大括号平衡、同断点重复、**跨断点顺序覆盖**） |
 | `npm run build` | 从环境变量生成 `supabase-config.js` |
