@@ -284,6 +284,38 @@ export function getChecklistProgress(checklist) {
   return { done: list.filter((i) => i?.done).length, total: list.length };
 }
 
+/* ================= v0.35.7：卡片内分区的默认展开态 ================= */
+
+/**
+ * 卡片内分区的默认状态。风险与条款默认展开；废标检查清单默认收起——
+ * 清单是逐项对照用的长列表（一项两三行），展开详情时先给一行进度，想看再点开。
+ * 「谁默认收起」集中在这张表里，渲染与点击两处都读它，免得两边各记一套。
+ */
+export const SECTION_OPEN_BY_DEFAULT = { risk: true, checklist: false };
+
+const sectionKey = (id, section) => `${id}:${section}`;
+
+/** 某个分区此刻是否展开。默认展开的记在 collapsedSections，默认收起的记在 expandedSections。 */
+export function isSectionOpen(state, id, section) {
+  const openByDefault = SECTION_OPEN_BY_DEFAULT[section] !== false;
+  const key = sectionKey(id, section);
+  return openByDefault
+    ? !state?.collapsedSections?.has(key)
+    : Boolean(state?.expandedSections?.has(key));
+}
+
+/** 取反并写回内存态，返回切换后的状态（true = 展开）。只有显式点过才记，刷新回到默认。 */
+export function toggleSectionOpen(state, id, section) {
+  const open = !isSectionOpen(state, id, section);
+  const key = sectionKey(id, section);
+  const openByDefault = SECTION_OPEN_BY_DEFAULT[section] !== false;
+  const set = openByDefault ? state?.collapsedSections : state?.expandedSections;
+  if (!set) return open;
+  if (open === openByDefault) set.delete(key);
+  else set.add(key);
+  return open;
+}
+
 /* ================= v0.15.0：AI 结论证据项 ================= */
 
 /**
@@ -1116,7 +1148,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.35.6";
+export const APP_VERSION = "0.35.7";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {

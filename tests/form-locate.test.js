@@ -110,6 +110,7 @@ const state = {
   projects: [],
   expandedIds: new Set(),
   collapsedSections: new Set(),
+  expandedSections: new Set(),
   selectMode: false,
   selectedIds: new Set(),
   listLimit: 50,

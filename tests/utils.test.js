@@ -31,6 +31,9 @@ import {
   loadProjectsSnapshot,
   SNAPSHOT_TTL_MS,
   pruneNotificationKeys,
+  isSectionOpen,
+  toggleSectionOpen,
+  SECTION_OPEN_BY_DEFAULT,
   normalizeEvidencePage,
   normalizeEvidenceItem,
   normalizeEvidenceItems,
@@ -688,4 +691,47 @@ test("pruneNotificationKeys：只清 30 天以上的去重键", () => {
   assert.equal(store.getItem("bid-reminder:xxx:u:p1:bid_date:2026-09-01:today"), null);
   assert.equal(store.getItem("bid-reminder:xxx:u:p1:bid_date:2026-11-06:today"), "true");
   assert.equal(store.getItem("other-key"), "keep");
+});
+
+/* ================= v0.35.7：卡片内分区的默认展开态 ================= */
+
+test("SECTION_OPEN_BY_DEFAULT：风险默认展开、废标清单默认收起", () => {
+  assert.equal(SECTION_OPEN_BY_DEFAULT.risk, true);
+  assert.equal(SECTION_OPEN_BY_DEFAULT.checklist, false);
+});
+
+test("isSectionOpen：没点过时用默认态（清单收起、风险展开）", () => {
+  const state = { collapsedSections: new Set(), expandedSections: new Set() };
+  assert.equal(isSectionOpen(state, "p1", "checklist"), false);
+  assert.equal(isSectionOpen(state, "p1", "risk"), true);
+  // 兼容缺字段的旧 state（渲染时 getState() 可能还没有 expandedSections）
+  assert.equal(isSectionOpen({}, "p1", "checklist"), false);
+});
+
+test("toggleSectionOpen：清单点一下开、再点一下关，并写回对应集合", () => {
+  const state = { collapsedSections: new Set(), expandedSections: new Set() };
+  assert.equal(toggleSectionOpen(state, "p1", "checklist"), true);
+  assert.deepEqual([...state.expandedSections], ["p1:checklist"]);
+  assert.equal(state.collapsedSections.size, 0);
+  assert.equal(isSectionOpen(state, "p1", "checklist"), true);
+  assert.equal(toggleSectionOpen(state, "p1", "checklist"), false);
+  assert.equal(state.expandedSections.size, 0);
+  assert.equal(isSectionOpen(state, "p1", "checklist"), false);
+});
+
+test("toggleSectionOpen：风险仍按默认展开记录（点一下收起写进 collapsedSections）", () => {
+  const state = { collapsedSections: new Set(), expandedSections: new Set() };
+  assert.equal(toggleSectionOpen(state, "p2", "risk"), false);
+  assert.deepEqual([...state.collapsedSections], ["p2:risk"]);
+  assert.equal(state.expandedSections.size, 0);
+  assert.equal(isSectionOpen(state, "p2", "risk"), false);
+  assert.equal(toggleSectionOpen(state, "p2", "risk"), true);
+  assert.equal(state.collapsedSections.size, 0);
+});
+
+test("toggleSectionOpen：两个项目互不影响", () => {
+  const state = { collapsedSections: new Set(), expandedSections: new Set() };
+  toggleSectionOpen(state, "p1", "checklist");
+  assert.equal(isSectionOpen(state, "p1", "checklist"), true);
+  assert.equal(isSectionOpen(state, "p2", "checklist"), false);
 });
