@@ -85,7 +85,8 @@ export function getCountdownInfo(project, now = new Date()) {
   if (diffMs < 3600000) {
     const minutes = Math.max(1, Math.ceil(diffMs / 60000));
     return { text: `${minutes}分钟后`, cls, title };
-  }  if (hours < 24) return { text: `${hours}小时后`, cls, title };
+  }
+  if (hours < 24) return { text: `${hours}小时后`, cls, title };
   const wholeDays = Math.floor(diffMs / 86400000);
   return { text: `还有${wholeDays}天`, cls, title };
 }
@@ -1115,7 +1116,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.35.2";
+export const APP_VERSION = "0.35.3";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {

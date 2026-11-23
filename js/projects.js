@@ -499,7 +499,6 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
           .from("projects")
           .insert({ ...payload, user_id: state.user.id })
           .select(listColumns())
-          .single()
           .single();
     const { data, error } = await query;
     if (error) {

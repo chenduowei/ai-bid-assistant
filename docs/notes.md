@@ -1,6 +1,6 @@
 # 维护说明
 
-当前以 **v0.35.2 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
+当前以 **v0.35.3 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
 
 ---
 
@@ -22,6 +22,8 @@
 | `supabase/functions/` | 邮件提醒 Edge Function（未部署，见 `docs/reminders.md`） |
 
 ## 版本维护记录
+
+- v0.35.3：复审报告逐条修复。手机端四条优化真正生效（`.bottom-tabs` / `.fab-add` / `.label-short` 的桌面隐藏改成 `@media (min-width:681px)`，980 断点挪到 680 之前，`.toast-wrap` 的 28px 只留给桌面，删掉互盖的 `.page` padding），并且把**所有 max-width 断点块移到 styles.css 文件末尾**——部分组件基础样式（`.status-chip`、`.project-chevron-btn`、`.cal-day`、`.cal-nav`）历史上写在断点块之后，留在中部就永远被盖掉；`check:css` 新增跨断点顺序覆盖检查（`tests/css-cascade.test.js`）。页头窄屏收窄（隐藏副标题、标题 20px、主按钮只留＋）、点击区补到 44pt、矮屏登录页压缩海报与内边距、折叠区收起时挂 `inert`、通知权限改为设置内主动申请、登录表单 `novalidate` + 中文提示、眼睛图标改内联 SVG；CSP `connect-src` 放行 `https:`、`sw.js` 离线兜底返回 504、manifest 补 `lang` / `start_url` / `shortcuts`；清理 `addRipple` 死代码、`.single().single()`、双 `<main>`、隐藏时重建日历、六处 Esc 监听合并、`pruneNotificationKeys` 改登录时一次。README 重写。测试 136→146。
 
 - v0.35.2：三处细节。备注从「选填信息」挪到必填区最后一行（仍选填，选填区 12→11 项）；定位不再挂 2 秒背景闪烁（`project-highlight` / `highlight-fade` 删除，定位只靠平滑滚动 + 展开）；编辑保存后等表单收起（~380ms，减动效时 40ms）落定再回到该卡片，并用一次性柔光 `.save-glow` 提示（Realtime 回声重建卡片时用负 `animation-delay` 接着放，不重头闪一下），`prefers-reduced-motion` 下不播；toast 带项目名。
 - v0.35.1：补丁版，只修注册提交。`app.js` 的 `authForm` submit 处理器在「两次输入的密码不一致」分支提前 `return` 时漏掉了 `event.preventDefault()`（它原本在 `js/auth.js` 的 `handleAuth()` 里才调用），表单于是按浏览器默认行为 GET 提交到 `./?` —— 页面刷回登录态、输入清空、错误提示一闪即失。现在 submit 开头统一 `preventDefault()`。改动为 `app.js` 3 行 + 版本号同步（package.json / sw.js `CACHE_NAME` / index.html 页眉 / js/utils.js `APP_VERSION` / README / changelog / 本文件）。
@@ -59,6 +61,16 @@
 - 开标提醒天数：本机 `localStorage` 键 `bid-assistant-reminder-days`（1–30，默认 7）。
 - 提醒机制：浏览器通知仅在页面打开时触发，多截止项（报名 / 质疑 / 澄清 / 保证金 / 开标）days=0/1 时通知，文案带截止类型；错过提醒只看开标时间。关页提醒走 v0.33.0 的 `.ics` 日历订阅（`api/calendar.js` + `js/ics.js` + 系统日历），邮件提醒的 `supabase/functions/send-bid-reminders/` 仍未部署，详见 `docs/reminders.md`。
 - 日历订阅（v0.33.0）：表 `calendar_tokens`（`user_id` + `token`，RLS 本人可见），只读函数 `get_calendar_projects(p_token)` 为 SECURITY DEFINER，只返回未删除且开标日不早于今天的行；第 10 节 SQL 须执行一次，否则抽屉只提示、生成不出链接。订阅链接带令牌，等同只读凭证，别外传到公开地方。
+
+---
+
+## 安全头与 CSP（改之前先读）
+
+`vercel.json` 里的 CSP 目前是 **`Content-Security-Policy-Report-Only`**，只报告不拦。将来要把它切成强制生效时，**不要**把 `connect-src` 收窄回 `https://*.supabase.co`：
+
+- 本应用的核心功能是用户自备的 OpenAI 兼容 API Base URL（可能是任意域名或自建中转），AI 请求必须放行。
+- 现在写的是 `connect-src 'self' https: wss://*.supabase.co`（v0.35.3 起）。收窄后切强制，AI 分析会全线失败，而报错只是浏览器的通用 CSP 违规，用户根本判断不出原因。
+- `script-src` 里的 jsdelivr / cdnjs 是 pdf.js 与 SheetJS 的懒加载源；`worker-src` 同理，别顺手删。
 
 ---
 

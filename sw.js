@@ -5,7 +5,7 @@
  * 用户刷新也看不到新功能（v0.8.1 教训：只改了页面没改 sw.js，
  * 缓存名不变导致新版按钮一直不出现）。发版前跑 npm run check:version 校验。
  */
-const CACHE_NAME = "bid-assistant-v0.35.2";
+const CACHE_NAME = "bid-assistant-v0.35.3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -70,11 +70,17 @@ self.addEventListener("fetch", (event) => {
           // 导航请求离线兜底：网络失败时返回缓存的 index.html
           return res;
         })
-        .catch(() => {
+        .catch(async () => {
+          // v0.35.3：离线兜底必须一定返回一个 Response —— 原先直接把 caches.match() 的
+          // 结果（可能 undefined）交给 respondWith，会抛 TypeError，控制台报错还看不出原因。
           if (request.mode === "navigate") {
-            return caches.match("./index.html");
+            const shell = await caches.match("./index.html");
+            if (shell) return shell;
+          } else {
+            const cached = await caches.match(request, { ignoreSearch: true });
+            if (cached) return cached;
           }
-          return caches.match(request, { ignoreSearch: true });
+          return new Response("", { status: 504, statusText: "Offline" });
         });
     })
   );

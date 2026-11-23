@@ -2,7 +2,9 @@
   "background_color": "#F2F2F7",
   "description": "工程建设行业智能投标工作台 · AI Bid Assistant",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "id": "/",
+  "lang": "zh-CN",
   "icons": [
     {
       "sizes": "192x192",
@@ -23,8 +25,24 @@
     }
   ],
   "name": "投标工作台",
-  "scope": "./",
+  "scope": "/",
   "short_name": "投标工作台",
-  "start_url": "./index.html",
-  "theme_color": "#F2F2F7"
+  "start_url": "/",
+  "theme_color": "#F2F2F7",
+  "shortcuts": [
+    {
+      "name": "新增项目",
+      "short_name": "新增项目",
+      "description": "直接打开新增项目表单",
+      "url": "/?action=add",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "开标日历",
+      "short_name": "日历",
+      "description": "直接切到开标日历视图",
+      "url": "/?action=calendar",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
 }
