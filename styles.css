@@ -2770,7 +2770,6 @@ body.dark .kv-row {
      备注是长文本，改成「标签在上、正文左对齐」，不再右对齐折成参差几行。
      各行左右贴到卡片内边，与项目名对齐（原来还内缩 12px）。
      v0.35.7：项目名称回到详情区（见下），行距 10 → 9px。 */
-  .kv-row { padding: 9px 0; }
   /* v0.35.7：项目名称回到详情区 —— 卡头名称最多两行、长名字会被截，这里给完整全名（折行不截）。
      项目类型卡头元信息行已有，手机上仍隐去。 */
   .kv-row-type { display: none; }
@@ -3510,10 +3509,7 @@ body.dark .theme-moon { display: none; }
 
   /* 详情：定义列表两列，10 行 → 5 行；风险 / 清单仍通栏 */
   .project-details.collapse.expanded > .collapse-inner { margin: 0 14px; padding: 4px 0 14px; }
-  .kv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 26px; }
-  .kv-row { padding: 9px 4px; font-size: 14px; }
-  .kv-row .kv-label { font-size: 13px; }
-  .kv-list .kv-row:nth-last-child(-n + 2) { border-bottom: 0; }
+
   .deadline-line { margin: 10px 0 0; }
   .risk-report { padding: 12px 14px; }
   .risk-head .section-collapse-btn { background: transparent; box-shadow: none; padding: 4px 8px; min-height: 28px; font-size: 12.5px; color: var(--muted); }
