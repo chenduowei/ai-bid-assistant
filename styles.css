@@ -3011,9 +3011,17 @@ body.dark .item-actions button {
 }
 
 
-/* ---------- v0.51.3：恢复加粗大号「投标工作台」主标题 + 下行统一非粗体信息 ---------- */
+/* ---------- v0.51.3：加粗大号「投标工作台」与后方统一非粗体信息排成同一行 ---------- */
+.brand-text-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
 .brand-text-inline .brand-main-title {
-  margin: 0 0 2px;
+  margin: 0;
   font-size: 22px !important;
   font-weight: 700 !important;
   line-height: 1.2 !important;
