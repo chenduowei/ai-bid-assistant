@@ -21,7 +21,7 @@
 
 以下是在当前版本已知、尚未修复或有意保留的风险点，报告前请先看：
 
-- **CSP 仍为 Report-Only**：`vercel.json` 里的 CSP 目前是 `Content-Security-Policy-Report-Only`，只报告不拦截。后续计划切成强制 CSP（见 `docs/notes.md`「安全头与 CSP」一节）；v0.50.0 已移除 AI 调用，当初反对收窄 `connect-src` 的理由已消失，收窄前须实测确认没有其他跨域调用。
+- **CSP 已切强制**：`vercel.json` 里的 CSP 自 batch3 起是 `Content-Security-Policy`（强制拦截，不再是 Report-Only）；收窄口径与 HSTS 实测见 `docs/notes.md`「安全头与 CSP」一节。HSTS 由 Vercel 平台默认下发，本仓未重复加。
 - **日历订阅令牌长期有效且在 URL 里**：`.ics` 订阅链接形如 `/api/calendar?token=xxx`，令牌等同只读凭证，知道链接就能拉取该用户的待开标项目。不要把链接发到公开地方；不用时在应用内重新生成（旧链接失效）或停用订阅。令牌本身不设过期时间。
 - **邮件提醒未部署**：`supabase/functions/send-bid-reminders/` 与 `docs/reminders.md` 仅作参考，未部署 Edge Function；关页提醒走 `.ics` 日历订阅，不要误以为邮件会提醒。
 - **离线缓存**：Service Worker 只缓存同源应用壳；跨域请求（Supabase / CDN）一律走网络，不进缓存。
@@ -34,7 +34,7 @@
 
 ## 不用报告的内容
 
-- 下文「已知边界」里已列出的点（CSP Report-Only、日历令牌长期有效、邮件未部署），除非你发现了超出描述的新利用方式。
+- 下文「已知边界」里已列出的点（CSP 已切强制、日历令牌长期有效、邮件未部署），除非你发现了超出描述的新利用方式。
 - 旧版本的问题：请先升级到最新版确认是否仍存在。
 - 第三方服务本身的问题（如 Supabase、Vercel 的平台漏洞），请直接报告给对应厂商。
 
