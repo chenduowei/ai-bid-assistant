@@ -63,6 +63,8 @@ import { createDrawers } from "./js/drawers.js";
     bpHero: document.getElementById("bpHero"),
     bpHeroLabel: document.getElementById("bpHeroLabel"),
     bpHeroName: document.getElementById("bpHeroName"),
+    bpHeroBadge: document.getElementById("bpHeroBadge"),
+    bpHeroAction: document.getElementById("bpHeroAction"),
     bpHeroTime: document.getElementById("bpHeroTime"),
     bpHeroCount: document.getElementById("bpHeroCount"),
     dashboardView: document.getElementById("dashboardView"),
@@ -1477,7 +1479,7 @@ import { createDrawers } from "./js/drawers.js";
       const id = elements.bpHeroName?.dataset?.projectId;
       if (id) ui.focusProjectInList?.(id, { glow: true });
     };
-    elements.bpHeroName?.addEventListener("click", openHeroProject);
+    elements.bpHero?.addEventListener("click", openHeroProject);
     elements.bpHeroName?.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();

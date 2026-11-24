@@ -785,7 +785,12 @@ export function createUi(elements, getState) {
       heroTargetMs = 0;
       heroProjectId = null;
       hero.classList.add("is-empty");
+      hero.classList.remove("is-urgent");
       if (elements.bpHeroLabel) elements.bpHeroLabel.textContent = "最近一场开标";
+      if (elements.bpHeroBadge) {
+        elements.bpHeroBadge.hidden = true;
+        elements.bpHeroBadge.textContent = "";
+      }
       if (elements.bpHeroName) {
         elements.bpHeroName.textContent = "暂无待开标项目";
         elements.bpHeroName.removeAttribute("data-project-id");
@@ -793,13 +798,21 @@ export function createUi(elements, getState) {
       if (elements.bpHeroTime) {
         elements.bpHeroTime.textContent = "新增未开标项目后，这里将实时倒计时。";
       }
+      if (elements.bpHeroAction) elements.bpHeroAction.hidden = true;
       if (elements.bpHeroCount) elements.bpHeroCount.textContent = "";
       return;
     }
     hero.classList.remove("is-empty");
     heroTargetMs = next.target.getTime();
     heroProjectId = next.project.id;
+    const isUrgent = next.diffMs < 86400000;
+    hero.classList.toggle("is-urgent", isUrgent);
     if (elements.bpHeroLabel) elements.bpHeroLabel.textContent = "最近一场开标";
+    if (elements.bpHeroBadge) {
+      const badgeText = isUrgent ? "24小时内" : (next.project.status || "");
+      elements.bpHeroBadge.hidden = !badgeText;
+      elements.bpHeroBadge.textContent = badgeText;
+    }
     if (elements.bpHeroName) {
       elements.bpHeroName.textContent = next.project.name || "未命名项目";
       elements.bpHeroName.dataset.projectId = String(next.project.id);
@@ -807,6 +820,7 @@ export function createUi(elements, getState) {
     if (elements.bpHeroTime) {
       elements.bpHeroTime.textContent = `${formatBidMoment(next.project)} 开标`;
     }
+    if (elements.bpHeroAction) elements.bpHeroAction.hidden = false;
     if (elements.bpHeroCount) {
       elements.bpHeroCount.textContent = formatHeroCountdown(heroTargetMs - Date.now());
     }
