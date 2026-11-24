@@ -2328,6 +2328,21 @@ import { createDrawers } from "./js/drawers.js";
           ui.showToast(now?.verified ? "已标记为人工已核对。" : "已取消核对。");
         }
       }
+            if (button.dataset.action === "copy-summary") {
+        const p = state.projects.find((item) => item.id === button.dataset.id);
+        if (!p) return;
+        const summary = [
+          `【${p.name || "未命名项目"}】`,
+          `开标时间：${p.date ? formatBidMoment(p) : "未设置"}`,
+          `项目类型：${p.type || "-"}`,
+          `投标公司：${p.biddingCompany || "-"}`,
+          `联系人：${p.contact || "-"}`,
+        ].join("\n");
+        navigator.clipboard?.writeText(summary).then(() => {
+          ui.showToast?.("已复制项目摘要");
+        }).catch(() => {});
+        return;
+      }
       if (button.dataset.action === "edit") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;

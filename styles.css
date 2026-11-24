@@ -2937,6 +2937,26 @@ body.dark .item-actions button {
   transition: grid-template-rows 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
 }
 
+
+/* ---------- v0.50.0：标管家 BidDesk · 顶栏满宽对齐 · 摘要按钮 ---------- */
+.header {
+  max-width: none !important;
+  width: 100% !important;
+  padding: 12px 0 !important;
+}
+.brand-en {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 6px;
+  letter-spacing: 0.01em;
+}
+.project-head-actions .act-summary {
+  color: #6D28D9;
+  background: rgba(109, 40, 217, 0.08);
+  border-color: rgba(109, 40, 217, 0.22);
+}
+
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
    max-width 块若留在它们之前，同优先级下就会被盖掉 —— v0.35.2 手机端四条优化失效就是这样来的。

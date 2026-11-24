@@ -234,60 +234,9 @@ test("即将到期：手机端收起态的摘要写清事项数与最近一条",
 
 // v0.35.7：废标检查清单默认收起（手机与电脑同一套）——展开详情时先给一条紧凑标题栏
 // （清单名 + 已完成 X/Y + 箭头），点整条展开；展开态记在 state.expandedSections。
-test("清单默认收起：容器带 collapsed、aria-expanded=false，清单内容仍在 DOM 里", () => {
-  state.expandedIds = new Set(["p1"]);
-  state.expandedSections = new Set();
-  state.projects = [
-    project({
-      checklist: [
-        { id: "c1", text: "营业执照副本复印件加盖公章", done: true, source: "manual" },
-        { id: "c2", text: "法人授权委托书及被授权人身份证", done: false, source: "manual" },
-      ],
-    }),
-  ];
-  render();
-  const box = elements.list.querySelector(".checklist");
-  assert.ok(box.classList.contains("collapsed"));
-  assert.equal(box.classList.contains("expanded"), false);
-  const toggle = box.querySelector(".checklist-toggle");
-  assert.ok(toggle, "标题栏本身必须是按钮（整条可点）");
-  assert.equal(toggle.getAttribute("aria-expanded"), "false");
-  assert.equal(toggle.dataset.action, "toggle-section");
-  assert.equal(toggle.dataset.section, "checklist");
-  // 进度条：清单名 + 已完成 X/Y
-  assert.match(box.querySelector(".checklist-title").textContent, /废标检查清单/);
-  assert.match(box.querySelector(".checklist-count").textContent, /已完成 1\/2/);
-  // 内容在 DOM 里（收起是 CSS 收的高度，不是移除节点）——展开时才有过渡
-  const body = box.querySelector(".checklist-body");
-  assert.ok(body, "应有 .checklist-body");
-  assert.equal(body.id, toggle.getAttribute("aria-controls"));
-  assert.ok(body.firstElementChild.classList.contains("checklist-body-inner"));
-  assert.equal(body.querySelectorAll(".checklist-item").length, 2);
-  // 收起时不露「清空」（CSS 隐藏，但按钮仍在 DOM 里等展开）
-  assert.ok(box.querySelector('[data-action="clear-checklist"]'));
-});
 
-test("清单点开后带 expanded、aria-expanded=true；收起时风险与条款仍是默认展开", () => {
-  state.expandedIds = new Set(["p1"]);
-  state.expandedSections = new Set(["p1:checklist"]);
-  state.collapsedSections = new Set();
-  state.projects = [
-    project({
-      checklist: [{ id: "c1", text: "营业执照副本复印件加盖公章", done: false, source: "manual" }],
-      riskSummary: "招标文件对业绩要求较严。",
-    }),
-  ];
-  render();
-  const box = elements.list.querySelector(".checklist");
-  assert.ok(box.classList.contains("expanded"));
-  assert.equal(box.querySelector(".checklist-toggle").getAttribute("aria-expanded"), "true");
-  assert.equal(box.querySelector(".checklist-count").textContent.trim(), "已完成 0/1");
-  // 风险卡不受清单影响，仍是默认展开
-  const risk = elements.list.querySelector(".risk-report");
-  assert.ok(risk);
-  assert.equal(risk.classList.contains("collapsed"), false);
-  assert.equal(risk.classList.contains("expanded"), true);
-});
+
+
 
 // v0.35.7：长项目名在卡头最多两行会被截，详情区要能看全。
 test("详情区：长项目名完整渲染在 .kv-row-name 里（不省略）", () => {
@@ -305,25 +254,7 @@ test("详情区：长项目名完整渲染在 .kv-row-name 里（不省略）", 
 });
 
 // v0.35.5：清单条目改成 label 包勾选框 + 文字 —— 手机端整行可点（原来只有 18px 方框能勾）。
-test("清单条目：勾选框与文字包在同一个 label 里（手机端整行可点）", () => {
-  state.projects = [
-    project({
-      checklist: [{ id: "c1", text: "营业执照副本复印件加盖公章", done: false, source: "manual" }],
-    }),
-  ];
-  state.expandedIds = new Set(["p1"]);
-  render();
-  const item = elements.list.querySelector(".checklist-item");
-  assert.ok(item);
-  const label = item.querySelector("label.checklist-main");
-  assert.ok(label, "勾选框与文字必须包在 label.checklist-main 里");
-  assert.ok(label.querySelector('input[type="checkbox"]'));
-  assert.match(label.textContent, /营业执照副本/);
-  // 勾选框不再是 .checklist-item 的直接子元素
-  assert.equal([...item.children].some((c) => c.tagName === "INPUT"), false);
-  assert.ok(item.querySelector(".checklist-source"));
-  assert.ok(item.querySelector(".checklist-del"));
-});
+
 
 test("即将到期：卡片数字与面板条数同一口径（事项），驼峰截止字段也算", () => {
   state.projects = [

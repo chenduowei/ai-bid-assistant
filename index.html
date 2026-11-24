@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="工程建设行业智能投标工作台 · AI Bid Assistant" />
-  <title>投标工作台</title>
+  <title>标管家 · BidDesk</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <!-- v0.35.0：iOS 期望 180×180，直接给一张，不再让系统把 192 缩放糊掉 -->
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
@@ -75,11 +75,11 @@
           <div class="brand-text">
             <!-- v0.35.6：版本号回到手机顶栏标题旁（v0.35.5 藏进设置抽屉后，手机上没法一眼确认 PWA 是否更新）。
                  桌面端由 CSS 隐藏（桌面那条在下方 user-menu 里）。 -->
-            <h1>投标工作台<span class="app-version-badge" aria-label="应用版本">v0.41.0</span></h1>
+            <h1>标管家 <span class="brand-en">BidDesk</span><span class="app-version-badge" aria-label="应用版本">v0.50.0</span></h1>
             <p id="headerSubtitle">让每一次投标，都心里有数。</p>
           </div>
         </div>
-        <div class="user-menu user-menu-inline"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">v0.41.0</span></div>
+        <div class="user-menu user-menu-inline"><span class="app-version">v0.50.0</span><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span></div>
         <div class="header-top-actions">
           <button id="addProjectBtn" class="btn primary" type="button" aria-label="新增项目" title="新增项目"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg><span class="btn-label-long">新增项目</span></button>
           <button id="upcomingDrawerBtn" class="btn secondary topbar-upcoming-btn" type="button" aria-label="临期提醒" title="查看即将到期事项">
@@ -91,7 +91,7 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false"><svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.2h16M4 12h16M4 16.8h16"/></svg></button>
         </div>
       </div>
-      <!-- v0.41.0：一级菜单收口到 5 个高频入口；模板下载、日历订阅、退出登录收进「设置」，
+      <!-- v0.50.0：一级菜单收口到 5 个高频入口；模板下载、日历订阅、退出登录收进「设置」，
            保证金待退还由统计区「在途保证金」卡片直达，不再重复占位。 -->
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">数据</span>
@@ -111,7 +111,7 @@
     <div id="offlineBanner" class="offline-banner hidden" role="status"></div>
 
 
-    <!-- v0.41.0：统计区收敛为 4 张核心概览卡 —— 去掉与下方分段控件重复的状态筛选卡，
+    <!-- v0.50.0：统计区收敛为 4 张核心概览卡 —— 去掉与下方分段控件重复的状态筛选卡，
          只留「项目总数 / 进行中 / 临期事项 / 在途保证金」。 -->
     <section class="stats" aria-label="项目概览">
       <button type="button" class="stat-card active" data-stat-filter="all" aria-pressed="true" title="查看全部项目">
@@ -177,10 +177,7 @@
       <form id="projectForm" class="project-form" novalidate>
       <!-- v0.20.0：解析入口挪进表单（可选）—— 标题栏按钮已删；从这里进抽屉，
         回填后回到同一张表单（新建仍是新建，编辑仍是正在改的那张）。 -->
-      <div class="form-parser-row">
-        <span>可选：先解析招标文件，让 AI 帮你填表</span>
-        <button id="formOpenParserBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13.8 3.6H7.4a1.8 1.8 0 0 0-1.8 1.8v13.2a1.8 1.8 0 0 0 1.8 1.8h9.2a1.8 1.8 0 0 0 1.8-1.8V8.2l-4.6-4.6Z"/><path d="M13.6 3.7v4.6h4.7"/><path d="M9 12.6h6M9 16.1h4"/></svg>解析招标文件</button>
-      </div>
+      
       <div class="form-grid">
         <div class="form-section">
           <div class="form-section-title">必填信息</div>
@@ -323,11 +320,11 @@
         </div>
       </div>
 
-      <!-- v0.41.0：主列表保持零横幅纯净感，不再在列表上方堆叠三条提示条 -->
+      <!-- v0.50.0：主列表保持零横幅纯净感，不再在列表上方堆叠三条提示条 -->
       <div class="search-box">
         <div class="search-input-wrap">
           <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="#8E8E93" stroke-width="1.6"/><line x1="11" y1="11" x2="14.5" y2="14.5" stroke="#8E8E93" stroke-width="1.6" stroke-linecap="round"/></svg>
-          <input id="search" placeholder="搜索项目 / 公司 / 联系人" aria-label="搜索项目" />
+          <input id="search" type="search" name="biddesk-project-filter" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" placeholder="搜索项目 / 公司 / 联系人" aria-label="搜索项目" />
         </div>
         <div id="filterResultCount" class="filter-result-count">共 0 个项目</div>
       </div>
@@ -349,7 +346,7 @@
           <option value="date-desc" selected>最晚开标</option>
           <option value="name-asc">名称 A-Z</option>
         </select>
-        <!-- v0.41.0：中标结果筛选仅在查看「已开标」时显示，日常工具栏保持纯净 -->
+        <!-- v0.50.0：中标结果筛选仅在查看「已开标」时显示，日常工具栏保持纯净 -->
         <select id="resultFilter" class="sort-select hidden" aria-label="按中标结果筛选">
           <option value="all">全部结果</option>
           <option value="已中标">已中标</option>
@@ -401,7 +398,7 @@
       <button type="button" data-tab="parser" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 3.4h6.1l4.5 4.5v12.7a1.6 1.6 0 0 1-1.6 1.6H7.2a1.6 1.6 0 0 1-1.6-1.6V5a1.6 1.6 0 0 1 1.6-1.6Z"/><path d="M13.3 3.4v4.5h4.5"/><path d="M8.9 12.6h6.2M8.9 16.2h4"/></svg></span><span>解析</span></button>
       <button type="button" data-tab="menu" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span>菜单</span></button>
     </nav>
-    <!-- v0.41.0：去掉多余的「回到底部」浮钮，只保留轻盈的「回顶部」(桌面) 与「新增」(手机) -->
+    <!-- v0.50.0：去掉多余的「回到底部」浮钮，只保留轻盈的「回顶部」(桌面) 与「新增」(手机) -->
     <button id="backToTopBtn" class="float-btn back-to-top" type="button" aria-label="回到顶部"><svg class="float-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6.4 14.2 5.6-5.6 5.6 5.6"/></svg></button>
     <button id="fabAdd" class="float-btn fab-add" type="button" aria-label="新增项目" title="新增项目"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg></button>
   </section>
@@ -442,22 +439,6 @@
           <button id="calendarMenuBtn" class="btn secondary" type="button">管理订阅</button>
         </div>
         <p class="field-hint">在「即将到期事项」中显示未来 N 天内的待开标项目（默认 7 天）。</p>
-      </div>
-
-      <div class="settings-group">
-        <div class="settings-group-title">AI 接口（OpenAI 兼容）</div>
-        <div class="field">
-          <label for="aiApiKey">API Key</label>
-          <input id="aiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
-        </div>
-        <div class="field">
-          <label for="aiBaseUrl">API Base URL</label>
-          <input id="aiBaseUrl" type="url" placeholder="https://api.openai.com/v1" />
-        </div>
-        <div class="field">
-          <label for="aiModel">模型</label>
-          <input id="aiModel" type="text" placeholder="gpt-4o-mini" />
-        </div>
       </div>
 
       <div class="settings-group">
@@ -515,7 +496,7 @@
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
       <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
-      <p class="settings-version">投标工作台 v0.41.0</p>
+      <p class="settings-version">投标工作台 v0.50.0</p>
     </section>
   </div>
 
@@ -629,20 +610,7 @@
   </div>
 
   <!-- v0.18.0：解析抽屉 —— 从项目卡片发起时绑定该项目，上下文永远可见；全局入口在新增/编辑表单顶部（可选），仍为新建模式 -->
-  <div id="parserSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="parserSheetTitle">
-    <div class="sheet-backdrop" data-action="close-parser"></div>
-    <div class="sheet-panel parser-sheet-panel card">
-      <div class="sheet-head">
-        <div>
-          <h2 id="parserSheetTitle">招标文件解析</h2>
-          <p id="parserSheetSubtitle">PDF 在浏览器本地解析，文件本身不上传；解析文字只在您保存后存到云端，AI 分析时会发给您配置的模型服务商。</p>
-        </div>
-        <button id="closeParserBtn" class="btn secondary" type="button" data-action="close-parser" aria-label="关闭解析">✕</button>
-      </div>
-      <section id="parserView" class="parser-page">
-        <section class="card panel">
-          <input id="pdfInput" type="file" accept="application/pdf,.pdf" class="hidden" />
-          <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="上传 PDF 文件">
+  <div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="上传 PDF 文件">
             <div><strong>拖拽 PDF 文件到这里</strong><span>或点击选择文件 · 单个文件最大 50 MB</span></div>
           </div>
           <div id="parserStatus" class="parser-status hidden">
