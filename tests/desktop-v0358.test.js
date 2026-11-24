@@ -153,34 +153,6 @@ test("index.html：菜单 / 设置 / 解析里的 emoji 已换成内联 SVG 图�
   assert.ok(theme.querySelector(".btn-label"));
 });
 
-test("index.html：右栏容器 .side-rail 包住「临期 + 新增」，项目列表仍是它的兄弟且在其后", () => {
-  const rail = document.querySelector(".side-rail");
-  assert.ok(rail, "应有 .side-rail 包裹层");
-  assert.ok(rail.querySelector(".upcoming-panel"), "临期事项在右栏里");
-  assert.ok(rail.querySelector(".form-panel"), "新增 / 编辑在右栏里");
-  const view = document.getElementById("dashboardView");
-  const kids = [...view.children].map((e) => e.className);
-  assert.equal(kids.includes("side-rail"), true);
-  // 列表必须排在右栏之后（手机端文档流顺序不变：临期 → 表单 → 列表）
-  assert.ok([...view.children].indexOf(document.querySelector(".list-panel")) > [...view.children].indexOf(rail));
-});
-
-test("styles.css：桌面两栏版式与关键规则落点", () => {
-  // 右栏容器在窄屏透明，孩子照旧走文档流
-  assert.match(css, /\.side-rail \{ display: contents; \}/);
-  // 桌面网格：左列表 / 右信息栏
-  assert.match(css, /"list {3}rail"/);
-  // 表单展开时铺满整行（:has 提高不到桌面布局时不至于半张空）
-  assert.match(css, /:has\(\.form-panel\.expanded\)/);
-  // 证据操作组右对齐
-  assert.match(css, /\.evidence-actions \{[^}]*margin-left: auto;/);
-  // 手机端长名称：行高 1.4 + max-height 2.8em（第三行不再露头）
-  const mobileName = css.slice(css.indexOf("@media (max-width: 680px)"));
-  assert.match(mobileName, /\.project-head \.project-name \{[\s\S]*?line-height: 1\.4;[\s\S]*?max-height: 2\.8em;/);
-  // 桌面断点只出现一次，便于维护
-  assert.equal((css.match(/@media \(min-width: 1024px\)/g) || []).length, 1);
-});
-
 test("styles.css：桌面断点里的临期事项改成竖排（不再横向滚动裁切）", () => {
   const desktop = css.slice(css.indexOf("@media (min-width: 1024px)"));
   assert.match(desktop, /\.upcoming-list \{[\s\S]*?flex-direction: column;/);

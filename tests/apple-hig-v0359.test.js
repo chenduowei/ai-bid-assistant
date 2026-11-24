@@ -41,11 +41,7 @@ test("index.html：页头移出 #dashboardView，成为 .page 的吸顶应用栏
   // 不再留在网格里（网格项里的 sticky 没有滚动余地）
   assert.equal(dashboard.contains(header), false);
   // 右栏与列表仍在 dashboardView 内，顺序不变
-  const rail = dashboard.querySelector(".side-rail");
-  assert.ok(rail, "右栏包裹层还在");
-  assert.ok(dashboard.querySelector(".upcoming-panel"));
-  assert.ok(dashboard.querySelector(".form-panel"));
-  assert.ok([...dashboard.children].indexOf(document.querySelector(".list-panel")) > [...dashboard.children].indexOf(rail));
+  assert.ok(dashboard.querySelector(".list-panel"), "主列表在 #dashboardView 中");
 });
 
 test("色板：单一系统蓝 + 分组底色 + hairline 细描边", () => {

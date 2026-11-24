@@ -2499,85 +2499,96 @@ body.dark .bp-hero.is-empty {
   .bp-hero, .bp-hero-action { transition: none; }
 }
 
-/* ---------- v0.37.0：小芽极光指令台（独立风格 · 等高整齐详情网格 · 按钮抛光 · 强语义分辨） ---------- */
+/* ---------- v0.38.0：克制高级全宽指令台（去花哨色条 · 顶栏重塑 · 抽屉表单与临期 · 单行标题 · 丝滑展开） ---------- */
 body:not(.dark) {
-  background-color: #F2F5FA;
-  background-image:
-    radial-gradient(circle at 12% -6%, rgba(56, 189, 248, 0.12), transparent 38%),
-    radial-gradient(circle at 88% -4%, rgba(99, 102, 241, 0.10), transparent 36%);
-  background-attachment: fixed;
+  background-color: #F6F7F9;
+  background-image: none;
 }
 body.dark {
-  background-color: #070B14;
-  background-image:
-    radial-gradient(circle at 15% -5%, rgba(56, 189, 248, 0.10), transparent 40%),
-    radial-gradient(circle at 85% 0%, rgba(129, 140, 248, 0.08), transparent 38%);
+  background-color: #0B0F17;
+  background-image: none;
+}
+.header {
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 20px;
+}
+.header-top {
+  gap: 16px;
+}
+.header-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.topbar-upcoming-btn {
+  position: relative;
+  gap: 6px;
+}
+.topbar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .bp-hero {
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 86% 16%, rgba(56, 189, 248, 0.18), transparent 44%),
-    radial-gradient(circle at 14% 90%, rgba(245, 158, 11, 0.12), transparent 42%),
-    linear-gradient(135deg, #0B192C 0%, #132C4E 55%, #1A2756 100%);
-  border: 1px solid rgba(148, 163, 184, 0.18);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 14px 32px rgba(7, 11, 20, 0.22);
-}
-.bp-hero:not(.is-empty)::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background: linear-gradient(90deg, #38BDF8 0%, #818CF8 52%, #F59E0B 100%);
-  opacity: 0.9;
+  background: linear-gradient(135deg, #111C2D 0%, #192841 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 8px 24px rgba(11, 20, 38, 0.14);
 }
 .bp-hero-name {
-  font-size: clamp(16px, 1.8vw, 19.5px);
+  font-size: clamp(16px, 1.8vw, 19px);
 }
 .bp-hero-count {
-  font-size: clamp(28px, 3.8vw, 42px);
+  font-size: clamp(28px, 3.6vw, 40px);
 }
-/* 统计概览卡：大胆语义色条与微光 */
+/* 统计卡：克制高级中性卡片，去掉花哨左侧色条 */
 .stat-card {
-  position: relative;
-  overflow: hidden;
   border: 1px solid var(--hairline);
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease, border-color 0.24s ease;
 }
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
 }
-.stat-card::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: var(--stat-accent, #4F46E5);
-}
-.stat-card[data-stat="total"] { --stat-accent: #4F46E5; }
-.stat-card[data-stat="active"] { --stat-accent: #0284C7; }
-.stat-card[data-stat="upcoming"] { --stat-accent: #D97706; }
-.stat-card[data-stat="guarantee"] { --stat-accent: #059669; }
 .stat-card .value {
-  font-size: clamp(21px, 2.2vw, 26px);
+  font-size: clamp(21px, 2.2vw, 25px);
 }
-/* 列表项目卡：状态色条清晰分辨 */
+/* 列表项目卡：克制干净，单行项目名称，丝滑悬停与展开 */
 .project-item {
-  position: relative;
-  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease, border-color 0.26s ease;
 }
-.project-item[data-status="报名中"] { border-left: 3.5px solid #0EA5E9; }
-.project-item[data-status="制作中"] { border-left: 3.5px solid #F59E0B; }
-.project-item[data-status="已开标"] { border-left: 3.5px solid #10B981; }
-/* 展开详情：统一等高、等宽、整齐网格（桌面两列等宽、手机单列等宽，不挤压不参差） */
+.project-item:hover {
+  border-color: rgba(37, 99, 235, 0.24);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+}
+.project-head .project-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.collapse {
+  transition: grid-template-rows 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.collapse-inner {
+  transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.project-item .chevron {
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* 展开详情：克制整齐的等宽等高信息网格 */
 .kv-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  grid-auto-rows: minmax(64px, auto);
+  grid-auto-rows: minmax(62px, auto);
   margin-bottom: 12px;
 }
 .kv-row {
@@ -2587,15 +2598,15 @@ body.dark {
   align-items: flex-start;
   gap: 4px;
   padding: 10px 14px;
-  min-height: 64px;
+  min-height: 62px;
   border-radius: 10px;
-  background: var(--surface-2, rgba(15, 23, 42, 0.03));
+  background: var(--surface-soft, rgba(15, 23, 42, 0.025));
   border: 1px solid var(--hairline);
   border-bottom: 1px solid var(--hairline);
   box-sizing: border-box;
 }
 body.dark .kv-row {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(255, 255, 255, 0.03);
 }
 .kv-row:last-child { border-bottom: 1px solid var(--hairline); }
 .kv-label {
@@ -2618,20 +2629,79 @@ body.dark .kv-row {
 .kv-row-note {
   grid-column: 1 / -1;
 }
-/* 按钮抛光：微光、抬升、按压回弹 */
+/* 按钮抛光 */
 .btn {
-  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, background-color 0.18s ease, border-color 0.18s ease;
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 .btn:active { transform: scale(0.97); }
 .btn.primary {
-  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 12px rgba(37, 99, 235, 0.24);
+  background: #2563EB;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.22);
 }
 .btn.primary:hover {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 6px 16px rgba(37, 99, 235, 0.32);
+  background: #1D4ED8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
   transform: translateY(-1px);
 }
-
+/* 顶栏抽屉浮层（临期提醒 & 新增/编辑表单） */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(11, 15, 23, 0.45);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 12px;
+}
+.drawer-overlay.hidden { display: none; }
+.drawer-panel {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--surface, #FFFFFF);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.drawer-panel-wide {
+  width: min(640px, 100%);
+}
+.drawer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline);
+}
+.drawer-bar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.drawer-close-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+}
+.drawer-panel .upcoming-panel,
+.drawer-panel .form-panel {
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.drawer-panel .upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.drawer-panel .up-summary { display: none; }
 
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
@@ -3405,13 +3475,13 @@ body.dark .theme-moon { display: none; }
   /* ---------- 主版式：左「项目列表」/ 右「临期 + 新增」 ---------- */
   #dashboardView {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      "banner banner"
-      "hero   hero"
-      "stats  stats"
-      "list   rail";
-    column-gap: 20px;
+      "banner"
+      "hero"
+      "stats"
+      "list";
+    row-gap: 0;
     align-items: start;
   }
   #offlineBanner { grid-area: banner; }
@@ -3431,14 +3501,7 @@ body.dark .theme-moon { display: none; }
 
   /* 展开表单时：表单升到左栏（宽表单、字段两列），临期事项留在右栏。
      .side-rail 在这一刻 display:contents，两个孩子直接成为网格项。 */
-  #dashboardView:has(.form-panel.expanded) {
-    grid-template-areas:
-      "banner banner"
-      "hero   hero"
-      "stats  stats"
-      "form   form"
-      "list   rail";
-  }
+
   #dashboardView:has(.form-panel.expanded) .side-rail { display: contents; }
   #dashboardView:has(.form-panel.expanded) .upcoming-panel { grid-area: rail; }
   #dashboardView:has(.form-panel.expanded) .form-panel { grid-area: form; }
