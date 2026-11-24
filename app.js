@@ -1297,6 +1297,12 @@ import { createDrawers } from "./js/drawers.js";
       setActiveTab(mode === "calendar" ? "calendar" : "projects");
       elements.calendarView?.classList.toggle("hidden", mode !== "calendar");
       elements.list?.classList.toggle("hidden", mode !== "list");
+      const activeView = mode === "calendar" ? elements.calendarView : elements.list;
+      if (activeView && typeof requestAnimationFrame === "function") {
+        activeView.classList.remove("view-switch-enter");
+        requestAnimationFrame(() => activeView.classList.add("view-switch-enter"));
+      }
+      ui.syncSegThumbs?.();
       if (mode === "calendar" && state.selectMode) {
         state.selectMode = false;
         state.selectedIds.clear();
@@ -1444,6 +1450,7 @@ import { createDrawers } from "./js/drawers.js";
           value === "已开标" || elements.resultFilter.value !== "all";
         elements.resultFilter.classList.toggle("hidden", !showResult);
       }
+      ui.syncSegThumbs?.();
     };
     document
       .querySelectorAll('.seg-control[aria-label="按状态筛选"] .seg-btn')
@@ -1456,6 +1463,8 @@ import { createDrawers } from "./js/drawers.js";
         })
       );
     state.syncSegControl = syncSegControl;
+    ui.syncSegThumbs?.();
+    window.addEventListener("resize", () => ui.syncSegThumbs?.());
 
     elements.upcomingList?.addEventListener("click", (event) => {
       const item = event.target.closest(".upcoming-item[data-id]");

@@ -557,7 +557,7 @@ export function createUi(elements, getState) {
     const checkHtml = selectMode
       ? `<button class="select-check" type="button" role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-label="选择项目" data-action="toggle-select" data-id="${escapeHtml(p.id)}"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.8 5.3 9.5 10.5 3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
       : "";
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${subLine}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" data-status="${escapeHtml(p.status || "")}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${subLine}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
   };
 
   /** v0.6.0：列表到底趣味文案（按数量轮换） */
@@ -1313,6 +1313,28 @@ export function createUi(elements, getState) {
       () =>
         `<div class="skeleton-row"><div class="skeleton-line skeleton-title"></div><div class="skeleton-line skeleton-sub"></div></div>`
     ).join("")}</div>`;
+  /** v0.36.1：同步分段控件的滑动白底滑块（seg-thumb）；无布局环境（如单测）安全跳过。 */
+  const syncSegThumbs = () => {
+    if (typeof document === "undefined") return;
+    document.querySelectorAll(".seg-control").forEach((ctrl) => {
+      const active = ctrl.querySelector(".seg-btn.active");
+      if (!active || !active.offsetWidth) {
+        ctrl.classList.remove("has-thumb");
+        return;
+      }
+      let thumb = ctrl.querySelector(":scope > .seg-thumb");
+      if (!thumb) {
+        thumb = document.createElement("span");
+        thumb.className = "seg-thumb";
+        thumb.setAttribute("aria-hidden", "true");
+        ctrl.insertBefore(thumb, ctrl.firstChild);
+      }
+      thumb.style.width = `${active.offsetWidth}px`;
+      thumb.style.transform = `translateX(${active.offsetLeft}px)`;
+      ctrl.classList.add("has-thumb");
+    });
+  };
+
   const showListSkeleton = () => {
     if (elements.list) elements.list.innerHTML = skeletonRows(4);
   };
@@ -1340,6 +1362,7 @@ export function createUi(elements, getState) {
     toggleMobileMenu,
     restoreFocusTo,
     confirmDialog,
+    syncSegThumbs,
     showListSkeleton,
     showTrashSkeleton,
   };

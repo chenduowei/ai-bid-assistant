@@ -56,6 +56,11 @@
   --sd-warn-glow: rgba(255, 149, 0, 0.20);
   --sd-done: #AEAEB2;
   --sd-done-glow: rgba(174, 174, 178, 0.25);
+  /* v0.36.1：克制语义色阶（保留呼吸感与分辨感） */
+  --sem-indigo: #5856D6;
+  --sem-emerald: #059669;
+  --sem-amber: #D97706;
+  --sem-coral: #DC2626;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   --shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
   --radius-lg: 16px;
@@ -108,6 +113,10 @@ body.dark {
   --accent-soft: rgba(10, 132, 255, 0.16);
   --danger: #FF453A;
   --success: #30D158;
+  --sem-indigo: #5E5CE6;
+  --sem-emerald: #30D158;
+  --sem-amber: #FF9F0A;
+  --sem-coral: #FF453A;
   --warning: #FF9F0A;
   --btn-fill: rgba(118, 118, 128, 0.22);
   --tint-blue-bg: rgba(10, 132, 255, 0.16);
@@ -1298,6 +1307,8 @@ body.dark .sort-select {
 /* v0.7.0：视图切换过渡（dashboard ↔ parser），淡入 + 轻微上滑 */
 @keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .view-enter { animation: view-in var(--dur-med) var(--ease-spring) both; }
+@keyframes view-switch-in { from { opacity: 0; transform: translateY(6px) scale(0.994); } to { opacity: 1; transform: none; } }
+.view-switch-enter { animation: view-switch-in 0.26s var(--ease-spring) both; }
 /* v0.7.0：删除退出动画——先淡出收拢，再执行删除刷新 */
 .project-item.leaving {
   opacity: 0;
@@ -1308,8 +1319,8 @@ body.dark .sort-select {
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
 @keyframes save-glow {
   0% { background-color: transparent; box-shadow: 0 0 0 1px transparent; }
-  24% { background-color: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-soft); }
-  62% { background-color: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent-soft); }
+  24% { background-color: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(0, 122, 255, 0.14); }
+  62% { background-color: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--accent), 0 4px 16px rgba(0, 122, 255, 0.08); }
   100% { background-color: transparent; box-shadow: 0 0 0 1px transparent; }
 }
 @keyframes form-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent); } 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
@@ -2229,6 +2240,94 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
 .app-version-badge,
 .select-count { font-variant-numeric: tabular-nums; }
 
+/* ---------- v0.36.1：语义分辨感 + 滑动分段控件 + 卡片与跳转动效 ---------- */
+.seg-control { position: relative; }
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  border-radius: 9px;
+  background: var(--seg-knob);
+  box-shadow: var(--seg-shadow);
+  transition: transform 0.28s var(--ease-spring), width 0.28s var(--ease-spring);
+  pointer-events: none;
+  z-index: 0;
+}
+.seg-control.has-thumb .seg-btn,
+.seg-control.has-thumb .seg-btn.active {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+.seg-btn {
+  transition: color 0.18s ease, transform 0.16s var(--ease-spring);
+}
+.stat-card {
+  position: relative;
+  transition: transform 0.18s var(--ease-spring), background-color 0.18s ease, box-shadow 0.22s ease;
+}
+.stat-card:hover { transform: translateY(-1px); }
+.stat-card:active { transform: scale(0.98); }
+.stat-card[data-stat-filter="all"] .value { color: var(--accent); }
+.stat-card.stat-summary .value { color: var(--sem-indigo); }
+.stat-card#upcomingStatCard .value { color: var(--sem-coral); }
+.stat-card#guaranteeStatCard .value { color: var(--sem-emerald); }
+.stat-card[data-stat-filter="all"].active {
+  box-shadow: inset 0 -2.5px 0 var(--accent);
+}
+.collapse {
+  transition: grid-template-rows 0.30s var(--ease-spring), opacity 0.22s ease;
+}
+.collapse > .collapse-inner {
+  transition: opacity 0.20s ease;
+  opacity: 0;
+}
+.collapse.expanded > .collapse-inner {
+  opacity: 1;
+}
+.project-item {
+  position: relative;
+  transition: background-color 0.20s ease, box-shadow 0.24s var(--ease-spring), margin 0.24s var(--ease-spring), border-radius 0.24s var(--ease-spring);
+}
+.project-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  transition: background-color 0.20s ease, opacity 0.20s ease;
+  opacity: 0;
+}
+.project-item[data-status="报名中"]:hover::before,
+.project-item[data-status="报名中"].expanded::before { background: var(--accent); opacity: 1; }
+.project-item[data-status="制作中"]:hover::before,
+.project-item[data-status="制作中"].expanded::before { background: var(--sem-amber); opacity: 1; }
+.project-item[data-status="已开标"]:hover::before,
+.project-item[data-status="已开标"].expanded::before { background: var(--sem-emerald); opacity: 1; }
+.project-item.expanded {
+  background: var(--surface);
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--hairline);
+  margin: 6px 0;
+}
+body.dark .project-item.expanded {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.40), 0 0 0 1px var(--hairline);
+}
+.project-chevron {
+  transition: transform 0.26s var(--ease-spring);
+}
+.row-btn, .btn, .upcoming-item {
+  transition: transform 0.16s var(--ease-spring), background-color 0.18s ease, box-shadow 0.20s ease, border-color 0.18s ease;
+}
+.row-btn:active, .btn:active, .upcoming-item:active {
+  transform: scale(0.97);
+}
+
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
    max-width 块若留在它们之前，同优先级下就会被盖掉 —— v0.35.2 手机端四条优化失效就是这样来的。
@@ -2397,6 +2496,7 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   .stat-card .value { font-size: 19px; line-height: 1.12; letter-spacing: -0.02em; }
   .stat-card .value-unit { margin-left: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0; }
   .stat-card.active { background: var(--accent-soft); box-shadow: var(--shadow); }
+  .list-tools .view-seg { display: none; }
   .list-tools .seg-control[aria-label="按状态筛选"] { flex: 1 0 100%; order: -1; width: 100%; }
   .list-tools .seg-control[aria-label="按状态筛选"] .seg-btn { flex: 1; justify-content: center; padding: 6px 8px; }
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单 */
@@ -2996,8 +3096,11 @@ body.dark .theme-moon { display: none; }
     grid-area: rail;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
     min-width: 0;
+    position: sticky;
+    top: calc(var(--appbar-h) + 12px);
+    align-self: start;
   }
 
   /* 展开表单时：表单升到左栏（宽表单、字段两列），临期事项留在右栏。
@@ -3021,8 +3124,8 @@ body.dark .theme-moon { display: none; }
   .stat-card.active { box-shadow: none; }
 
   /* ---------- 项目列表面板 ---------- */
-  .list-panel { padding: 16px 16px 8px; margin-bottom: 24px; }
-  .list-panel .panel-title { margin-bottom: 10px; }
+  .list-panel { padding: 14px 16px 8px; margin-bottom: 24px; }
+  .list-panel .panel-title { margin-bottom: 8px; }
   .list-panel .panel-title h2 { font-size: 18px; }
   .list-panel .panel-title p { font-size: 12.5px; line-height: 1.5; }
 
