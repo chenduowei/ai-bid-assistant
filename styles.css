@@ -2624,8 +2624,7 @@ body.dark .kv-row {
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
-.kv-row-name,
-.kv-row-note {
+.kv-row-name {
   grid-column: 1 / -1;
 }
 /* 按钮抛光 */
@@ -2703,11 +2702,7 @@ body.dark .kv-row {
 .drawer-panel .up-summary { display: none; }
 
 /* ---------- v0.39.0：顶部临期提醒 · 详情三项一行 · 无图标清单对齐 · 高级操作按钮 ---------- */
-#dashboardView > .upcoming-panel {
-  grid-area: upcoming;
-  margin-bottom: 14px;
-  padding: 16px 20px;
-}
+/* v0.40.0：临期提醒收进顶栏抽屉 #upcomingSheet */
 #dashboardView > .upcoming-panel .upcoming-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -2720,15 +2715,9 @@ body.dark .kv-row {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
   .kv-row {
-    grid-column: span 3;
-  }
-  .kv-row-status,
-  .kv-row-time,
-  .kv-row-type {
     grid-column: span 2;
   }
-  .kv-row-name,
-  .kv-row-note {
+  .kv-row-name {
     grid-column: 1 / -1;
   }
 }
@@ -2768,6 +2757,131 @@ body.dark .item-actions button {
   background: rgba(220, 38, 38, 0.08);
   color: #DC2626;
 }
+
+
+/* ---------- v0.40.0：顶栏对齐无底线 · 5色操作按钮居中 · 4行详情网格 · 统一抽屉与菜单无分割线 ---------- */
+.header {
+  border-bottom: 0 !important;
+  padding: 12px 0 !important;
+  margin-bottom: 8px;
+}
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+.header-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.header-top-actions .btn {
+  white-space: nowrap;
+  height: 36px;
+}
+.header-actions .menu-label,
+.settings-group + .settings-group,
+.sheet-body hr,
+.menu-divider {
+  border: 0 !important;
+}
+.settings-row,
+.header-actions .btn {
+  justify-content: flex-start;
+  text-align: left;
+}
+/* 列表右侧 5 按钮：解析 / 编辑 / 复制 / 删除 / 项目状态（色彩区分 + 上下左右居中） */
+.project-head-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.project-head-actions .row-btn,
+.status-quick-inline .status-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 8px;
+  line-height: 1;
+}
+.project-head-actions .act-parse {
+  color: #6D28D9;
+  background: rgba(109, 40, 217, 0.08);
+  border-color: rgba(109, 40, 217, 0.22);
+}
+.project-head-actions .act-edit {
+  color: #1D4ED8;
+  background: rgba(29, 78, 216, 0.08);
+  border-color: rgba(29, 78, 216, 0.22);
+}
+.project-head-actions .act-clone {
+  color: #0F766E;
+  background: rgba(15, 118, 110, 0.08);
+  border-color: rgba(15, 118, 110, 0.22);
+}
+.project-head-actions .act-del {
+  color: #DC2626;
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.22);
+}
+.status-quick-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 9px;
+}
+.status-quick-inline .status-chip[data-status="报名中"].active {
+  color: #0369A1;
+  background: rgba(14, 165, 233, 0.16);
+}
+.status-quick-inline .status-chip[data-status="制作中"].active {
+  color: #B45309;
+  background: rgba(245, 158, 11, 0.18);
+}
+.status-quick-inline .status-chip[data-status="已开标"].active {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.18);
+}
+/* 废标检查清单折叠箭头放大并上下左右居中，与其余折叠箭头统一 */
+.checklist-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.checklist-toggle .chevron,
+.checklist-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 18px;
+  color: var(--muted);
+}
+/* 抽屉统一风格 */
+.sheet-panel,
+.drawer-panel {
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+}
+/* 日历页面克制颜色点缀 */
+.cal-cell.is-today {
+  background: rgba(37, 99, 235, 0.06);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+.cal-chip[data-status="报名中"] { background: rgba(14, 165, 233, 0.12); color: #0369A1; }
+.cal-chip[data-status="制作中"] { background: rgba(245, 158, 11, 0.14); color: #B45309; }
+.cal-chip[data-status="已开标"] { background: rgba(16, 185, 129, 0.14); color: #047857; }
 
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
@@ -3544,7 +3658,6 @@ body.dark .theme-moon { display: none; }
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "banner"
-      "upcoming"
       "stats"
       "list";
     row-gap: 0;

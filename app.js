@@ -349,7 +349,7 @@ import { createDrawers } from "./js/drawers.js";
     pendingLocateTimer = setTimeout(() => {
       pendingLocateTimer = 0;
       // 定位 + 一次柔光提示（v0.35.2：不再有 2 秒背景闪烁）
-      ui.focusProjectInList(projectId, { glow: true });
+      ui.focusProjectInList(projectId);
     }, wait);
   };
 
@@ -1486,7 +1486,7 @@ import { createDrawers } from "./js/drawers.js";
 
     const openHeroProject = () => {
       const id = elements.bpHeroName?.dataset?.projectId;
-      if (id) ui.focusProjectInList?.(id, { glow: true });
+      if (id) ui.focusProjectInList?.(id);
     };
     elements.bpHero?.addEventListener("click", openHeroProject);
     elements.bpHeroName?.addEventListener("keydown", (e) => {
