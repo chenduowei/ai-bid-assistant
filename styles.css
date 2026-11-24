@@ -2717,6 +2717,9 @@ body.dark .kv-row {
   .kv-row {
     grid-column: span 2;
   }
+  .kv-row-full {
+    grid-column: 1 / -1;
+  }
 }
 /* 右侧操作按钮（解析 / 编辑 / 复制 / 删除）精致统一 */
 .item-actions {
@@ -2879,6 +2882,60 @@ body.dark .item-actions button {
 .cal-chip[data-status="报名中"] { background: rgba(14, 165, 233, 0.12); color: #0369A1; }
 .cal-chip[data-status="制作中"] { background: rgba(245, 158, 11, 0.14); color: #B45309; }
 .cal-chip[data-status="已开标"] { background: rgba(16, 185, 129, 0.14); color: #047857; }
+
+
+/* ---------- v0.41.0：导航栏齐平 · 单行信息与放大主标 · 无灰状态条 · 抽屉按钮宽松 ---------- */
+.header {
+  width: 100%;
+  max-width: var(--page-max, 1120px);
+  margin: 0 auto 10px;
+  padding: 12px 0 !important;
+  box-sizing: border-box;
+}
+.header-title .brand-mark {
+  width: 44px;
+  height: 44px;
+}
+.header-title h1 {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.user-menu-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  margin-right: 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+/* 去掉状态未选中按钮的灰色底框，仅保留选中项清晰语义色 */
+.status-quick-inline {
+  background: transparent !important;
+  border: 1px solid var(--hairline);
+}
+.status-quick-inline .status-chip:not(.active) {
+  background: transparent !important;
+  color: var(--muted);
+}
+/* 编辑/新增抽屉底部按钮不挤压 */
+#formSheet .form-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+#formSheet .form-actions .btn-block {
+  width: auto;
+  min-width: 104px;
+  flex: 1 1 0;
+}
+/* 废标检查清单折叠动效与统一箭头 */
+.checklist-collapse {
+  transition: grid-template-rows 0.34s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.24s ease;
+}
 
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
