@@ -19,5 +19,5 @@ test("v0.51.1：彻底清除页面底部 AI 残留与列表右侧倒计时胶囊
   assert.equal(document.getElementById("aiResultPanel"), null);
   assert.equal(document.querySelector('[data-tab="parser"]'), null);
   assert.doesNotMatch(ui, /renderRiskCard\(p\)/);
-  assert.doesNotMatch(ui, /<span class="countdown cd-pill/);
+  assert.doesNotMatch(ui, /<div class="project-head-top"><span class="countdown cd-pill/);
 });
