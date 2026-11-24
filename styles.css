@@ -57,7 +57,6 @@
   --sd-done: #AEAEB2;
   --sd-done-glow: rgba(174, 174, 178, 0.25);
   /* v0.36.1：克制语义色阶（保留呼吸感与分辨感） */
-  --sem-indigo: #5856D6;
   --sem-emerald: #059669;
   --sem-amber: #D97706;
   --sem-coral: #DC2626;
@@ -113,7 +112,6 @@ body.dark {
   --accent-soft: rgba(10, 132, 255, 0.16);
   --danger: #FF453A;
   --success: #30D158;
-  --sem-indigo: #5E5CE6;
   --sem-emerald: #30D158;
   --sem-amber: #FF9F0A;
   --sem-coral: #FF453A;
@@ -2271,7 +2269,7 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
 .stat-card:hover { transform: translateY(-1px); }
 .stat-card:active { transform: scale(0.98); }
 .stat-card[data-stat-filter="all"] .value { color: var(--accent); }
-.stat-card.stat-summary .value { color: var(--sem-indigo); }
+.stat-card.stat-summary .value { color: var(--tint-blue-text); }
 .stat-card#upcomingStatCard .value { color: var(--sem-coral); }
 .stat-card#guaranteeStatCard .value { color: var(--sem-emerald); }
 .stat-card[data-stat-filter="all"].active {
@@ -2496,7 +2494,6 @@ body.dark .project-item.expanded {
   .stat-card .value { font-size: 19px; line-height: 1.12; letter-spacing: -0.02em; }
   .stat-card .value-unit { margin-left: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0; }
   .stat-card.active { background: var(--accent-soft); box-shadow: var(--shadow); }
-  .list-tools .view-seg { display: none; }
   .list-tools .seg-control[aria-label="按状态筛选"] { flex: 1 0 100%; order: -1; width: 100%; }
   .list-tools .seg-control[aria-label="按状态筛选"] .seg-btn { flex: 1; justify-content: center; padding: 6px 8px; }
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单 */
@@ -2744,7 +2741,7 @@ body.dark .project-item.expanded {
     border-radius: 0;
   }
   .list-tools > * { flex: none; }
-  .list-tools .view-seg { order: -1; display: flex; gap: 2px; padding: 2px; }
+  .list-tools .view-seg { display: none; }
   /* 次级操作行：独占一整行（flex-basis 100%），中标率靠右 */
   .list-tools-actions {
     display: flex;
