@@ -19,7 +19,7 @@ test("v0.36.0：统计区收敛为 4 张核心概览卡", () => {
   assert.equal(document.getElementById("openedCount"), null);
 });
 
-test("v0.36.0：一级菜单精简为 5 项高频入口，低频入口收进设置", () => {
+test("v0.36.0：一级菜单精简为 4 项高频入口，低频入口收进设置", () => {
   const menuButtons = document.querySelectorAll("#headerMenu > button");
   assert.equal(menuButtons.length, 5);
   assert.equal(document.getElementById("guaranteeMenuBtn"), null);
