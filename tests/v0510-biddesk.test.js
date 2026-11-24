@@ -10,7 +10,7 @@ const { document } = parseHTML(html);
 test("v0.51.1：定名为 投标工作台 · BidDesk，版本号紧跟 BidDesk 后方", () => {
   assert.match(document.title, /投标工作台 · BidDesk/);
   const h1Text = document.querySelector(".header-title h1").textContent;
-  assert.match(h1Text, /投标工作台\s*BidDesk\s*v0\.51\.1/);
+  assert.match(h1Text, /BidDesk\s*让每一次投标，都心里有数。\s*v0\.51\.2/);
 });
 
 test("v0.51.1：彻底清除页面底部 AI 残留与列表右侧倒计时胶囊", () => {
@@ -33,4 +33,9 @@ test("v0.51.1：摘要复制具备 execCommand 兜底且必定弹出提示", () 
   const appCode = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
   assert.match(appCode, /button\.dataset\.action === "copy-summary"/);
   assert.match(appCode, /execCommand\("copy"\)/);
+});
+
+test("v0.51.2：app.js 已导入 formatBidMoment 保证摘要复制不报错", () => {
+  const appCode = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  assert.match(appCode, /import\s*\{[^}]*formatBidMoment[^}]*\}\s*from\s*"\.\/js\/utils\.js"/);
 });
