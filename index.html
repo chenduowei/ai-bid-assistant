@@ -75,7 +75,7 @@
           <div class="brand-text">
             <!-- v0.35.6：版本号回到手机顶栏标题旁（v0.35.5 藏进设置抽屉后，手机上没法一眼确认 PWA 是否更新）。
                  桌面端由 CSS 隐藏（桌面那条在下方 user-menu 里）。 -->
-            <h1>投标工作台<span class="app-version-badge" aria-label="应用版本">v0.38.0</span></h1>
+            <h1>投标工作台<span class="app-version-badge" aria-label="应用版本">v0.39.0</span></h1>
             <p id="headerSubtitle">让每一次投标，都心里有数。</p>
           </div>
         </div>
@@ -89,8 +89,8 @@
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false"><svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.2h16M4 12h16M4 16.8h16"/></svg></button>
         </div>
       </div>
-      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.38.0</span></div>
-      <!-- v0.38.0：一级菜单收口到 5 个高频入口；模板下载、日历订阅、退出登录收进「设置」，
+      <div class="user-menu"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span class="app-version">投标工作台 v0.39.0</span></div>
+      <!-- v0.39.0：一级菜单收口到 5 个高频入口；模板下载、日历订阅、退出登录收进「设置」，
            保证金待退还由统计区「在途保证金」卡片直达，不再重复占位。 -->
       <div id="headerMenu" class="header-actions">
         <span class="menu-label">数据</span>
@@ -124,7 +124,7 @@
       <div id="upcomingList" class="upcoming-list"></div>
         </section>
 
-    <!-- v0.38.0：统计区收敛为 4 张核心概览卡 —— 去掉与下方分段控件重复的状态筛选卡，
+    <!-- v0.39.0：统计区收敛为 4 张核心概览卡 —— 去掉与下方分段控件重复的状态筛选卡，
          只留「项目总数 / 进行中 / 临期事项 / 在途保证金」。 -->
     <section class="stats" aria-label="项目概览">
       <button type="button" class="stat-card active" data-stat-filter="all" aria-pressed="true" title="查看全部项目">
@@ -313,7 +313,7 @@
         </div>
       </div>
 
-      <!-- v0.38.0：主列表保持零横幅纯净感，不再在列表上方堆叠三条提示条 -->
+      <!-- v0.39.0：主列表保持零横幅纯净感，不再在列表上方堆叠三条提示条 -->
       <div class="search-box">
         <div class="search-input-wrap">
           <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="#8E8E93" stroke-width="1.6"/><line x1="11" y1="11" x2="14.5" y2="14.5" stroke="#8E8E93" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -339,7 +339,7 @@
           <option value="date-desc" selected>最晚开标</option>
           <option value="name-asc">名称 A-Z</option>
         </select>
-        <!-- v0.38.0：中标结果筛选仅在查看「已开标」时显示，日常工具栏保持纯净 -->
+        <!-- v0.39.0：中标结果筛选仅在查看「已开标」时显示，日常工具栏保持纯净 -->
         <select id="resultFilter" class="sort-select hidden" aria-label="按中标结果筛选">
           <option value="all">全部结果</option>
           <option value="已中标">已中标</option>
@@ -391,7 +391,7 @@
       <button type="button" data-tab="parser" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7.2 3.4h6.1l4.5 4.5v12.7a1.6 1.6 0 0 1-1.6 1.6H7.2a1.6 1.6 0 0 1-1.6-1.6V5a1.6 1.6 0 0 1 1.6-1.6Z"/><path d="M13.3 3.4v4.5h4.5"/><path d="M8.9 12.6h6.2M8.9 16.2h4"/></svg></span><span>解析</span></button>
       <button type="button" data-tab="menu" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span>菜单</span></button>
     </nav>
-    <!-- v0.38.0：去掉多余的「回到底部」浮钮，只保留轻盈的「回顶部」(桌面) 与「新增」(手机) -->
+    <!-- v0.39.0：去掉多余的「回到底部」浮钮，只保留轻盈的「回顶部」(桌面) 与「新增」(手机) -->
     <button id="backToTopBtn" class="float-btn back-to-top" type="button" aria-label="回到顶部"><svg class="float-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6.4 14.2 5.6-5.6 5.6 5.6"/></svg></button>
     <button id="fabAdd" class="float-btn fab-add" type="button" aria-label="新增项目" title="新增项目"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg></button>
   </section>
@@ -516,7 +516,7 @@
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
       <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
-      <p class="settings-version">投标工作台 v0.38.0</p>
+      <p class="settings-version">投标工作台 v0.39.0</p>
     </section>
   </div>
 
