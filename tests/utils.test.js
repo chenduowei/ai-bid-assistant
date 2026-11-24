@@ -434,6 +434,21 @@ test("parseBackupPayload：非法 JSON / 非本应用备份 / 缺项目数组均
   );
 });
 
+test("parseBackupPayload：备份标识双认——旧标识与新标识均接受", () => {
+  const make = (app) =>
+    JSON.stringify({
+      app,
+      projects: [{ id: "a", user_id: "u1", name: "甲" }],
+    });
+  const oldResult = parseBackupPayload(make("ai-bid-assistant"), "u1");
+  assert.equal(oldResult.ok, true);
+  assert.equal(oldResult.rows.length, 1);
+  const newResult = parseBackupPayload(make("bid-desk"), "u1");
+  assert.equal(newResult.ok, true);
+  assert.equal(newResult.rows.length, 1);
+  assert.equal(newResult.rows[0].name, "甲");
+});
+
 test("parseBackupPayload：缺 id 的行 / 他人账号的备份均拒绝", () => {
   const noId = JSON.stringify({
     app: "ai-bid-assistant",
