@@ -193,6 +193,11 @@ import { createDrawers } from "./js/drawers.js";
     menuToggle: document.getElementById("menuToggle"),
     headerMenu: document.getElementById("headerMenu"),
     addProjectBtn: document.getElementById("addProjectBtn"),
+    upcomingDrawerBtn: document.getElementById("upcomingDrawerBtn"),
+    upcomingSheet: document.getElementById("upcomingSheet"),
+    upcomingCloseBtn: document.getElementById("upcomingCloseBtn"),
+    formSheet: document.getElementById("formSheet"),
+    formCloseBtn: document.getElementById("formCloseBtn"),
     form: {
       date: document.getElementById("date"),
       bidTime: document.getElementById("bidTime"),
@@ -350,6 +355,9 @@ import { createDrawers } from "./js/drawers.js";
 
   /** v0.4.4：新增 / 编辑表单折叠。class 切换（grid 高度动画），只改 DOM + state，不触发 ui.render()。 */
   const setFormExpanded = (expanded) => {
+    if (elements.formSheet) {
+      elements.formSheet.classList.toggle("hidden", !expanded);
+    }
     state.formExpanded = expanded;
     const body = elements.formBody;
     const panel = body?.closest(".form-panel");
@@ -1492,7 +1500,26 @@ import { createDrawers } from "./js/drawers.js";
       else ui.renderHero?.();
     });
 
+    const closeUpcomingSheet = () => elements.upcomingSheet?.classList.add("hidden");
+    elements.upcomingDrawerBtn?.addEventListener("click", () => {
+      elements.upcomingSheet?.classList.remove("hidden");
+    });
+    elements.upcomingCloseBtn?.addEventListener("click", closeUpcomingSheet);
+    elements.upcomingSheet?.addEventListener("click", (e) => {
+      if (e.target === elements.upcomingSheet) closeUpcomingSheet();
+    });
+    elements.formCloseBtn?.addEventListener("click", () => setFormExpanded(false));
+    elements.formSheet?.addEventListener("click", (e) => {
+      if (e.target === elements.formSheet) setFormExpanded(false);
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeUpcomingSheet();
+        if (state.formExpanded) setFormExpanded(false);
+      }
+    });
     elements.upcomingList?.addEventListener("click", (event) => {
+      if (event.target.closest(".upcoming-item")) closeUpcomingSheet();
       const item = event.target.closest(".upcoming-item[data-id]");
       if (!item) return;
       ui.focusProjectInList(item.dataset.id);

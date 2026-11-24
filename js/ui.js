@@ -190,6 +190,11 @@ export function createUi(elements, getState) {
     if (!elements.deadlineTip) return;
     const reminderDays = getReminderDays();
     const upcoming = getUpcomingDeadlines(projects, reminderDays);
+    const badgeEl = document.getElementById("upcomingBadgeCount");
+    if (badgeEl) {
+      badgeEl.textContent = String(upcoming.length);
+      badgeEl.classList.toggle("hidden", upcoming.length === 0);
+    }
     elements.deadlineTip.hidden = !upcoming.length;
     if (upcoming.length) {
       const first = upcoming[0];
