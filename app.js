@@ -1472,6 +1472,7 @@ import { createDrawers } from "./js/drawers.js";
         })
       );
     state.syncSegControl = syncSegControl;
+  state.setViewMode = setViewMode;
     ui.syncSegThumbs?.();
     window.addEventListener("resize", () => ui.syncSegThumbs?.());
 
