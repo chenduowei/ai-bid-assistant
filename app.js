@@ -2332,11 +2332,12 @@ import { createDrawers } from "./js/drawers.js";
         const p = state.projects.find((item) => item.id === button.dataset.id);
         if (!p) return;
         const summary = [
-          `【${p.name || "未命名项目"}】`,
           `开标时间：${p.date ? formatBidMoment(p) : "未设置"}`,
           `项目类型：${p.type || "-"}`,
           `投标公司：${p.biddingCompany || "-"}`,
           `联系人：${p.contact || "-"}`,
+          `项目名称：${p.name || "未命名项目"}`,
+          `备注：${p.notes || "—"}`,
         ].join("\n");
         const fallbackCopy = (text) => {
           const ta = document.createElement("textarea");
