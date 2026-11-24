@@ -93,6 +93,18 @@
   --dur-med: 0.35s;
 }
 
+/* ===== 蓝图指挥舱主题变量 (v0.36.2 新增，可整体删除回退) ===== */
+:root {
+  --bp-ink: #0A2540;
+  --bp-ink-deep: #071A30;
+  --bp-grid: rgba(255, 255, 255, 0.08);
+  --bp-gold: #E8B84B;
+  --bp-paper: #F7F3EA;
+  --bp-on-ink: #FFFFFF;
+  --bp-on-ink-sub: #A9BFD8;
+  --bp-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
 body.dark {
   /* iOS / macOS 深色原生层次：纯黑画布 → #1C1C1E 卡面 → #2C2C2E 抬升面 */
   --bg: #000000;
@@ -2326,6 +2338,99 @@ body.dark .project-item.expanded {
   transform: scale(0.97);
 }
 
+/* ---------- v0.36.2：蓝图指挥舱（暖纸画布 + 深蓝倒计时英雄区 + 抽屉点缀） ---------- */
+body:not(.dark) {
+  background-color: var(--bp-paper);
+}
+.bp-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-all;
+}
+.bp-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-lg);
+  background-color: var(--bp-ink);
+  background-image:
+    linear-gradient(var(--bp-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bp-grid) 1px, transparent 1px),
+    linear-gradient(180deg, transparent 55%, var(--bp-ink-deep) 100%);
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+  color: var(--bp-on-ink);
+  box-shadow: 0 10px 28px rgba(7, 26, 48, 0.16);
+}
+.bp-hero[hidden] { display: none; }
+.bp-hero-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bp-hero-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bp-gold);
+  margin-bottom: 6px;
+}
+.bp-hero-name {
+  margin: 0 0 6px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--bp-on-ink);
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.bp-hero-name:hover { opacity: 0.85; }
+.bp-hero-name:focus-visible { outline: 2px solid var(--bp-gold); outline-offset: 4px; border-radius: 6px; }
+.bp-hero-time {
+  font-size: 13px;
+  color: var(--bp-on-ink-sub);
+  font-family: var(--bp-mono);
+  font-variant-numeric: tabular-nums;
+}
+.bp-hero-count {
+  flex: 0 0 auto;
+  font-family: var(--bp-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 46px;
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  color: var(--bp-gold);
+  white-space: nowrap;
+}
+.bp-hero.is-empty .bp-hero-name { cursor: default; }
+.bp-hero.is-empty .bp-hero-name:hover { opacity: 1; }
+.bp-hero.is-empty .bp-hero-count { display: none; }
+.stat-card .value,
+.countdown,
+.cd-pill,
+.cal-num,
+.up-day,
+.guarantee-totals,
+.win-rate {
+  font-family: var(--bp-mono);
+  font-variant-numeric: tabular-nums;
+}
+body:not(.dark) .sheet-head h2 { color: var(--bp-ink); }
+body:not(.dark) .sheet-panel .btn.primary,
+body:not(.dark) .form-actions .btn.primary {
+  background: var(--bp-ink);
+  color: var(--bp-on-ink);
+}
+body:not(.dark) .sheet-panel .btn.primary:hover,
+body:not(.dark) .form-actions .btn.primary:hover {
+  background: var(--bp-ink-deep);
+}
+
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
    max-width 块若留在它们之前，同优先级下就会被盖掉 —— v0.35.2 手机端四条优化失效就是这样来的。
@@ -2486,6 +2591,15 @@ body.dark .project-item.expanded {
   .trash-actions .btn { flex: 1; }
   .checklist-add .checklist-new-input { flex-basis: 100%; }
   /* v0.36.0：手机端 4 张统计卡对称 2×2 网格，字号舒适不拥挤；状态筛选保留下方分段控件。 */
+  .bp-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .bp-hero-name { font-size: 17px; }
+  .bp-hero-count { font-size: 36px; line-height: 1.15; white-space: normal; }
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .stat-card { padding: 12px 14px; border-radius: 14px; }
   .stat-card .label { font-size: 13px; letter-spacing: 0; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3081,12 +3195,14 @@ body.dark .theme-moon { display: none; }
     grid-template-columns: minmax(0, 1fr) 340px;
     grid-template-areas:
       "banner banner"
+      "hero   hero"
       "stats  stats"
       "list   rail";
     column-gap: 20px;
     align-items: start;
   }
   #offlineBanner { grid-area: banner; }
+  #bpHero { grid-area: hero; }
   .stats { grid-area: stats; }
   .list-panel { grid-area: list; }
   .side-rail {
@@ -3105,6 +3221,7 @@ body.dark .theme-moon { display: none; }
   #dashboardView:has(.form-panel.expanded) {
     grid-template-areas:
       "banner banner"
+      "hero   hero"
       "stats  stats"
       "form   form"
       "list   rail";

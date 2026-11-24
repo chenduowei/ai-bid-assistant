@@ -60,6 +60,11 @@ import { createDrawers } from "./js/drawers.js";
     userEmail: document.getElementById("userEmail"),
     syncStatus: document.getElementById("syncStatus"),
     offlineBanner: document.getElementById("offlineBanner"),
+    bpHero: document.getElementById("bpHero"),
+    bpHeroLabel: document.getElementById("bpHeroLabel"),
+    bpHeroName: document.getElementById("bpHeroName"),
+    bpHeroTime: document.getElementById("bpHeroTime"),
+    bpHeroCount: document.getElementById("bpHeroCount"),
     dashboardView: document.getElementById("dashboardView"),
     parserView: document.getElementById("parserView"),
     parserSheet: document.getElementById("parserSheet"),
@@ -1303,6 +1308,8 @@ import { createDrawers } from "./js/drawers.js";
         requestAnimationFrame(() => activeView.classList.add("view-switch-enter"));
       }
       ui.syncSegThumbs?.();
+      if (mode === "calendar") ui.stopHeroTimer?.();
+      else ui.renderHero?.();
       if (mode === "calendar" && state.selectMode) {
         state.selectMode = false;
         state.selectedIds.clear();
@@ -1465,6 +1472,22 @@ import { createDrawers } from "./js/drawers.js";
     state.syncSegControl = syncSegControl;
     ui.syncSegThumbs?.();
     window.addEventListener("resize", () => ui.syncSegThumbs?.());
+
+    const openHeroProject = () => {
+      const id = elements.bpHeroName?.dataset?.projectId;
+      if (id) ui.focusProjectInList?.(id, { glow: true });
+    };
+    elements.bpHeroName?.addEventListener("click", openHeroProject);
+    elements.bpHeroName?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        openHeroProject();
+      }
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) ui.stopHeroTimer?.();
+      else ui.renderHero?.();
+    });
 
     elements.upcomingList?.addEventListener("click", (event) => {
       const item = event.target.closest(".upcoming-item[data-id]");
@@ -2509,6 +2532,7 @@ import { createDrawers } from "./js/drawers.js";
     setInterval(() => {
       if (!state.user) return;
       ui.updateCountdowns();
+      ui.renderHero?.();
       sendBidNotifications();
     }, 60000);
   }
