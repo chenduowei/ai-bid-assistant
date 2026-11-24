@@ -7,6 +7,8 @@ import {
   formatDateDisplay,
   formatBidMoment,
   getCountdownInfo,
+  getNextHeroBid,
+  formatHeroCountdown,
   getReminderDays,
   formatMoney,
   getGuaranteeTotals,
@@ -732,12 +734,92 @@ export function createUi(elements, getState) {
 
   // v0.31.0：写后定向渲染 —— 只刷新统计、即将开标、截止提醒、保证金清单、日历（可见时）
   // 与列表（增量同步 DOM），不再全量重建整个页面。
-  const renderAfterWrite = ({ changedIds = [] } = {}) => {
+  // v0.36.2：蓝图指挥舱英雄区（最近一场开标 + 秒级定时器生命周期）
+  let heroTimerId = null;
+  let heroTargetMs = 0;
+  let heroProjectId = null;
+
+  const stopHeroTimer = () => {
+    if (heroTimerId) {
+      clearInterval(heroTimerId);
+      heroTimerId = null;
+    }
+  };
+
+  const isHeroVisibleContext = () => {
+    if (typeof document === "undefined") return false;
+    if (document.hidden) return false;
+    const s = getState();
+    if (s.viewMode === "calendar") return false;
+    if (elements.dashboardView?.classList.contains("hidden")) return false;
+    return true;
+  };
+
+  const tickHero = () => {
+    const countEl = elements.bpHeroCount;
+    if (!countEl || !heroTargetMs) return;
+    const diff = heroTargetMs - Date.now();
+    if (diff <= 0) {
+      countEl.textContent = "已开标";
+      stopHeroTimer();
+      renderHero();
+      return;
+    }
+    countEl.textContent = formatHeroCountdown(diff);
+  };
+
+  const startHeroTimer = () => {
+    stopHeroTimer();
+    if (!heroTargetMs || !isHeroVisibleContext()) return;
+    heroTimerId = setInterval(tickHero, 1000);
+  };
+
+  const renderHero = () => {
+    const hero = elements.bpHero;
+    if (!hero) return;
+    const s = getState();
+    const next = getNextHeroBid(s.projects, new Date());
+    hero.hidden = false;
+    if (!next) {
+      stopHeroTimer();
+      heroTargetMs = 0;
+      heroProjectId = null;
+      hero.classList.add("is-empty");
+      if (elements.bpHeroLabel) elements.bpHeroLabel.textContent = "最近一场开标";
+      if (elements.bpHeroName) {
+        elements.bpHeroName.textContent = "暂无待开标项目";
+        elements.bpHeroName.removeAttribute("data-project-id");
+      }
+      if (elements.bpHeroTime) {
+        elements.bpHeroTime.textContent = "新增未开标项目后，这里将实时倒计时。";
+      }
+      if (elements.bpHeroCount) elements.bpHeroCount.textContent = "";
+      return;
+    }
+    hero.classList.remove("is-empty");
+    heroTargetMs = next.target.getTime();
+    heroProjectId = next.project.id;
+    if (elements.bpHeroLabel) elements.bpHeroLabel.textContent = "最近一场开标";
+    if (elements.bpHeroName) {
+      elements.bpHeroName.textContent = next.project.name || "未命名项目";
+      elements.bpHeroName.dataset.projectId = String(next.project.id);
+    }
+    if (elements.bpHeroTime) {
+      elements.bpHeroTime.textContent = `${formatBidMoment(next.project)} 开标`;
+    }
+    if (elements.bpHeroCount) {
+      elements.bpHeroCount.textContent = formatHeroCountdown(heroTargetMs - Date.now());
+    }
+    startHeroTimer();
+  };
+
+    const renderAfterWrite = ({ changedIds = [] } = {}) => {
     const state = getState();
     renderStats(state.projects);
     renderUpcomingList(state.projects);
     renderDeadlineTip(state.projects);
     renderRefundReminder(state.projects);
+    renderHero();
     renderGuaranteeList(state.projects);
     syncListDom(new Set(changedIds));
     if (!elements.calendarView?.classList.contains("hidden")) {
@@ -1083,6 +1165,7 @@ export function createUi(elements, getState) {
     renderDeadlineTip(state.projects);
     renderRefundReminder(state.projects);
     renderList(state.projects, filters);
+    renderHero();
     renderGuaranteeList(state.projects);
     // v0.35.3：日历视图隐藏时不重建网格 —— 项目一多，每次 render 都白算一遍 DOM 字符串
     // （切到日历视图时 setViewMode 先摘 hidden 再 render，不影响正常显示）。
@@ -1362,6 +1445,8 @@ export function createUi(elements, getState) {
     toggleMobileMenu,
     restoreFocusTo,
     confirmDialog,
+    renderHero,
+    stopHeroTimer,
     syncSegThumbs,
     showListSkeleton,
     showTrashSkeleton,

@@ -91,6 +91,35 @@ export function getCountdownInfo(project, now = new Date()) {
   return { text: `还有${wholeDays}天`, cls, title };
 }
 
+/** v0.36.2：蓝图指挥舱英雄区 —— 取最近一场未开标且尚未到开标时刻的项目。 */
+export function getNextHeroBid(projects, now = new Date()) {
+  if (!Array.isArray(projects)) return null;
+  let best = null;
+  for (const p of projects) {
+    if (!p || p.deletedAt || p.status === "已开标") continue;
+    const target = getBidDateTime(p);
+    if (!target) continue;
+    const diffMs = target.getTime() - now.getTime();
+    if (diffMs <= 0) continue;
+    if (!best || diffMs < best.diffMs) {
+      best = { project: p, target, diffMs };
+    }
+  }
+  return best;
+}
+
+/** v0.36.2：英雄区秒级倒计时格式（>=1天 "3天 07:12:45"，<1天 "07:12:45"）。 */
+export function formatHeroCountdown(diffMs) {
+  if (!Number.isFinite(diffMs) || diffMs <= 0) return "已开标";
+  const totalSec = Math.floor(diffMs / 1000);
+  const days = Math.floor(totalSec / 86400);
+  const hours = Math.floor((totalSec % 86400) / 3600);
+  const mins = Math.floor((totalSec % 3600) / 60);
+  const secs = totalSec % 60;
+  const hms = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  return days > 0 ? `${days}天 ${hms}` : hms;
+}
+
 /** 回收站剩余保留天数（保留 30 天）；deletedAt 非法返回 null。 */
 export function getTrashRemainingDays(deletedAt, now = new Date()) {
   const t = new Date(String(deletedAt || "")).getTime();
@@ -1148,7 +1177,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.36.1";
+export const APP_VERSION = "0.36.2";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {
