@@ -72,11 +72,13 @@
 
 ## 安全头与 CSP（改之前先读）
 
-`vercel.json` 里的 CSP 目前是 **`Content-Security-Policy-Report-Only`**，只报告不拦。后续计划把它切成强制生效（`Content-Security-Policy`），切之前注意：
+`vercel.json` 里的 CSP 已是强制生效的 **`Content-Security-Policy`**（batch3 自 Report-Only 切过来），只报告不拦的时代结束了。改动口径（逐项按仓库实际引用核对过）：
 
-- v0.50.0 已移除招标文件 AI 解析，用户自备 OpenAI 兼容 API 的调用已不存在，因此当初反对收窄 `connect-src` 的理由已消失；切强制时可把 `connect-src` 收窄到 `'self' https://*.supabase.co wss://*.supabase.co`，但收窄前须实测确认没有其他跨域调用——收窄后若仍有功能走任意域名，报错只是浏览器的通用 CSP 违规，用户根本判断不出原因。
-- 现在写的是 `connect-src 'self' https: wss://*.supabase.co`（v0.35.3 起）。
-- `script-src` 里的 jsdelivr / cdnjs 是 pdf.js 与 SheetJS 的懒加载源；`worker-src` 同理，别顺手删。
+- `script-src` 只留 `'self'` + jsDelivr：SheetJS（`app.js` 的 `loadSheetJS`，xlsx 懒加载）与 Supabase SDK 回退（`ensureSupabase`）都走 jsDelivr；cdnjs 全仓无任何代码引用（v0.50 删 pdf.js 后已无人用），已删。
+- `connect-src` 收窄到 `'self' https://*.supabase.co wss://*.supabase.co`：v0.50.0 已移除招标文件 AI 解析，用户自备 OpenAI 兼容 API 的调用已不存在，当初反对收窄的理由已消失；浏览器端除 Supabase 外无其他跨域调用（`api/calendar.js` 是服务端函数，不受浏览器 CSP 约束）。
+- `worker-src` 为 `'self' blob:`：两个 CDN 源都删了，但 `blob:` 必须留——Supabase 实时同步（`js/projects.js` 的 `.channel().subscribe()`）的心跳 Worker 是 supabase-js 用 Blob URL 建的，删掉 `blob:` 会断实时同步。
+- 其余指令未动：`style-src 'self' 'unsafe-inline'`（内联样式仍在用）、`img-src 'self' data: blob:`、`font-src 'self' data:`、`default-src 'self'`、`frame-ancestors 'none'`、`base-uri 'self'`、`form-action 'self'`、`object-src 'none'`。
+- HSTS 没有在 `vercel.json` 里加：2026-11-24 实测 Vercel 平台默认已下发 `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`，自加会重复下发。注意平台默认值自带 `includeSubDomains` 与 `preload`，与本仓“只加 max-age”的决定不同，这是平台行为不是本仓配置。
 
 ---
 
