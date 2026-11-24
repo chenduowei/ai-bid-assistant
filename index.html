@@ -109,22 +109,20 @@
     <!-- v0.12.0：离线快照横幅（仅快照模式下显示，见 ui.renderOfflineBanner） -->
     <div id="offlineBanner" class="offline-banner hidden" role="status"></div>
 
-    <!-- v0.38.0：精工指挥舱 · 最近一场开标倒计时英雄区 -->
-    <section class="bp-hero" id="bpHero" hidden>
-      <div class="bp-hero-main">
-        <div class="bp-hero-top">
-          <span class="bp-hero-dot" aria-hidden="true"></span>
-          <div class="bp-hero-label" id="bpHeroLabel">最近一场开标</div>
-          <span class="bp-hero-badge" id="bpHeroBadge" hidden></span>
-        </div>
-        <h2 class="bp-hero-name bp-clamp-2" id="bpHeroName" role="button" tabindex="0"></h2>
-        <div class="bp-hero-meta">
-          <div class="bp-hero-time" id="bpHeroTime"></div>
-          <span class="bp-hero-action" id="bpHeroAction">查看详情 →</span>
+    <section class="card upcoming-panel">
+      <div class="panel-title">
+        <div>
+          <h2>即将到期事项</h2>
+          <!-- v0.35.5：手机端把横条收成一行摘要（首屏省 100px），点它展开；桌面端这条按钮不显示（display:none） -->
+          <button class="up-summary" id="upcomingSummaryBtn" type="button" aria-expanded="false" aria-controls="upcomingList">
+            <span class="up-summary-text" id="upcomingSummary">未来 7 天内的截止事项</span>
+            <span class="up-summary-chevron" aria-hidden="true">›</span>
+          </button>
+          <p id="upcomingDesc">未来 7 天内的截止事项，按时间排序。</p>
         </div>
       </div>
-      <div class="bp-hero-count" id="bpHeroCount" aria-live="off"></div>
-    </section>
+      <div id="upcomingList" class="upcoming-list"></div>
+        </section>
 
     <!-- v0.38.0：统计区收敛为 4 张核心概览卡 —— 去掉与下方分段控件重复的状态筛选卡，
          只留「项目总数 / 进行中 / 临期事项 / 在途保证金」。 -->
@@ -146,30 +144,6 @@
         <span class="value" id="inTransitGuarantee">0.00</span><span class="value-unit" aria-hidden="true">万元</span>
       </button>
     </section>
-
-    <!-- v0.38.0：临期提醒与新增/编辑项目移出右侧栏，改由顶栏抽屉按需打开，释放全宽主画布 -->
-    <div id="upcomingSheet" class="drawer-overlay hidden" role="dialog" aria-modal="true" aria-label="即将到期事项">
-      <div class="drawer-panel">
-        <div class="drawer-bar">
-          <span class="drawer-bar-title">临期提醒</span>
-          <button id="upcomingCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭临期提醒">✕</button>
-        </div>
-        <section class="card upcoming-panel">
-      <div class="panel-title">
-        <div>
-          <h2>即将到期事项</h2>
-          <!-- v0.35.5：手机端把横条收成一行摘要（首屏省 100px），点它展开；桌面端这条按钮不显示（display:none） -->
-          <button class="up-summary" id="upcomingSummaryBtn" type="button" aria-expanded="false" aria-controls="upcomingList">
-            <span class="up-summary-text" id="upcomingSummary">未来 7 天内的截止事项</span>
-            <span class="up-summary-chevron" aria-hidden="true">›</span>
-          </button>
-          <p id="upcomingDesc">未来 7 天内的截止事项，按时间排序。</p>
-        </div>
-      </div>
-      <div id="upcomingList" class="upcoming-list"></div>
-        </section>
-      </div>
-    </div>
 
     <div id="formSheet" class="drawer-overlay hidden" role="dialog" aria-modal="true" aria-label="新增或编辑项目">
       <div class="drawer-panel drawer-panel-wide">
