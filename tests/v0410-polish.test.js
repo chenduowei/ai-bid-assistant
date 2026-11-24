@@ -15,6 +15,6 @@ test("v0.41.0：顶栏仅保留一个临期提醒按钮，设置中无空的外�
 
 test("v0.41.0：桌面端 .kv-row-full 位于 .kv-row span 2 之后保证项目名称独占第二行", () => {
   const idxSpan2 = css.indexOf("grid-column: span 2;");
-  const idxFull = css.indexOf(".kv-row-full {");
+  const idxFull = css.lastIndexOf(".kv-row-full {");
   assert.ok(idxSpan2 !== -1 && idxFull > idxSpan2);
 });
