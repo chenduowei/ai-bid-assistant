@@ -2624,7 +2624,7 @@ body.dark .kv-row {
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
-.kv-row-name {
+.kv-row-full {
   grid-column: 1 / -1;
 }
 /* 按钮抛光 */

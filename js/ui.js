@@ -517,7 +517,7 @@ export function createUi(elements, getState) {
         kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置", "kv-row-time") +
         kv("项目类型", escapeHtml(p.type || "-"), "kv-row-type") +
         kv("投标公司", escapeHtml(p.biddingCompany || "-"), "kv-row-company") +
-        kv("项目名称", escapeHtml(p.name), "kv-row-name") +
+        kv("项目名称", escapeHtml(p.name), "kv-row-name kv-row-full") +
         kv("联系人", escapeHtml(p.contact || "-"), "kv-row-contact") +
         kv("中标结果", resultVal, "kv-row-result") +
         kv("备注", escapeHtml(p.notes || "—"), "kv-row-note") +

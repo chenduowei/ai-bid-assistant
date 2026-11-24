@@ -149,16 +149,15 @@ test("详情区：项目状态是带 aria-pressed 的三选一", () => {
 // v0.35.4：手机端让状态三选一平铺一行的样式靠 kv-row-status 这一类挂钩，
 // 它只出现在「项目状态」那一行（其余 kv 行仍是左标签 + 右值）。
 test("详情区：v0.40.0 按开标时间/项目类型/投标公司 + 项目名称 + 联系人/中标结果/备注排布", () => {
-  const { listEl, ui } = setupList();
-  ui.renderList();
-  const item = listEl.querySelector(".project-item");
-  ui.fillProjectDetails(item, baseProject);
-  const rows = [...item.querySelectorAll(".kv-row")];
+  state.projects = [project()];
+  state.expandedIds = new Set(["p1"]);
+  render();
+  const rows = [...elements.list.querySelectorAll(".kv-row")];
   assert.ok(rows.some((r) => r.classList.contains("kv-row-time")));
   assert.ok(rows.some((r) => r.classList.contains("kv-row-type")));
   assert.ok(rows.some((r) => r.classList.contains("kv-row-company")));
   assert.ok(rows.some((r) => r.classList.contains("kv-row-name")));
-  assert.ok(item.querySelector(".project-head-actions .status-quick-inline"));
+  assert.ok(elements.list.querySelector(".project-head-actions .status-quick-inline"));
 });
 
 // v0.35.6：卡片元信息行只剩「日期开标 · 类型」，投标公司包进 .project-sub-company
