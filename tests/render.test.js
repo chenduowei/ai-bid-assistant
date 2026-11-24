@@ -437,16 +437,16 @@ test("日历视图隐藏时不重建日历网格（切到日历视图再渲染�
   elements.calendarView.classList.add("hidden");
 });
 
-test("中标率：只在有结果时显示，并标在工具栏", () => {
+test("中标率：只在「已开标」且有结果时显示，并标在工具栏", () => {
   state.projects = [
-    project({ id: "a", result: "已中标" }),
-    project({ id: "b", result: "未中标" }),
-    project({ id: "c", result: "" }),
+    project({ id: "a", status: "已开标", result: "已中标" }),
+    project({ id: "b", status: "已开标", result: "未中标" }),
+    project({ id: "c", status: "已开标", result: "" }),
   ];
-  render();
+  render({ status: "已开标" });
   assert.match(elements.winRate.textContent, /中标率 50%（1\/2）/);
   assert.ok(!elements.winRate.classList.contains("hidden"));
-  state.projects = [project({ result: "" })];
-  render();
+  state.projects = [project({ status: "已开标", result: "" })];
+  render({ status: "已开标" });
   assert.ok(elements.winRate.classList.contains("hidden"));
 });

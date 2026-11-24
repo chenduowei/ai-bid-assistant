@@ -61,10 +61,10 @@
   --radius-lg: 16px;
   --radius-md: 12px;
   /* 页面左右内边距：页头的毛玻璃应用栏靠它做通栏出血，各断点只改这一个值 */
-  --page-x: 20px;
+  --page-x: 24px;
   /* 吸顶应用栏高度：列表工具栏 / 定位滚动都让开它 */
   --appbar-h: 80px;
-  /* v0.10.0：间距与字阶 token —— 新代码一律用 token，旧值按映射表迁移 */
+  /* v0.36.0：Apple 4 主档 + 1 数字档字阶，全站严格对齐 8pt 网格 */
   --sp-1: 4px;
   --sp-2: 8px;
   --sp-3: 12px;
@@ -74,15 +74,15 @@
   --sp-8: 32px;
   --sp-10: 40px;
   --sp-12: 48px;
-  --fs-xs: 12px;
+  --fs-xs: 13px;
   --fs-sm: 13px;
-  --fs-md: 14px;
+  --fs-md: 15px;
   --fs-base: 15px;
-  --fs-lg: 16px;
-  --fs-xl: 18px;
-  --fs-2xl: 20px;
-  --fs-3xl: 26px;
-  --fs-4xl: 28px;
+  --fs-lg: 15px;
+  --fs-xl: 17px;
+  --fs-2xl: 17px;
+  --fs-3xl: 24px;
+  --fs-4xl: 22px;
   --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur-fast: 0.18s;
@@ -286,11 +286,10 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .menu-toggle:hover { filter: brightness(0.96); }
 .menu-toggle:active { transform: scale(0.94); }
 
-/* ---------- 统计：单分组卡片 + hairline 分隔 ---------- */
+/* ---------- 统计：4 张核心概览卡 + hairline 分隔 ---------- */
 .stats {
   display: grid;
-  /* v0.34.0：6 张卡（新增「即将开标」） */
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -329,6 +328,9 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .stat-card.active { background: var(--accent-soft); box-shadow: none; }
 .stat-card.active .value { color: var(--accent); }
 .stat-card.active .label { color: var(--text); font-weight: 600; }
+.stat-card.stat-summary { cursor: default; }
+.stat-card.stat-summary:hover { background: transparent; }
+.stat-card.stat-summary:active { transform: none; }
 
 /* ---------- 面板 ---------- */
 .panel { padding: var(--sp-5); margin-bottom: var(--sp-5); }
@@ -348,11 +350,17 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .panel-title h2 { margin: 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -0.01em; }
 .panel-title p { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.55; max-width: 720px; }
 
-/* ---------- iOS 按钮 ---------- */
+/* ---------- iOS 按钮：固定高度 + 绝对垂直水平居中 ---------- */
 .btn {
   border: 0;
   border-radius: var(--radius-md);
-  padding: 11px 18px;
+  height: 38px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
   font-size: var(--fs-base);
   font-weight: 600;
   cursor: pointer;
@@ -433,9 +441,19 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: color-mix(in srgb, var(--surface) 96%, transparent);
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
-  padding: 12px var(--sp-3);
-  margin: 0 -12px var(--sp-4);
-  border-radius: var(--radius-md);
+  padding: 12px 0;
+  margin: 0 0 var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+}
+#aiSettingsBtn.has-badge::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
 }
 .list-tools .seg-control { flex: 1; min-width: 0; overflow-x: auto; }
 .sort-select {
@@ -2370,18 +2388,17 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   .trash-actions { width: 100%; }
   .trash-actions .btn { flex: 1; }
   .checklist-add .checklist-new-input { flex-basis: 100%; }
-  /* v0.35.0：手机端统计卡改 3 列 × 2 行（原先 2 列 3 行约 254px，把第一条项目挤出首屏），
-     只留短标签；工具栏那组状态筛选在手机收起（统计卡就是唯一筛选入口），两处不用再同步。
-     v0.35.6：内边距与标签再收一档、选中态从「顶部一条线」改成整圈描边（更清楚，也不被圆角切掉）。 */
-  .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-  .stat-card { padding: 8px 10px 9px; border-radius: 14px; }
-  .stat-card .label { font-size: 10.5px; letter-spacing: 0.02em; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* v0.36.0：手机端 4 张统计卡对称 2×2 网格，字号舒适不拥挤；状态筛选保留下方分段控件。 */
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .stat-card { padding: 12px 14px; border-radius: 14px; }
+  .stat-card .label { font-size: 13px; letter-spacing: 0; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .stat-card .label-long { display: none; }
   .stat-card .label-short { display: inline; }
   .stat-card .value { font-size: 19px; line-height: 1.12; letter-spacing: -0.02em; }
   .stat-card .value-unit { margin-left: 3px; font-size: 10.5px; font-weight: 600; letter-spacing: 0; }
   .stat-card.active { background: var(--accent-soft); box-shadow: var(--shadow); }
-  .list-tools .seg-control[aria-label="按状态筛选"] { display: none; }
+  .list-tools .seg-control[aria-label="按状态筛选"] { flex: 1 0 100%; order: -1; width: 100%; }
+  .list-tools .seg-control[aria-label="按状态筛选"] .seg-btn { flex: 1; justify-content: center; padding: 6px 8px; }
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单 */
   /* v0.35.0：浮动新增按钮 —— 列表滑到很下面也能直接开表单
      v0.35.5：回到页顶时收起（页头已有「＋」）—— 它在首屏正压在保证金提示的「查看」上 */
@@ -3041,8 +3058,8 @@ body.dark .theme-moon { display: none; }
   .search-box input { height: 38px; padding: 0 12px 0 34px; }
   .filter-result-count { margin: 0; flex: none; font-size: 12px; }
 
-  /* 工具栏：状态筛选不再被拉满，视图切换靠右；文字基线统一（选择 / 全部折叠原来偏上 4px） */
-  .list-tools { padding: 7px 9px; margin: 0 -9px 8px; gap: 8px; border-radius: 10px; }
+  /* 工具栏：状态筛选不再被拉满，视图切换靠右；严格与上下卡片左缘对齐 */
+  .list-tools { padding: 8px 0; margin: 0 0 12px; gap: 8px; border-radius: 0; }
   .list-tools .seg-control { flex: 0 0 auto; overflow: visible; }
   .list-tools .seg-btn { padding: 6px 11px; font-size: 13px; }
   .list-tools .btn-text { font-size: 13px; }

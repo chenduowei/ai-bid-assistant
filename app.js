@@ -127,6 +127,7 @@ import { createDrawers } from "./js/drawers.js";
     guaranteeStatCard: document.getElementById("guaranteeStatCard"),
     upcomingStatCard: document.getElementById("upcomingStatCard"),
     upcomingCount: document.getElementById("upcomingCount"),
+    inProgressCount: document.getElementById("inProgressCount"),
     guaranteeMenuBtn: document.getElementById("guaranteeMenuBtn"),
     qualMenuBtn: document.getElementById("qualMenuBtn"),
     calendarMenuBtn: document.getElementById("calendarMenuBtn"),
@@ -923,6 +924,7 @@ import { createDrawers } from "./js/drawers.js";
     if (!overdue) return;
     backupTipShown = true;
     elements.backupTip.classList.remove("hidden");
+    elements.aiSettingsBtn?.classList.add("has-badge");
   };
 
   function showApp(user) {
@@ -1436,6 +1438,12 @@ import { createDrawers } from "./js/drawers.js";
         card.classList.toggle("active", on);
         card.setAttribute("aria-pressed", on ? "true" : "false");
       });
+      // v0.36.0：中标结果筛选仅在查看「已开标」或已有结果筛选时显示
+      if (elements.resultFilter) {
+        const showResult =
+          value === "已开标" || elements.resultFilter.value !== "all";
+        elements.resultFilter.classList.toggle("hidden", !showResult);
+      }
     };
     document
       .querySelectorAll('.seg-control[aria-label="按状态筛选"] .seg-btn')

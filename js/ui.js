@@ -120,24 +120,39 @@ export function createUi(elements, getState) {
       prevStats[key + "_raf"] = requestAnimationFrame(step);
     };
     tweenStat(elements.totalCount, "total", projects.length, 0);
-    tweenStat(
-      elements.registeringCount,
-      "registering",
-      projects.filter((p) => p.status === "报名中").length,
-      0
-    );
-    tweenStat(
-      elements.makingCount,
-      "making",
-      projects.filter((p) => p.status === "制作中").length,
-      0
-    );
-    tweenStat(
-      elements.openedCount,
-      "opened",
-      projects.filter((p) => p.status === "已开标").length,
-      0
-    );
+    if (elements.inProgressCount) {
+      tweenStat(
+        elements.inProgressCount,
+        "inProgress",
+        projects.filter((p) => p.status === "报名中" || p.status === "制作中")
+          .length,
+        0
+      );
+    }
+    if (elements.registeringCount) {
+      tweenStat(
+        elements.registeringCount,
+        "registering",
+        projects.filter((p) => p.status === "报名中").length,
+        0
+      );
+    }
+    if (elements.makingCount) {
+      tweenStat(
+        elements.makingCount,
+        "making",
+        projects.filter((p) => p.status === "制作中").length,
+        0
+      );
+    }
+    if (elements.openedCount) {
+      tweenStat(
+        elements.openedCount,
+        "opened",
+        projects.filter((p) => p.status === "已开标").length,
+        0
+      );
+    }
     if (elements.inTransitGuarantee) {
       const { inTransit } = getGuaranteeTotals(projects);
       tweenStat(elements.inTransitGuarantee, "guarantee", inTransit, 2);
@@ -149,10 +164,14 @@ export function createUi(elements, getState) {
       const items = getUpcomingDeadlines(projects, getReminderDays());
       tweenStat(elements.upcomingCount, "upcoming", items.length, 0);
     }
-    // v0.35.0：中标率（只算已出结果的项目），标在列表工具栏中。
+    // v0.36.0：中标率仅在查看「已开标」或已有结果筛选时在工具栏显示，日常保持纯净
     if (elements.winRate) {
       const { won, decided, rate } = getWinRate(projects);
-      if (decided) {
+      const showWin =
+        decided > 0 &&
+        (elements.statusFilter?.value === "已开标" ||
+          (elements.resultFilter && elements.resultFilter.value !== "all"));
+      if (showWin) {
         elements.winRate.textContent = `中标率 ${rate}%（${won}/${decided}）`;
         elements.winRate.classList.remove("hidden");
       } else {
@@ -166,6 +185,7 @@ export function createUi(elements, getState) {
   };
 
   const renderDeadlineTip = (projects) => {
+    if (!elements.deadlineTip) return;
     const reminderDays = getReminderDays();
     const upcoming = getUpcomingDeadlines(projects, reminderDays);
     elements.deadlineTip.hidden = !upcoming.length;
