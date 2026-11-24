@@ -796,7 +796,7 @@ export function createUi(elements, getState) {
         elements.bpHeroName.removeAttribute("data-project-id");
       }
       if (elements.bpHeroTime) {
-        elements.bpHeroTime.textContent = "新增未开标项目后，这里将实时倒计时。";
+        elements.bpHeroTime.textContent = "新增未开标项目即开启实时倒计时";
       }
       if (elements.bpHeroAction) elements.bpHeroAction.hidden = true;
       if (elements.bpHeroCount) elements.bpHeroCount.textContent = "";
@@ -875,6 +875,11 @@ export function createUi(elements, getState) {
 
   const focusProjectInList = (projectId, { glow = false } = {}) => {
     if (!projectId) return;
+    // v0.37.0：若当前停在日历视图，先自动切回列表视图再定位展开，避免“点了没反应”
+    const sView = getState();
+    if (sView.viewMode === "calendar" && typeof sView.setViewMode === "function") {
+      sView.setViewMode("list");
+    }
     locateTimers.forEach(clearTimeout);
     locateTimers = [];
     glowTarget = null; // 新的定位作废上一张卡片的柔光（旧节点上的类下轮渲染自然消失）
