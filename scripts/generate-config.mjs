@@ -5,6 +5,9 @@
  * 环境变量（任选一组命名）：
  *   SUPABASE_URL  或  VITE_SUPABASE_URL  或  NEXT_PUBLIC_SUPABASE_URL
  *   SUPABASE_ANON_KEY  或  VITE_SUPABASE_ANON_KEY  或  NEXT_PUBLIC_SUPABASE_ANON_KEY
+ *
+ * 严格模式：`node scripts/generate-config.mjs --strict`（或 NODE_ENV=production / VERCEL_ENV=production）
+ * 时缺变量即报错退出，不写占位配置。生产构建必须用严格模式。
  */
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -25,7 +28,21 @@ const anonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   "";
 
+const strict =
+  process.argv.includes("--strict") ||
+  process.env.NODE_ENV === "production" ||
+  process.env.VERCEL_ENV === "production";
+
 if (!url || !anonKey) {
+  const missing = [!url ? "SUPABASE_URL" : null, !anonKey ? "SUPABASE_ANON_KEY" : null]
+    .filter(Boolean)
+    .join(" / ");
+  if (strict) {
+    console.error(
+      `[generate-config] 缺少 ${missing}，严格模式下拒绝写入占位配置，构建失败。`
+    );
+    process.exit(1);
+  }
   console.warn(
     "[generate-config] 未检测到 SUPABASE_URL / SUPABASE_ANON_KEY，将写入占位配置。线上登录会提示填写配置。"
   );

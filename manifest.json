@@ -1,6 +1,6 @@
 {
   "background_color": "#F2F2F7",
-  "description": "工程建设行业智能投标工作台 · AI Bid Assistant",
+  "description": "投标工作台 · BidDesk — 轻量工程投标台账与开标提醒工作台",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "id": "/",
