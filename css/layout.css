@@ -1,0 +1,692 @@
+/* ============================================================
+   BidDesk CSS — layout.css（v0.51.4 batch3：由 styles.css 拆分）
+   内容：页面骨架：页头 / 统计 / 面板 / 抽屉 / 底部导航等布局容器
+   加载顺序：第 2 个（共 5 个：base → layout → components → views → breakpoints）
+   注意：不要单独调整加载顺序；级联结果以 index.html 的 <link> 顺序为准。
+   ============================================================ */
+
+.page {
+  max-width: 1024px;
+  margin: 0 auto;
+  padding: var(--sp-5) var(--sp-5) 64px;
+  /* v0.26.0：不要给 .page 加任何带 transform 的动画——fill 模式会让它成为
+     fixed 浮钮的包含块，按钮会被钉在页面底部（v0.24.0“收尾改 none”实测无效）。
+     入场淡入由 dashboardView 的 .view-enter 承担，效果一样。 */
+}
+
+/* iOS 分组卡片：白底 + hairline，无投影 */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- 页头：iOS 大标题 ---------- */
+.header {
+  /* v0.35.9：顶栏改 iOS / macOS 的半透明应用栏 —— 吸顶 + 提饱和毛玻璃 + 1px hairline；
+     负外边距让它通栏（各断点只改 --page-x），滚动时内容在它下面虚化掠过。 */
+  position: sticky;
+  top: 0;
+  z-index: 22;
+  margin: 0 calc(-1 * var(--page-x)) var(--sp-4);
+  padding: 8px var(--page-x) 8px;
+  background: color-mix(in srgb, var(--bg) 96%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+.header-title { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-3); }
+
+/* v0.13.0：品牌角标——蓝紫渐变圆角方块 + 白色清单对勾，专业里带点亲切 */
+.brand-mark {
+  flex: none;
+  /* v0.24.0：固定正方形（64px，与右侧标题 + 副标题整块高度基本一致） */
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  /* v0.35.9：单一系统蓝，去紫、去重投影 —— 只留一层内高光让它像一枚实体按键 */
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 86%, #FFFFFF) 0%, var(--accent) 100%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 0.5px 0 rgba(255, 255, 255, 0.30);
+}
+
+.brand-mark svg { display: block; width: 52%; height: 52%; }
+
+/* v0.14.0：品牌角标即首页按钮——去默认按钮样式，保留原尺寸与触摸区 */
+button.brand-mark {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out);
+}
+
+button.brand-mark:hover { filter: brightness(1.06); }
+
+button.brand-mark:active { transform: scale(0.94); }
+
+button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.brand-text { min-width: 0; }
+
+.header-title h1 {
+  margin: 0 0 var(--sp-1);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.header-title p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+
+.header-top-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* v0.7.0：header 收纳——次要功能全部收进下拉菜单 */
+.header-actions {
+  display: none;
+  position: absolute;
+  right: 4px;
+  top: calc(100% + 4px);
+  z-index: 30;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--sp-1);
+  min-width: 220px;
+  padding: var(--sp-2);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  margin-top: 0;
+}
+
+.header-actions.open { display: flex; }
+
+.header-actions .btn {
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  box-shadow: none;
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.header-actions .btn:hover { transform: none; box-shadow: none; background: var(--accent-soft); filter: none; }
+
+.user-menu { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: var(--fs-sm); padding: var(--sp-2) var(--sp-1) 0; flex-wrap: wrap; }
+
+/* ---------- 统计：4 张核心概览卡 + hairline 分隔 ---------- */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: var(--sp-5);
+}
+
+/* v0.34.0：卡片改成原生 <button> —— 清掉按钮默认样式，文字仍按卡片排版；
+   v0.7.0 起卡片就可点（筛选 / 跳转），v0.34.0 补选中态与键盘焦点 */
+.stat-card {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--sp-4);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.stat-card + .stat-card { border-left: 1px solid var(--border); }
+
+.stat-card .label { display: block; font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--sp-2); }
+
+.stat-card .value { display: block; font-size: var(--fs-3xl); font-weight: 700; line-height: 1.15; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+
+/* v0.35.5：保证金单位的补充说明 —— 桌面端长标签里已有「（万元）」，只在手机端显示 */
+.stat-card .value-unit { display: none; }
+
+.stat-card:hover { background: var(--accent-soft); }
+
+.stat-card:active { transform: scale(0.97); }
+
+.stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* 当前筛选：柔色底 + 数值换品牌色（v0.35.9 去掉顶部色条——iOS 的选中态是填充，不是划线） */
+.stat-card.active { background: var(--accent-soft); box-shadow: none; }
+
+.stat-card.active .value { color: var(--accent); }
+
+.stat-card.active .label { color: var(--text); font-weight: 600; }
+
+.stat-card.stat-summary { cursor: default; }
+
+.stat-card.stat-summary:hover { background: transparent; }
+
+.stat-card.stat-summary:active { transform: none; }
+
+/* ---------- 面板 ---------- */
+.panel { padding: var(--sp-5); margin-bottom: var(--sp-5); }
+
+/* v0.5.1：表单面板内边距收紧一档 */
+.form-panel.panel { padding: var(--sp-4); }
+
+.panel-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.panel-title h2 { margin: 0; font-size: var(--fs-2xl); font-weight: 700; letter-spacing: -0.01em; }
+
+.panel-title p { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.55; max-width: 720px; }
+
+/* ---------- 工具栏 ---------- */
+.list-tools { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-4); }
+
+/* v0.7.0：工具栏 sticky 毛玻璃，滚动时跟手；v0.35.9 让开吸顶应用栏，毛玻璃与顶栏同一档 */
+.list-tools {
+  position: sticky;
+  top: var(--appbar-h);
+  z-index: 15;
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  padding: 12px 0;
+  margin: 0 0 var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.list-tools .seg-control { flex: 1; min-width: 0; overflow-x: auto; }
+
+.form-panel.editing .form-badge-plus { display: none; }
+
+.form-panel.editing .form-badge-edit { display: inline; }
+
+.form-panel.expanded .form-pill-chevron { transform: rotate(90deg); }
+
+.form-panel.form-highlight { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
+
+/* —— v0.8.0：视图切换（列表 / 日历，不跟状态筛选组抢宽度） —— */
+.list-tools .view-seg { flex: none; }
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.sheet.hidden { display: none; }
+
+.sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  animation: sheet-fade var(--dur-fast) var(--ease-out) both;
+}
+
+.sheet-panel {
+  position: relative;
+  width: min(680px, 100%);
+  max-height: 86dvh;
+  overflow-y: auto;
+  border-radius: 20px 20px 0 0;
+  padding: var(--sp-5);
+  animation: sheet-up var(--dur-med) var(--ease-spring) both;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.sheet-head h2 { margin: 0; font-size: var(--fs-2xl); font-weight: 800; }
+
+.sheet-head p { margin: var(--sp-1) 0 0; color: var(--muted); font-size: var(--fs-sm); line-height: 1.5; }
+
+.sheet-head .btn { flex: none; }
+
+/* —— 安全区：刘海屏 / 底部小横条不再遮挡固定元素 —— */
+.sheet-panel { padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+
+/* —— 统计卡片「即将开标」跳转时闪一下目标面板，指出位置 —— */
+.panel-flash { box-shadow: 0 0 0 3px var(--accent); animation: form-pulse 1.6s ease; }
+
+/* 日历视图里“选择 / 全部折叠”没有作用对象，收起 */
+.list-tools.calendar-mode #selectModeBtn,
+.list-tools.calendar-mode #collapseAllBtn { display: none; }
+
+/** v0.35.6：工具栏里的「中标率 / 选择 / 全部折叠」包裹层——桌面端透明（沿用原来的 flex 行），
+    只在手机端变成独占一行的次级操作行 */
+.list-tools-actions { display: contents; }
+
+/* ============================================================
+   v0.35.9：Apple HIG 视觉层（iOS / macOS：简单、高级、实用、克制）
+   ------------------------------------------------------------
+   只动观感，不动交互、数据与 v0.35.8 的双端版式；触控目标（44pt）与
+   手机端字号下限（16px）保持不变。四条准则的落点：
+     1) 克制色板与分组层级：画布 #F5F5F7 / 纯白卡面 / rgba(0,0,0,0.06) hairline /
+        极轻阴影；全站只剩一支系统蓝；状态与倒计时一律低饱和柔色底。
+     2) 毛玻璃：页头应用栏、手机底栏、抽屉标题栏、提示胶囊 —— blur(20px) saturate(180%)。
+     3) 原生控件：分段控件（浅灰轨道 + 白滑块 + 微阴影）、iOS 搜索框、10px 圆角输入。
+     4) 排版：SF Pro → 苹方字族、标题字重降一档、等宽数字、对齐基准。
+   ============================================================ */
+/* ---------- 1. 材质：卡片 / 列表 / 抽屉只用 hairline，不用硬边框 ---------- */
+.card,
+.project-list,
+.stats {
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow);
+}
+
+.stat-card + .stat-card { border-left: 1px solid var(--hairline); }
+
+.stat-card:hover { background: var(--hover); }
+
+/* ---------- 2. 页头：毛玻璃应用栏里的排版与品牌角标 ---------- */
+button.brand-mark:hover { filter: brightness(1.04); }
+
+.header-title h1 { font-weight: 700; letter-spacing: -0.022em; }
+
+.header-title p { font-size: 13px; }
+
+.header-actions {
+  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ---------- 3. 统计：分组卡 + 单一蓝强调，选中是柔色底而不是色条 ---------- */
+.stat-card { padding: 14px 16px 15px; }
+
+.stat-card .label { font-size: 12px; letter-spacing: 0.01em; margin-bottom: 4px; }
+
+.stat-card .value { font-size: 26px; font-weight: 600; letter-spacing: -0.025em; }
+
+.stat-card.active { background: var(--accent-soft); box-shadow: none; }
+
+.stat-card.active .value { color: var(--accent); }
+
+.stat-card.active .label { color: var(--text); font-weight: 600; }
+
+.stat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ---------- 9. 抽屉 / 浮层：原生 sheet 质感（描边 + 柔投影 + 深遮罩） ---------- */
+.sheet-panel {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
+
+.sheet-backdrop { background: rgba(0, 0, 0, 0.36); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+
+.sheet-head h2 { font-weight: 600; letter-spacing: -0.018em; }
+
+/* ---------- 12. 排版：标题字重降一档、数字等宽 ---------- */
+.panel-title h2,
+.sheet-head h2,
+.confirm-panel h2,
+.auth-title,
+.parser-header h1 { font-weight: 600; letter-spacing: -0.018em; }
+
+.stat-card .value,
+.countdown,
+.cd-pill,
+.cal-num,
+.up-day,
+.guarantee-totals,
+.win-rate,
+.app-version-badge,
+.select-count { font-variant-numeric: tabular-nums; }
+
+.stat-card {
+  position: relative;
+  transition: transform 0.18s var(--ease-spring), background-color 0.18s ease, box-shadow 0.22s ease;
+}
+
+.stat-card:hover { transform: translateY(-1px); }
+
+.stat-card:active { transform: scale(0.98); }
+
+.stat-card[data-stat-filter="all"] .value { color: var(--accent); }
+
+.stat-card.stat-summary .value { color: var(--tint-blue-text); }
+
+.stat-card#upcomingStatCard .value { color: var(--sem-coral); }
+
+.stat-card#guaranteeStatCard .value { color: var(--sem-emerald); }
+
+.stat-card[data-stat-filter="all"].active {
+  box-shadow: inset 0 -2.5px 0 var(--accent);
+}
+
+.stat-card .value,
+.countdown,
+.cd-pill,
+.cal-num,
+.up-day,
+.guarantee-totals,
+.win-rate {
+  font-family: var(--bp-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.header {
+  border-bottom: 1px solid var(--hairline);
+  padding: 14px 20px;
+}
+
+.header-top {
+  gap: 16px;
+}
+
+.header-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.topbar-upcoming-btn {
+  position: relative;
+  gap: 6px;
+}
+
+.topbar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #2563EB;
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 统计卡：克制高级中性卡片，去掉花哨左侧色条 */
+.stat-card {
+  border: 1px solid var(--hairline);
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.stat-card .value {
+  font-size: clamp(21px, 2.2vw, 25px);
+}
+
+/* 顶栏抽屉浮层（临期提醒 & 新增/编辑表单） */
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(11, 15, 23, 0.45);
+  backdrop-filter: blur(6px);
+  display: flex;
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 12px;
+}
+
+.drawer-overlay.hidden { display: none; }
+
+.drawer-panel {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--surface, #FFFFFF);
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.drawer-panel-wide {
+  width: min(640px, 100%);
+}
+
+.drawer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.drawer-bar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.drawer-close-btn svg,
+.sheet-head .btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.drawer-panel .upcoming-panel,
+.drawer-panel .form-panel {
+  box-shadow: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.drawer-panel .upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.drawer-panel .up-summary { display: none; }
+
+/* ---------- v0.39.0：顶部临期提醒 · 详情三项一行 · 无图标清单对齐 · 高级操作按钮 ---------- */
+/* v0.40.0：临期提醒收进顶栏抽屉 #upcomingSheet */
+#dashboardView > .upcoming-panel .upcoming-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  overflow: visible;
+}
+
+/* ---------- v0.40.0：顶栏对齐无底线 · 5色操作按钮居中 · 4行详情网格 · 统一抽屉与菜单无分割线 ---------- */
+.header {
+  border-bottom: 0 !important;
+  padding: 12px 0 !important;
+  margin-bottom: 8px;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+.header-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.header-top-actions .btn {
+  white-space: nowrap;
+  height: 36px;
+}
+
+/* 抽屉统一风格 */
+.sheet-panel,
+.drawer-panel {
+  border-radius: 16px;
+  border: 1px solid var(--hairline);
+}
+
+/* ---------- v0.41.0：导航栏齐平 · 单行信息与放大主标 · 无灰状态条 · 抽屉按钮宽松 ---------- */
+.header {
+  width: 100%;
+  max-width: var(--page-max, 1120px);
+  margin: 0 auto 10px;
+  padding: 12px 0 !important;
+  box-sizing: border-box;
+}
+
+.header-title .brand-mark {
+  width: 44px;
+  height: 44px;
+}
+
+.header-title h1 {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.user-menu-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  margin-right: 12px;
+  font-size: 12.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ---------- v0.50.0：标管家 BidDesk · 顶栏满宽对齐 · 摘要按钮 ---------- */
+.header {
+  max-width: none !important;
+  width: 100% !important;
+  padding: 12px 0 !important;
+}
+
+.brand-en {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-left: 6px;
+  letter-spacing: 0.01em;
+}
+
+/* ---------- v0.51.2：顶栏文字统一字号不加粗（BidDesk  让每一次投标，都心里有数。  v0.51.2） ---------- */
+.brand-text-inline .brand-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--text) !important;
+  white-space: nowrap;
+}
+
+.brand-text-inline .brand-en {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em;
+  color: var(--text) !important;
+}
+
+.brand-text-inline .brand-sub,
+.brand-text-inline .app-version-badge {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  color: var(--text) !important;
+  line-height: 1.3 !important;
+}
+
+/* ---------- v0.51.3：加粗大号「投标工作台」与后方统一非粗体信息排成同一行 ---------- */
+.brand-text-inline {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.brand-text-inline .brand-main-title {
+  margin: 0;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em;
+  color: var(--text) !important;
+}
+
+.header-actions .btn .ico { width: 17px; height: 17px; margin-right: 10px; vertical-align: -3.5px; opacity: 0.7; }
+
+.sheet-head h2 .ico { width: 18px; height: 18px; margin-right: 8px; vertical-align: -3px; }
+
+.sheet-head .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

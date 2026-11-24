@@ -9,7 +9,12 @@ const CACHE_NAME = "bid-assistant-v0.51.4";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
+  // v0.51.4 batch3：styles.css 已拆成 css/ 下 5 个文件（按 index.html 引用顺序进壳）
+  "./css/base.css",
+  "./css/layout.css",
+  "./css/components.css",
+  "./css/views.css",
+  "./css/breakpoints.css",
   "./app.js",
   "./js/utils.js",
   "./js/fields.js",
