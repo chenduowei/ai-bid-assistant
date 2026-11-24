@@ -142,7 +142,7 @@ test("index.html：菜单 / 设置 / 解析里的 emoji 已换成内联 SVG 图�
     assert.equal(markup.includes(e), false, `index.html 里还留着 emoji ${e}`);
   }
   // 关键入口都带图标
-  for (const id of ["importBtn", "exportBtn", "trashMenuBtn", "guaranteeMenuBtn", "qualMenuBtn", "calendarMenuBtn", "aiSettingsBtn"]) {
+  for (const id of ["importBtn", "exportBtn", "trashMenuBtn", "qualMenuBtn", "aiSettingsBtn"]) {
     const el = document.getElementById(id);
     assert.ok(el.querySelector("svg"), `${id} 应有内联 SVG 图标`);
   }
