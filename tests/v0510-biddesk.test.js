@@ -21,3 +21,10 @@ test("v0.51.1：彻底清除页面底部 AI 残留与列表右侧倒计时胶囊
   assert.doesNotMatch(ui, /renderRiskCard\(p\)/);
   assert.doesNotMatch(ui, /<div class="project-head-top"><span class="countdown cd-pill/);
 });
+
+test("v0.51.1：登录海报、菜单与设置页已全面清除 AI / 废标清单 / API Key 残留", () => {
+  assert.doesNotMatch(html, /API Key/);
+  assert.doesNotMatch(html, /废标检查清单/);
+  assert.equal(document.getElementById("qualMenuBtn"), null);
+  assert.equal(document.getElementById("backupIncludePdfText"), null);
+});

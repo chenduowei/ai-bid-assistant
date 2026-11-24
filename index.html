@@ -28,9 +28,9 @@
           <ul class="auth-poster-points">
             <li>项目摘要一键复制</li>
             <li>开标倒计时与多截止提醒</li>
-            <li>保证金台账与废标检查清单</li>
+            <li>保证金台账与中标统计</li>
           </ul>
-          <p class="auth-poster-foot">数据云端同步 · API Key 仅存本机</p>
+          <p class="auth-poster-foot">云端实时同步 · 电脑手机通用</p>
         </div>
       </aside>
       <section class="auth-card card">
@@ -94,11 +94,8 @@
       <!-- v0.51.1：一级菜单收口到 5 个高频入口；模板下载、日历订阅、退出登录收进「设置」，
            保证金待退还由统计区「在途保证金」卡片直达，不再重复占位。 -->
       <div id="headerMenu" class="header-actions">
-        <span class="menu-label">数据</span>
         <button id="importBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.6v10.1"/><path d="m7.9 9.9 4.1 4.1 4.1-4.1"/><path d="M4.8 16.4v2.1a1.8 1.8 0 0 0 1.8 1.8h10.8a1.8 1.8 0 0 0 1.8-1.8v-2.1"/></svg>导入</button>
         <button id="exportBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.4V10.3"/><path d="m7.9 14.2 4.1-4.1 4.1 4.1"/><path d="M4.8 7.6V5.5a1.8 1.8 0 0 1 1.8-1.8h10.8a1.8 1.8 0 0 1 1.8 1.8v2.1"/></svg>导出</button>
-        <span class="menu-label">管理</span>
-        <button id="qualMenuBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="9.2" r="5.1"/><path d="m8.7 13.7-1.1 6.7 4.4-2.5 4.4 2.5-1.1-6.7"/></svg>我的资质</button>
         <button id="trashMenuBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 6.9h14.8"/><path d="M9.3 6.9V5.3a1.7 1.7 0 0 1 1.7-1.7h2a1.7 1.7 0 0 1 1.7 1.7v1.6"/><path d="M6.7 6.9 7.6 19a1.7 1.7 0 0 0 1.7 1.6h5.4a1.7 1.7 0 0 0 1.7-1.6l.9-12.1"/><path d="M10.5 10.7v6M13.5 10.7v6"/></svg>回收站</button>
         <input id="importFileInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
         <button id="aiSettingsBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.4h8.4M17.6 8.4H20M4 15.6h4.4M13.6 15.6H20"/><circle cx="15" cy="8.4" r="2.2"/><circle cx="11" cy="15.6" r="2.2"/></svg>设置</button>
@@ -463,13 +460,6 @@
         </div>
         <div class="settings-row">
           <div class="settings-row-main">
-            <div class="settings-row-label">备份含招标全文</div>
-            <div class="settings-row-desc">默认不含：全文每项最多 20 万字，几十项就是几十 MB，手机上容易备份失败。</div>
-          </div>
-          <label class="switch"><input id="backupIncludePdfText" type="checkbox" /><span>包含</span></label>
-        </div>
-        <div class="settings-row">
-          <div class="settings-row-main">
             <div class="settings-row-label">从备份恢复</div>
             <div class="settings-row-desc">备份与云端合并：已有的可选用备份覆盖，库里多出来的项目不会被删。</div>
           </div>
@@ -487,7 +477,7 @@
         <div class="settings-row">
           <div class="settings-row-main">
             <div class="settings-row-label">退出当前账号</div>
-            <div class="settings-row-desc">退出后回到登录页，本地 API Key 仍保留在本机。</div>
+            <div class="settings-row-desc">退出后回到登录页，已同步的项目安全保留在云端。</div>
           </div>
           <button id="signOutBtn" class="btn secondary" type="button">退出登录</button>
         </div>
@@ -495,7 +485,7 @@
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
       <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
-      <p class="settings-version">投标工作台 v0.51.1</p>
+      <p class="settings-version">投标工作台 · BidDesk v0.51.1</p>
     </section>
   </div>
 
