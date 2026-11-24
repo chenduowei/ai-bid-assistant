@@ -524,8 +524,7 @@ export function createUi(elements, getState) {
         `</div>` +
         (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
         deadlineHtml +
-        renderRiskCard(p) +
-        pdfHtml);
+        "");
   };
 
   // v0.30.0：展开时补填详情（折叠卡片渲染时详情区是空的）。
@@ -1200,7 +1199,7 @@ export function createUi(elements, getState) {
     const countEl = elements.qualCount;
     if (countEl) countEl.textContent = list.length ? `（共 ${list.length} 条）` : "";
     if (!list.length) {
-      el.innerHTML = `<div class="qual-empty">还没有录入资质。在上方添加一条，AI 分析招标文件时会自动对照。</div>`;
+      el.innerHTML = `<div class="qual-empty">还没有录入资质。在上方添加一条，方便投标前快速核对资质条件。</div>`;
       return;
     }
     const now = new Date();
