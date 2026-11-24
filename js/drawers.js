@@ -2,7 +2,7 @@
  * 抽屉（sheets）交互：保证金待退还 / 我的资质 / 日历订阅 / 回收站。
  * v0.35.0：从 app.js 的 bindEvents（原约 1430 行）里抽出来 —— 这四块只碰自己的 DOM、
  * state 与 projectsApi，彼此独立，抽出来改抽屉时不用通读整份事件绑定。
- * 确认框本来就在 js/ui.js；设置弹窗仍留在 app.js（与 AI 配置、重置账户耦合）。
+ * 确认框本来就在 js/ui.js；设置弹窗仍留在 app.js（与提醒、重置账户耦合）。
  *
  * 注入：elements / getState / setState / ui / projectsApi。
  * 返回：bindDrawers() 绑全部事件；closeTop() 供品牌首页等“关最上层浮层”复用。

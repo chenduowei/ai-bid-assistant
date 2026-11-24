@@ -479,10 +479,10 @@ export function createUi(elements, getState) {
         ? `<div class="deadline-line">最近截止：${escapeHtml(next.label)} · ${escapeHtml(formatDateDisplay(next.date))}${next.days === 0 ? "（今天）" : `（还有 ${next.days} 天）`}</div>`
         : "";
       // 4 个截止时间（选填，有则显示）
-      // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期（全文按需拉）
+      // v0.4.0：列表不再拉 pdf_text 全文，只显示文件名 + 保存日期
       const pdfHtml =
         p.pdfFilename || p.pdfParsedAt
-          ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""} <button class="btn secondary pdf-view-btn" type="button" data-action="view-pdf" data-id="${escapeHtml(p.id)}">查看已保存文本</button></div>`
+          ? `<div class="pdf-saved">已保存招标文件：${escapeHtml(p.pdfFilename || "未命名")}${p.pdfParsedAt ? ` · ${escapeHtml(formatDateDisplay(String(p.pdfParsedAt).slice(0, 10)))}` : ""}</div>`
           : "";
       // v0.5.0：iOS 定义列表 —— label 左、value 右、hairline 分隔
       const kv = (label, valueHtml, cls = "") =>

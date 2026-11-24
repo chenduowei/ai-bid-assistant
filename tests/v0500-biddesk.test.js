@@ -32,6 +32,24 @@ test("v0.51.4 P0：sw.js 离线壳清单里的每个文件都真实存在，且�
   }
 });
 
+test("v0.51.4 batch2a：app.js 已无 A 档 AI 残留", () => {
+  const app = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  // 头注释里“已删除”的历史说明除外，只拦代码形态的残留
+  for (const needle of [
+    'import("./js/pdf-parser.js")',
+    'import("./js/ai-extract.js")',
+    "lastAiResult",
+    "parserSheet",
+    "aiAnalyzeBtn",
+    "ensureParserModules",
+    "parseTargetId",
+    "resetParserState",
+    "getCurrentPdfFilename",
+  ]) {
+    assert.ok(!app.includes(needle), `app.js 里不应再有 ${needle}`);
+  }
+});
+
 test("v0.50.0+：搜索框禁用自动填充、顶栏解除宽度限制", () => {
   const search = document.getElementById("search");
   assert.equal(search.getAttribute("type"), "search");

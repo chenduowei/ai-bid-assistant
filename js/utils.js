@@ -143,22 +143,15 @@ export function getWinRate(projects) {
 }
 
 /** 结果筛选：空 / "all" 不过滤，否则按 result 精确匹配（只认两种终态）。 */
-export const RESULT_OPTIONS = ["已中标", "未中标"];
 export function matchResult(project, result) {
   if (!result || result === "all") return true;
   return (project?.result || "") === result;
 }
 
-export const getStatusClass = (status) =>
-  status === "已开标" ? "success" : status === "制作中" ? "warning" : "";
-
 export const TRASH_RETENTION_DAYS = 30;
 
 export const THEME_KEY = "bid-assistant-theme";
 export const LEGACY_STORAGE_KEY = "bid-assistant-projects";
-export const AI_KEY_STORAGE = "bid-assistant-ai-key";
-export const AI_BASE_STORAGE = "bid-assistant-ai-base";
-export const AI_MODEL_STORAGE = "bid-assistant-ai-model";
 export const REMINDER_DAYS_KEY = "bid-assistant-reminder-days";
 export const DEFAULT_REMINDER_DAYS = 7;
 export const MIN_REMINDER_DAYS = 1;
@@ -217,25 +210,6 @@ export function getTrashExpiryCutoff(now = new Date()) {
   d.setDate(d.getDate() - TRASH_RETENTION_DAYS);
   return d;
 }
-
-/**
- * 即将开标提醒
- * @param {object} project
- * @param {number} [maxDays] 提醒窗口天数，默认读 localStorage
- */
-export const getReminder = (project, maxDays = getReminderDays()) => {
-  if (project.status === "已开标") return null;
-  const days = getDaysUntilBid(project.date);
-  const windowDays = Number.isFinite(maxDays) ? maxDays : DEFAULT_REMINDER_DAYS;
-  if (days === null || days < 0 || days > windowDays) return null;
-  if (days === 0)
-    return { days, level: "urgent", label: "紧急：今日开标（剩余 0 天）" };
-  if (days === 1)
-    return { days, level: "red", label: "重要：明日开标（剩余 1 天）" };
-  if (days <= 3)
-    return { days, level: "orange", label: `提醒：${days} 天后开标` };
-  return { days, level: "yellow", label: `提醒：${days} 天后开标` };
-};
 
 /* ================= v0.3.0：废标检查清单 ================= */
 

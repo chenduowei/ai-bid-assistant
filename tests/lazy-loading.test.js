@@ -17,10 +17,10 @@ test("懒加载守卫：app.js 没有解析模块的静态 import（任何写法
   assert.ok(!appJs.includes('from "./js/ai-extract.js"'));
 });
 
-test("懒加载守卫：解析模块仍通过动态 import() 按需加载", () => {
-  assert.ok(appJs.includes('import("./js/pdf-parser.js")'));
-  assert.ok(appJs.includes('import("./js/ai-extract.js")'));
-  assert.ok(appJs.includes("ensureParserModules"));
+test("懒加载守卫：解析模块已删除，不再动态 import()、不再有 ensureParserModules", () => {
+  assert.ok(!appJs.includes('import("./js/pdf-parser.js")'));
+  assert.ok(!appJs.includes('import("./js/ai-extract.js")'));
+  assert.ok(!appJs.includes("ensureParserModules"));
 });
 
 test("懒加载守卫：首页没有 SheetJS 常驻脚本标签", () => {
