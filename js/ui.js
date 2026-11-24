@@ -36,6 +36,8 @@ const ICON = {
     '<rect x="5.3" y="4.5" width="13.4" height="16.1" rx="2.4"/><path d="M9.1 4.5a1.6 1.6 0 0 1 1.6-1.6h2.6a1.6 1.6 0 0 1 1.6 1.6"/><path d="m8.7 11.3 1.3 1.3 2.3-2.4M8.7 16.3l1.3 1.3 2.3-2.4"/>',
   search:
     '<circle cx="10.8" cy="10.8" r="6.1"/><path d="m15.5 15.5 3.9 3.9"/>',
+  close:
+    '<path d="M6 6l12 12M18 6 6 18"/>',
 };
 const svgIcon = (path, cls = "ico") =>
   `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg>`;

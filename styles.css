@@ -2687,6 +2687,11 @@ body.dark .kv-row {
   height: 36px;
   padding: 0 10px;
 }
+.drawer-close-btn svg,
+.sheet-head .btn svg {
+  width: 18px;
+  height: 18px;
+}
 .drawer-panel .upcoming-panel,
 .drawer-panel .form-panel {
   box-shadow: none;

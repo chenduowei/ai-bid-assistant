@@ -60,7 +60,7 @@ export function createDataIo({ elements, getState, ui, projectsApi, loadSheetJS 
       await projectsApi.restoreBackup(text, ({ overlap, fresh }) =>
         ui.confirmDialog({
           title: "恢复方式",
-          message: `备份里有 ${overlap} 条已在库中（另有 ${fresh} 条是新的）。「覆盖已有」用备份内容覆盖它们，「只补新增」只插新的 ${fresh} 条，「取消恢复」什么都不写。库里有、备份里没有的项目不会被删除。`,
+          message: `备份里有 ${overlap} 条已在库中（另有 ${fresh} 条是新的）。「覆盖已有」用备份内容覆盖它们，「只补新增」只插新的 ${fresh} 条，「取消恢复」什么都不写。库里有、备份里没有的项目不会被删除。备份里没有资质数据，恢复只动项目，不动资质库。`,
           confirmText: "覆盖已有",
           altText: `只补新增（${fresh} 条）`,
           cancelText: "取消恢复",

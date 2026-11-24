@@ -44,8 +44,8 @@
       </div>
       <form id="authForm" class="auth-form" novalidate>
         <div class="field"><label for="authEmail">邮箱</label><input id="authEmail" type="email" autocomplete="email" placeholder="name@example.com" required /></div>
-        <div class="field"><label for="authPassword">密码</label><div class="password-wrap"><input id="authPassword" type="password" autocomplete="current-password" minlength="6" placeholder="至少 6 位" required /><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" title="显示密码"><svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="m4 20 16-16"/></svg></button></div></div>
-        <div id="authConfirmField" class="field hidden"><label for="authConfirmPassword">确认密码</label><input id="authConfirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="再次输入密码" /></div>
+        <div class="field"><label for="authPassword">密码</label><div class="password-wrap"><input id="authPassword" type="password" autocomplete="current-password" minlength="8" placeholder="至少 8 位" required /><button id="togglePasswordBtn" class="password-toggle" type="button" aria-label="显示密码" title="显示密码"><svg class="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg><svg class="eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/><path d="m4 20 16-16"/></svg></button></div></div>
+        <div id="authConfirmField" class="field hidden"><label for="authConfirmPassword">确认密码</label><input id="authConfirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="再次输入密码" /></div>
         <button id="authSubmit" class="btn primary" type="submit">登录</button>
         <div id="authMessage" class="auth-message" role="alert"></div>
         <button id="authRetryBtn" class="btn secondary hidden" type="button">重试加载</button>
@@ -55,9 +55,9 @@
         </div>
       </form>
       <form id="resetPasswordPanel" class="auth-form hidden">
-        <p class="auth-hint">请设置新密码（至少 6 位）。</p>
-        <div class="field"><label for="newPassword">新密码</label><input id="newPassword" type="password" autocomplete="new-password" minlength="6" placeholder="至少 6 位" required /></div>
-        <div class="field"><label for="confirmPassword">确认新密码</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="6" placeholder="再次输入新密码" required /></div>
+        <p class="auth-hint">请设置新密码（至少 8 位）。</p>
+        <div class="field"><label for="newPassword">新密码</label><input id="newPassword" type="password" autocomplete="new-password" minlength="8" placeholder="至少 8 位" required /></div>
+        <div class="field"><label for="confirmPassword">确认新密码</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="8" placeholder="再次输入新密码" required /></div>
         <button id="updatePasswordBtn" class="btn primary" type="button">设置新密码</button>
         <button id="backToLoginBtn" class="btn secondary" type="button">返回登录</button>
         <div id="resetPasswordMessage" class="auth-message" role="alert"></div>
@@ -131,7 +131,7 @@
       <div class="drawer-panel">
         <div class="drawer-bar">
           <span class="drawer-bar-title">临期提醒</span>
-          <button id="upcomingCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭临期提醒">✕</button>
+          <button id="upcomingCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭临期提醒"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         </div>
         <section class="card upcoming-panel">
       <div class="panel-title">
@@ -154,7 +154,7 @@
       <div class="drawer-panel drawer-panel-wide">
         <div class="drawer-bar">
           <span class="drawer-bar-title">项目表单</span>
-          <button id="formCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭项目表单">✕</button>
+          <button id="formCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭项目表单"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         </div>
         <section class="card panel form-panel">
       <div class="panel-title form-title" data-action="toggle-form" role="button" tabindex="0" aria-expanded="false" title="点击展开 / 收起表单">
@@ -398,7 +398,7 @@
   </section>
   <!-- v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内一块面板，
        一点设置就把下面的项目列表整块推下去，很容易迷失位置；现在盖在页面上，
-       遮罩点击 / Esc / ✕ 都能关，焦点锁在层内，关后焦点回到菜单按钮。
+       遮罩点击 / Esc / 关闭按钮都能关，焦点锁在层内，关后焦点回到菜单按钮。
        主题切换与备份 / 恢复也搬到这里（菜单只留内容与视图动作）。 -->
   <div id="settingsSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="settingsSheetTitle">
     <div class="sheet-backdrop" data-action="close-settings"></div>
@@ -408,7 +408,7 @@
           <h2 id="settingsSheetTitle"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.4h8.4M17.6 8.4H20M4 15.6h4.4M13.6 15.6H20"/><circle cx="15" cy="8.4" r="2.2"/><circle cx="11" cy="15.6" r="2.2"/></svg>设置</h2>
           <p>提醒天数与通知设置仅存本机浏览器，不上传云端。</p>
         </div>
-        <button id="settingsSheetClose" class="btn secondary" type="button" aria-label="关闭设置">✕</button>
+        <button id="settingsSheetClose" class="btn secondary" type="button" aria-label="关闭设置"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
 
       <div class="settings-group">
@@ -440,7 +440,7 @@
         <div id="backupTip" class="backup-tip hidden" role="status">
           <span>距离上次备份已超过 30 天，建议导出一份备份。</span>
           <button id="backupNowBtn" class="btn primary backup-now-btn" type="button">立即备份</button>
-          <button id="backupTipClose" class="btn secondary" type="button" aria-label="关闭备份提示">×</button>
+          <button id="backupTipClose" class="btn secondary" type="button" aria-label="关闭备份提示"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
         </div>
         <div class="settings-row">
           <div class="settings-row-main">
@@ -452,14 +452,14 @@
         <div class="settings-row">
           <div class="settings-row-main">
             <div class="settings-row-label">导出备份</div>
-            <div class="settings-row-desc">把全部项目（含回收站）导成一个 JSON 文件存到本机。</div>
+            <div class="settings-row-desc">把全部项目（含回收站）导成一个 JSON 文件存到本机。仅含项目数据，不含我的资质、日历订阅与通知记录。</div>
           </div>
           <button id="backupBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.7 4.7h9.4l3.2 3.2v11.4a1.8 1.8 0 0 1-1.8 1.8H5.7a1.8 1.8 0 0 1-1.8-1.8V6.5a1.8 1.8 0 0 1 1.8-1.8Z"/><path d="M7.7 4.7v4.2h6V4.7"/><path d="M8.1 20v-4.6h7.8V20"/></svg>导出备份</button>
         </div>
         <div class="settings-row">
           <div class="settings-row-main">
             <div class="settings-row-label">从备份恢复</div>
-            <div class="settings-row-desc">备份与云端合并：已有的可选用备份覆盖，库里多出来的项目不会被删。</div>
+            <div class="settings-row-desc">备份与云端合并：已有的可选用备份覆盖，库里多出来的项目不会被删。恢复不碰我的资质。</div>
           </div>
           <button id="restoreBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.7 12a7.3 7.3 0 1 0 2.2-5.2"/><path d="M4.5 4.9v4.4h4.4"/></svg>从备份恢复</button>
           <input id="restoreFileInput" type="file" accept=".json,application/json" class="hidden" />
@@ -496,7 +496,7 @@
           <h2 id="trashSheetTitle">回收站</h2>
           <p>删除的项目保留 30 天，过期自动彻底删除。</p>
         </div>
-        <button id="trashSheetClose" class="btn secondary" type="button" aria-label="关闭回收站">✕</button>
+        <button id="trashSheetClose" class="btn secondary" type="button" aria-label="关闭回收站"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <!-- v0.23.0：清空回收站移到抽屉顶部（标题下方），不用滑到底才看到 -->
       <div class="trash-empty-row">
@@ -516,7 +516,7 @@
           <p>已开标且保证金已缴纳的项目，标记后从清单消失。<span id="guaranteeCount"></span></p>
           <p id="guaranteeTotals" class="guarantee-totals hidden"></p>
         </div>
-        <button id="guaranteeSheetClose" class="btn secondary" type="button" aria-label="关闭保证金清单">✕</button>
+        <button id="guaranteeSheetClose" class="btn secondary" type="button" aria-label="关闭保证金清单"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <div id="guaranteeList" class="guarantee-list"></div>
     </div>
@@ -531,7 +531,7 @@
           <h2 id="qualSheetTitle">我的资质</h2>
           <p>录入企业自有资质、人员与业绩，方便投标前快速核对资格条件。<span id="qualCount"></span></p>
         </div>
-        <button id="qualSheetClose" class="btn secondary" type="button" aria-label="关闭我的资质">✕</button>
+        <button id="qualSheetClose" class="btn secondary" type="button" aria-label="关闭我的资质"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <div class="qual-form">
         <div class="field">
@@ -574,7 +574,7 @@
           <h2 id="calendarSheetTitle"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.7" y="5.3" width="16.6" height="15" rx="3"/><path d="M3.7 10.3h16.6M8.2 3.3v3.6M15.8 3.3v3.6"/></svg>日历订阅</h2>
           <p>把开标日自动同步到手机系统日历，每个项目在开标前一天早上 9 点和当天早上 8 点各提醒一次。</p>
         </div>
-        <button id="calendarSheetClose" class="btn secondary" type="button" aria-label="关闭日历订阅">✕</button>
+        <button id="calendarSheetClose" class="btn secondary" type="button" aria-label="关闭日历订阅"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       </div>
       <div id="calendarEmpty" class="calendar-empty">
         <p>还没有订阅链接，生成后复制到日历 App 即可订阅。</p>

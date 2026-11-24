@@ -1104,7 +1104,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         // 隐私模式等写失败不影响备份本身
       }
       ui.showToast(
-        `备份已下载，共 ${allRows.length} 条（含回收站${includePdfText ? "与招标全文" : "，不含招标全文"}）。`
+        `备份已下载，共 ${allRows.length} 条（含回收站，不含招标全文）。仅含项目，不含我的资质。`
       );
       return true;
     } catch (err) {
