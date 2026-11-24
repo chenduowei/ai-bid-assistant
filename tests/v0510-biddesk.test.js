@@ -28,3 +28,9 @@ test("v0.51.1：登录海报、菜单与设置页已全面清除 AI / 废标清�
   assert.equal(document.getElementById("qualMenuBtn"), null);
   assert.equal(document.getElementById("backupIncludePdfText"), null);
 });
+
+test("v0.51.1：摘要复制具备 execCommand 兜底且必定弹出提示", () => {
+  const appCode = fs.readFileSync(new URL("../app.js", import.meta.url), "utf8");
+  assert.match(appCode, /button\.dataset\.action === "copy-summary"/);
+  assert.match(appCode, /execCommand\("copy"\)/);
+});
