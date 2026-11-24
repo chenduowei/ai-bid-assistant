@@ -16,6 +16,22 @@ test("v0.50.0+：已移除 AI 解析与废标清单冗余模块", () => {
   assert.doesNotMatch(ui, /renderChecklist\(p\)/);
 });
 
+test("v0.51.4 P0：sw.js 离线壳清单里的每个文件都真实存在，且安装不再原子失败", () => {
+  const sw = fs.readFileSync(new URL("../sw.js", import.meta.url), "utf8");
+  assert.doesNotMatch(sw, /pdf-parser\.js/);
+  assert.doesNotMatch(sw, /ai-extract\.js/);
+  assert.doesNotMatch(sw, /cache\.addAll\(/);
+  const shell = [...sw.matchAll(/"(\.\/[^\"]+)"/g)].map((m) => m[1]);
+  assert.ok(shell.length > 0);
+  for (const entry of shell) {
+    assert.equal(
+      fs.existsSync(new URL(`../${entry.slice(2)}`, import.meta.url)),
+      true,
+      `APP_SHELL 缺失文件：${entry}`
+    );
+  }
+});
+
 test("v0.50.0+：搜索框禁用自动填充、顶栏解除宽度限制", () => {
   const search = document.getElementById("search");
   assert.equal(search.getAttribute("type"), "search");

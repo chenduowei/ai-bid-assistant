@@ -18,8 +18,6 @@ const APP_SHELL = [
   "./js/data-io.js",
   // v0.35.0：四个抽屉的交互模块（app.js 直接 import，漏在壳外离线会断）
   "./js/drawers.js",
-  "./js/pdf-parser.js",
-  "./js/ai-extract.js",
   // v0.34.0：js/ics.js 之前漏在壳外（目前只被 api/calendar.js 引入，浏览器侧暂未 import，
   // 但补上后 APP_SHELL 与 js/ 目录一一对应；将来客户端直接 import 也不会离线断）。
   "./js/ics.js",
@@ -35,10 +33,25 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
+      .then((cache) =>
+        // P0 修复：不用 cache.addAll()——它原子失败，清单里一个文件 404
+        // 就整壳装不上；v0.50 已删的 js/pdf-parser.js / js/ai-extract.js
+        // 已从 APP_SHELL 移除。逐个缓存，单个失败只记日志、不阻塞安装。
+        Promise.allSettled(APP_SHELL.map((url) => cache.add(url))).then(
+          (results) => {
+            const failed = results
+              .map((r, i) => (r.status === "rejected" ? APP_SHELL[i] : null))
+              .filter(Boolean);
+            if (failed.length) {
+              console.warn("[sw] 离线壳部分文件缓存失败：", failed);
+            }
+          }
+        )
+      )
       .then(() => self.skipWaiting())
-      .catch(() => {
-        // 首次缓存失败不阻塞页面，联机时仍可正常使用
+      .catch((err) => {
+        // 打开缓存本身失败才到这里：记日志，不阻塞页面，联机仍可正常使用
+        console.warn("[sw] 打开离线缓存失败：", err);
       })
   );
 });
