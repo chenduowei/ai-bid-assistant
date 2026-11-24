@@ -2997,7 +2997,15 @@ body.dark .item-actions button {
   color: var(--text) !important;
   white-space: nowrap;
 }
-.brand-text-inline .brand-en,
+.brand-text-inline .brand-en {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  letter-spacing: -0.02em;
+  color: var(--text) !important;
+}
 .brand-text-inline .brand-sub,
 .brand-text-inline .app-version-badge {
   margin: 0 !important;
