@@ -2957,6 +2957,26 @@ body.dark .item-actions button {
   border-color: rgba(109, 40, 217, 0.22);
 }
 
+
+/* ---------- v0.51.0：投标工作台 · BidDesk 版本徽标紧跟 BidDesk · 状态条去灰框 ---------- */
+.app-version-badge {
+  display: inline-flex !important;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.status-quick-inline {
+  border: 0 !important;
+  background: transparent !important;
+  gap: 4px;
+  padding: 0 !important;
+}
+.status-quick-inline .status-chip:not(.active) {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
    max-width 块若留在它们之前，同优先级下就会被盖掉 —— v0.35.2 手机端四条优化失效就是这样来的。

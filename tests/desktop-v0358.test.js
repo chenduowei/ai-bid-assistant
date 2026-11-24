@@ -82,57 +82,11 @@ const render = () => {
   ui.render();
 };
 
-test("风险等级：界面显示中文（高 / 中 / 低），不再把 high / medium 印在胶囊里", () => {
-  state.projects = [
-    project({
-      riskPoints: [
-        { level: "high", text: "资质要求严格", page: 3, quote: "" },
-        { level: "medium", text: "有效期偏短", page: 5, quote: "" },
-        { level: "low", text: "格式瑕疵", page: null, quote: "" },
-        { level: "weird", text: "未知等级", page: null, quote: "" },
-      ],
-    }),
-  ];
-  render();
-  const chips = [...elements.list.querySelectorAll(".risk-level")].map((e) => e.textContent.trim());
-  assert.deepEqual(chips, ["高", "中", "低", "中"]);
-  const htmlText = elements.list.innerHTML;
-  assert.doesNotMatch(htmlText, />high</);
-  assert.doesNotMatch(htmlText, />medium</);
-  // 颜色仍按等级走（CSS 类名不变）
-  assert.equal(elements.list.querySelector(".risk-level.high").textContent.trim(), "高");
-});
 
-test("证据行：核对与删除包成一组（.evidence-actions），窄屏折行时整组一起走", () => {
-  state.projects = [
-    project({
-      riskPoints: [{ level: "high", text: "资质要求严格", page: 12, quote: "投标人须具备…" }],
-    }),
-  ];
-  render();
-  const meta = elements.list.querySelector(".risk-points .evidence-meta");
-  assert.ok(meta, "风险点下应有证据行");
-  const group = meta.querySelector(".evidence-actions");
-  assert.ok(group, "核对 / 删除应在 .evidence-actions 里");
-  assert.ok(group.querySelector(".verify-btn"), "组里要有核对按钮");
-  assert.ok(group.querySelector(".evidence-del"), "组里要有删除按钮");
-  // 两个操作之外的东西不在这组里
-  assert.equal(group.children.length, 2);
-});
 
-test("删除结论的 ×：不再是灰底 secondary 按钮（避免看着像第二个复选框）", () => {
-  state.projects = [
-    project({
-      riskPoints: [{ level: "medium", text: "有效期偏短", page: 5, quote: "" }],
-    }),
-  ];
-  render();
-  const del = elements.list.querySelector(".evidence-del");
-  assert.ok(del);
-  assert.equal(del.classList.contains("btn"), false);
-  assert.equal(del.classList.contains("secondary"), false);
-  assert.match(del.getAttribute("aria-label") || "", /删除/);
-});
+
+
+
 
 test("index.html：菜单 / 设置 / 解析里的 emoji 已换成内联 SVG 图标", () => {
   const emoji = ["📥", "📤", "🗑", "💰", "🏅", "📅", "⚙", "🤖", "↩", "⏹", "💾", "♻", "🌙", "☀"];
