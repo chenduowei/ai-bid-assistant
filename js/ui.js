@@ -509,25 +509,17 @@ export function createUi(elements, getState) {
             `<button type="button" class="status-chip${s === p.status ? " active" : ""}" data-action="set-status" data-id="${escapeHtml(p.id)}" data-status="${s}" aria-pressed="${s === p.status ? "true" : "false"}" title="改为${s}">${s}</button>`
         ).join("") +
         `</span>`;
+      const resultVal = p.result
+        ? `<span class="badge ${p.result === "已中标" ? "success" : "danger"}">${escapeHtml(p.result)}</span>`
+        : "待定";
       return (
         `<div class="kv-list">` +
-        // v0.35.4：这一行挂 kv-row-status —— 手机竖屏下标签与控件各占一整行，
-        // 控件本身三等分 grid，保证三个状态胶囊在 360/375/390 都是单行（之前被挤成 2+1）。
-        kv("项目状态", statusQuick, "kv-row-status") +
-        kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置开标时间", "kv-row-time") +
-        (p.result
-          ? kv(
-              "中标结果",
-              `<span class="badge ${p.result === "已中标" ? "success" : "danger"}">${escapeHtml(p.result)}</span>`
-            )
-          : "") +
-        // v0.35.6：项目类型 / 项目名称 与卡头完全重复，手机端由 CSS 隐去（.kv-row-type / .kv-row-name）；
-        // 备注是长文本，右对齐会折成参差的几行，手机端改成「标签在上、正文左对齐」的块状行。
-        kv("项目类型", escapeHtml(p.type), "kv-row-type") +
-        kv("项目名称", escapeHtml(p.name), "kv-row-name") +
-        kv("投标公司", escapeHtml(p.biddingCompany || "-")) +
-        kv("联系人", escapeHtml(p.contact || "-")) +
-        // v0.23.0：备注改回定义列表行，与项目名称 / 联系人同一格式（之前是小灰字 kv-note）。
+        kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置", "kv-row-time") +
+        kv("项目类型", escapeHtml(p.type || "-"), "kv-row-type") +
+        kv("投标公司", escapeHtml(p.biddingCompany || "-"), "kv-row-company") +
+        kv("项目名称", escapeHtml(p.name), "kv-row-name kv-row-full") +
+        kv("联系人", escapeHtml(p.contact || "-"), "kv-row-contact") +
+        kv("中标结果", resultVal, "kv-row-result") +
         kv("备注", escapeHtml(p.notes || "—"), "kv-row-note") +
         `</div>` +
         (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
@@ -564,7 +556,7 @@ export function createUi(elements, getState) {
     const checkHtml = selectMode
       ? `<button class="select-check" type="button" role="checkbox" aria-checked="${checked ? "true" : "false"}" aria-label="选择项目" data-action="toggle-select" data-id="${escapeHtml(p.id)}"><svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"><path d="M2.5 6.8 5.3 9.5 10.5 3.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
       : "";
-    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" data-status="${escapeHtml(p.status || "")}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${subLine}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
+    return `<div class="project-item${expanded ? " expanded" : ""}" data-id="${escapeHtml(p.id)}" data-status="${escapeHtml(p.status || "")}" style="animation-delay:${Math.min(i * 12, 96)}ms"><div class="project-head" data-action="toggle-details" data-id="${escapeHtml(p.id)}" title="点击展开 / 收起详情">${checkHtml}<span class="status-dot ${statusDotClass(p.status)}" title="${escapeHtml(p.status)}"></span><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">${subLine}</div></div><div class="project-head-right"><div class="project-head-top"><span class="countdown cd-pill ${cd.cls}" data-date="${escapeHtml(p.date)}" data-status="${escapeHtml(p.status)}" data-bid-time="${escapeHtml(p.bidTime || "")}" title="${escapeHtml(cd.title || "")}">${escapeHtml(cd.text)}</span><button class="project-chevron-btn" type="button" data-action="toggle-details" data-id="${escapeHtml(p.id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "收起详情" : "展开详情"}"><span class="project-chevron" aria-hidden="true">›</span></button></div><div class="project-head-actions"><span class="status-quick status-quick-inline" role="group" aria-label="修改项目状态">${["报名中", "制作中", "已开标"].map((s) => `<button type="button" class="status-chip${s === p.status ? " active" : ""}" data-action="set-status" data-id="${escapeHtml(p.id)}" data-status="${s}" aria-pressed="${s === p.status ? "true" : "false"}">${s}</button>`).join("")}</span><button class="row-btn act-parse" type="button" data-action="parse" data-id="${escapeHtml(p.id)}">解析</button><button class="row-btn act-edit" type="button" data-action="edit" data-id="${escapeHtml(p.id)}">编辑</button><button class="row-btn act-clone" type="button" data-action="clone" data-id="${escapeHtml(p.id)}">复制</button><button class="row-btn act-del" type="button" data-action="delete" data-id="${escapeHtml(p.id)}">删除</button></div></div></div><div class="project-details collapse${expanded ? " expanded" : ""}"><div class="collapse-inner"${expanded ? "" : " inert"}>${detailsHtml}</div></div></div>`;
   };
 
   /** v0.6.0：列表到底趣味文案（按数量轮换） */
@@ -635,11 +627,13 @@ export function createUi(elements, getState) {
   // 「报名截止」那几行的日期正好被它压住（实测 390×844 盖住 44×44）。
   // 展开 / 收起走的是 toggleProjectDetails（只改 DOM，不全量重渲染），所以两边都要调它。
   const syncDetailOpenState = () => {
-    if (!document.body) return;
-    document.body.classList.toggle(
-      "detail-open",
-      Boolean(getState().expandedIds?.size)
-    );
+    const hasOpen = Boolean(getState().expandedIds?.size);
+    if (document.body) {
+      document.body.classList.toggle("detail-open", hasOpen);
+    }
+    if (elements.collapseAllBtn) {
+      elements.collapseAllBtn.disabled = !hasOpen;
+    }
   };
 
   // v0.32.0：没有展开的卡片时“全部折叠”不可点。
