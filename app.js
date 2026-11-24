@@ -1238,8 +1238,8 @@ import { createDrawers } from "./js/drawers.js";
         elements.authPassword.focus();
         return;
       }
-      if (password.length < 6) {
-        setAuthMessage("密码至少 6 位。");
+      if (state.authMode === "signup" && password.length < 8) {
+        setAuthMessage("密码至少 8 位。");
         elements.authPassword.focus();
         return;
       }
@@ -1400,8 +1400,8 @@ import { createDrawers } from "./js/drawers.js";
     elements.updatePasswordBtn?.addEventListener("click", async () => {
       const next = elements.newPassword?.value || "";
       const again = elements.confirmPassword?.value || "";
-      if (next.length < 6) {
-        ui.showToast("新密码至少 6 位。");
+      if (next.length < 8) {
+        ui.showToast("新密码至少 8 位。");
         return;
       }
       if (next !== again) {
@@ -1567,7 +1567,7 @@ import { createDrawers } from "./js/drawers.js";
     elements.formOpenParserBtn?.addEventListener("click", (event) =>
       showParser(state.editingId || null, event.currentTarget)
     );
-    // v0.20.0：✕ 只做关抽屉，不再绕回工作台（少走 showDashboard 的滚动与
+    // v0.20.0：关闭按钮只做关抽屉，不再绕回工作台（少走 showDashboard 的滚动与
     // 视图切换）；按钮本身也带 data-action="close-parser"，抽屉的委托监听
     // 同样能接住，双保险。遮罩（抽屉外暗色空白）点一下也是关抽屉。
     elements.closeParserBtn?.addEventListener("click", closeParserSheet);
@@ -1781,7 +1781,7 @@ import { createDrawers } from "./js/drawers.js";
     });
 
     // v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内面板，一点就把
-    // 项目列表整块推下去；现在盖在页面上，遮罩点击 / Esc / ✕ 关闭，焦点锁在层内，关后回到菜单按钮。
+    // 项目列表整块推下去；现在盖在页面上，遮罩点击 / Esc / 关闭按钮关闭，焦点锁在层内，关后回到菜单按钮。
     // 表单回填仍在打开时做（与旧行为一致，避免把 API Key 常驻在 DOM 里）。
     let settingsSheetOpen = false;
     let settingsOpener = null;
@@ -1924,14 +1924,14 @@ import { createDrawers } from "./js/drawers.js";
         // v0.32.0：打字确认 —— 必须输入「确认重置」才能继续，输错 / 取消都不执行。
         const typed = await ui.confirmDialog({
           title: "确认重置账户",
-          message: "重置将先自动下载一份完整备份，再删除全部项目与通知记录，且无法撤销。",
+          message: "重置将先自动下载一份项目备份（不含资质库；资质库不受重置影响），再删除全部项目与通知记录，且无法撤销。",
           confirmText: "确认重置并清空",
           cancelText: "取消",
           danger: true,
           requireTyping: "确认重置",
         });
         if (!typed) return;
-        // v0.28.0：重置前先自动下载一份完整备份；备份失败则不执行重置。
+        // v0.28.0：重置前先自动下载一份项目备份；备份失败则不执行重置。
         const backedUp = await projectsApi.exportBackup();
         if (!backedUp) {
           ui.showToast("备份失败，未执行重置，请检查网络后重试。");
