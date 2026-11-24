@@ -9,7 +9,7 @@ create table if not exists public.projects (
   user_id uuid not null references auth.users(id) on delete cascade,
   name text not null check (char_length(trim(name)) > 0),
   project_type text not null check (char_length(trim(project_type)) > 0),
-  bidding_company text not null default '' check (char_length(trim(bidding_company)) > 0),
+  bidding_company text not null default '未填写' check (char_length(trim(bidding_company)) > 0),
   tenderer text,
   amount text,
   contact text not null check (char_length(trim(contact)) > 0),
@@ -380,3 +380,21 @@ as $$
   order by p.bid_date asc;
 $$;
 grant execute on function public.get_calendar_projects(text) to anon, authenticated;
+
+-- 12) 第 2 批数据库收尾：投标公司缺省值 + 提醒日志外键（不含日历令牌，那是第 3 批）
+-- 幂等、可重复执行；执行前先备份；顺序 D → E（先回填缺省值，再补外键）。
+-- D：投标公司缺省值 '未填写' —— 建表段 default '' 与 NOT NULL + trim() > 0 的 CHECK 冲突，
+--    第 5 节的两行修复语句被注释掉从未执行；此处先回填存量空白值，再改列默认值，CHECK 保留。
+--    建表段默认值同步修正：default '' 改为 default '未填写'（见文件顶部 CREATE TABLE）。
+update public.projects set bidding_company = '未填写' where bidding_company is null or trim(bidding_company) = '';
+alter table public.projects alter column bidding_company set default '未填写';
+-- 完成第 5 节原意：回填后已无空值，补上 NOT NULL（建表段本就声明 not null，老库因 if not exists 保留了旧的可空定义）。
+alter table public.projects alter column bidding_company set not null;
+
+-- E：提醒日志外键 —— notification_log.project_id 此前无外键、无 ON DELETE CASCADE；
+--    先删孤儿行，再加外键；do $$ 包裹，幂等可重跑。
+delete from public.notification_log nl where not exists (select 1 from public.projects p where p.id = nl.project_id);
+do $$ begin
+  alter table public.notification_log add constraint notification_log_project_id_fkey
+    foreign key (project_id) references public.projects(id) on delete cascade;
+exception when duplicate_object then null; end $$;

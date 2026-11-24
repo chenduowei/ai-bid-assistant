@@ -8,6 +8,7 @@
 import { THEME_KEY, formatBidMoment, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
+import { requiredFormFields } from "./js/fields.js";
 import { createAuth } from "./js/auth.js";
 import { createDataIo } from "./js/data-io.js";
 import { createDrawers } from "./js/drawers.js";
@@ -666,13 +667,8 @@ import { createDrawers } from "./js/drawers.js";
 
   // v0.35.0：必填校验从“一句总话”改成“指出是哪几项”——给第一个缺失字段加红边 + 下方一行小字，
   // 并把焦点 / 滚动送过去；toast 只说还差几项。与 projectsApi.validate 共用同一张字段表。
-  const REQUIRED_FORM_FIELDS = [
-    { db: "bid_date", key: "date", label: "开标日期" },
-    { db: "project_type", key: "type", label: "项目类型" },
-    { db: "name", key: "name", label: "项目名称" },
-    { db: "bidding_company", key: "biddingCompany", label: "投标公司" },
-    { db: "contact", key: "contact", label: "联系人" },
-  ];
+  // 必填字段派生自字段注册表（required 字段；与 projectsApi.validate 共用同一张字段表）。
+  const REQUIRED_FORM_FIELDS = requiredFormFields();
   const clearFieldErrors = () => {
     REQUIRED_FORM_FIELDS.forEach(({ key }) => {
       const input = elements.form[key];

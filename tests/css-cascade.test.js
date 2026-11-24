@@ -6,12 +6,14 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readCssBundle } from "./css-bundle.mjs";
 import { analyzeCss, findCascadeOverrides, parseCssRules } from "../scripts/check-css.mjs";
 
-const realCss = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+// v0.51.4 batch2b：锚点从单文件 styles.css 改为按加载顺序拼接的 bundle（见 tests/css-bundle.mjs）；
+// 当前只有一个 CSS 文件，拼接结果与原来逐字节一致。
+const realCss = readCssBundle();
 
-test("styles.css 本身通过全部 CSS 校验（含跨断点顺序覆盖为 0）", () => {
+test("CSS bundle 本身通过全部 CSS 校验（含跨断点顺序覆盖为 0）", () => {
   const { bracesOk, spread, bad, overrides } = analyzeCss(realCss);
   assert.equal(bracesOk, true);
   assert.deepEqual(spread, []);

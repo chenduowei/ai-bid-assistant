@@ -13,6 +13,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
+import {
+  getCountdownInfo,
+  resolveRestoreDecision,
+  splitRestoreRows,
+  upsertById,
+} from "../js/utils.js";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const { window, document } = parseHTML(html);
@@ -377,4 +383,104 @@ test("中标率：只在「已开标」且有结果时显示，并标在工具�
   state.projects = [project({ status: "已开标", result: "" })];
   render({ status: "已开标" });
   assert.ok(elements.winRate.classList.contains("hidden"));
+});
+
+/* ============ v0.51.4 batch2b：交互流程测试（沿用本文件的替身模式） ============
+ * 从“纯函数 / 静态断言”升级到“走真实 ui.js 的端到端流程”，仍只加载 index.html
+ * 骨架 + js/ui.js，不跑 app.js、不碰网络与 Supabase：
+ *   1) 保存项目 → 列表出现 → 倒计时正确（v0.51.1 起列表卡片不再挂倒计时胶囊，
+ *      倒计时只在日历当日行里以 .cd-pill 出现，故倒计时断言落在日历行）；
+ *   2) 恢复取消 → 零写入（真实 confirmDialog 点取消 → resolveRestoreDecision → abort，
+ *      写入口的 spy 一次也不触发；纯映射本身已由 ui-state.test.js 覆盖，这里补的是
+ *      “对话框返回值 → 决策 → 写门”这一整条链）；
+ *   3) 恢复“只补新增”→ 只写新增行（insert-only 分支与 js/projects.js restoreBackup 同口径）。
+ */
+test("流程：保存项目后列表出现，日历当日行的倒计时与开标日一致", () => {
+  const RealDate = Date;
+  const fixed = new RealDate("2026-11-19T08:00:00");
+  globalThis.Date = class extends RealDate {
+    constructor(...args) {
+      super(...(args.length ? args : [fixed]));
+    }
+    static now() {
+      return fixed.getTime();
+    }
+  };
+  const prevProjects = state.projects;
+  const prevSelected = state.calSelected;
+  try {
+    state.projects = [];
+    state.calSelected = "2026-11-25";
+    // 保存：与 app.js 提交成功后同一口径——按 id 并入 state.projects 再渲染
+    const saved = project({ id: "p9", date: "2026-11-25", name: "新建测试项目" });
+    state.projects = upsertById(state.projects, saved);
+    elements.calendarView.classList.remove("hidden");
+    render();
+    // 列表出现
+    assert.match(elements.list.innerHTML, /新建测试项目/);
+    assert.equal(elements.list.querySelectorAll(".project-item").length, 1);
+    assert.match(elements.filterResultCount.textContent, /共 1 个项目/);
+    // 倒计时正确：2026-11-19 看 2026-11-25，无时刻 → 还有 6 天（与纯函数口径一致）
+    const expected = getCountdownInfo(saved, fixed);
+    assert.equal(expected.text, "还有6天");
+    const row = elements.calendarDayList.querySelector('[data-cal-project-id="p9"]');
+    assert.ok(row, "日历当日行应有刚保存的项目");
+    const pill = row.querySelector(".cd-pill");
+    assert.equal(pill.textContent, expected.text);
+    assert.ok(pill.classList.contains(expected.cls), `倒计时胶囊应带 ${expected.cls}`);
+  } finally {
+    globalThis.Date = RealDate;
+    state.projects = prevProjects;
+    state.calSelected = prevSelected;
+    elements.calendarView.classList.add("hidden");
+  }
+});
+
+test("流程：恢复时点“取消恢复”→ 一条都不写", async () => {
+  const writes = [];
+  const writeRows = (rows) => writes.push(...rows); // 写入口替身：代表库写入
+  const backupRows = [
+    { id: "old", name: "已有项目" },
+    { id: "new", name: "新增项目" },
+  ];
+  const choice = ui.confirmDialog({
+    title: "恢复方式",
+    message: "备份里有 1 条已存在、1 条新增。",
+    confirmText: "覆盖已有",
+    altText: "只补新增",
+    cancelText: "取消恢复",
+  });
+  elements.confirmDialogCancel.onclick();
+  const mode = resolveRestoreDecision(await choice);
+  assert.equal(mode, "abort");
+  // 与 js/projects.js restoreBackup 同口径：abort 直接 return，写入口不触发
+  if (mode === "overwrite") writeRows(backupRows);
+  else if (mode === "insert-only") writeRows(backupRows.filter((r) => r.id === "new"));
+  assert.deepEqual(writes, []);
+  assert.ok(elements.confirmDialog.classList.contains("hidden"), "点取消后确认框应关闭");
+});
+
+test("流程：恢复时选“只补新增”→ 只写新增行，已有行不动", async () => {
+  const backupRows = [
+    { id: "old", name: "已有项目" },
+    { id: "new", name: "新增项目" },
+  ];
+  const { insert, update } = splitRestoreRows(backupRows, new Set(["old"]));
+  assert.deepEqual(insert.map((r) => r.id), ["new"]);
+  assert.deepEqual(update.map((r) => r.id), ["old"]);
+  const choice = ui.confirmDialog({
+    title: "恢复方式",
+    message: "备份里有 1 条已存在、1 条新增。",
+    confirmText: "覆盖已有",
+    altText: "只补新增",
+    cancelText: "取消恢复",
+  });
+  elements.confirmDialogAlt.onclick();
+  const mode = resolveRestoreDecision(await choice);
+  assert.equal(mode, "insert-only");
+  // 与 js/projects.js restoreBackup 的 insert-only 分支同口径：只插新增行
+  const writes = [];
+  if (mode === "overwrite") writes.push(...backupRows);
+  else if (mode === "insert-only") writes.push(...insert);
+  assert.deepEqual(writes.map((r) => r.id), ["new"]);
 });

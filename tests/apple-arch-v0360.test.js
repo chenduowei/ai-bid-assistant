@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { parseHTML } from "linkedom";
+import { readCssBundle } from "./css-bundle.mjs";
 
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const css = readCssBundle();
 const { document } = parseHTML(html);
 
 test("v0.36.0：统计区收敛为 4 张核心概览卡", () => {

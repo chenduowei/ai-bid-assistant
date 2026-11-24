@@ -10,9 +10,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
+import { readCssBundle } from "./css-bundle.mjs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const css = readCssBundle();
 const { window, document } = parseHTML(html);
 
 globalThis.window = window;

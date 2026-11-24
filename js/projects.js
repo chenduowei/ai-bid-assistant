@@ -17,57 +17,32 @@ import {
   upsertById,
   removeByIds,
 } from "./utils.js";
+import {
+  PROJECT_FIELDS,
+  baseListDbColumns,
+  extraListDbColumns,
+  requiredDbFields,
+  localPatchKeys,
+  patchFieldMap,
+  exportCsvColumns,
+  toUiProject,
+  toDbProject,
+  uiToDbInsert,
+} from "./fields.js";
 
 /** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
 const MISSING_COLUMN_PATTERN =
   /checklist|amount_value|amount_unit|guarantee_amount|guarantee_unit|guarantee_status|registration_deadline|inquiry_deadline|clarification_deadline|guarantee_deadline|pdf_text|pdf_filename|pdf_parsed_at/;
-
-const toNumberOrNull = (v) => {
-  if (v === null || v === undefined || v === "") return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
 
 export function createProjectsApi({ getClient, getState, setState, ui }) {
   // v0.4.0：列表查询显式列清单，排除 pdf_text（全文按需拉，见 loadProjectPdfText）。
   // 列表仍保留 pdf_filename + pdf_parsed_at，用于显示“已保存招标文件”。
   // v0.35.0：bid_time / result 是新增列 —— 先探测一次，旧库没迁移时自动退回旧列清单，
   // 不会因 select 不存在的列让整个列表打不开。
-  const BASE_LIST_COLUMNS = [
-    "id",
-    "user_id",
-    "bid_date",
-    "project_type",
-    "name",
-    "bidding_company",
-    "tenderer",
-    "amount",
-    "guarantee",
-    "contact",
-    "status",
-    "notes",
-    "risk_summary",
-    "risk_points",
-    "qualification",
-    "invalid_bid_clauses",
-    "extracted_meta",
-    "deleted_at",
-    "checklist",
-    "amount_value",
-    "amount_unit",
-    "guarantee_amount",
-    "guarantee_unit",
-    "guarantee_status",
-    "registration_deadline",
-    "inquiry_deadline",
-    "clarification_deadline",
-    "guarantee_deadline",
-    "pdf_filename",
-    "pdf_parsed_at",
-    "created_at",
-    "updated_at",
-  ];
-  const EXTRA_LIST_COLUMNS = ["bid_time", "result"];
+  // 列表查询列清单派生自字段注册表（js/fields.js）：BASE = 全部 listVisible
+  // 且非 extra 的列；EXTRA = 需探测的新列。pdf_text 不进列表（全文按需拉）。
+  const BASE_LIST_COLUMNS = baseListDbColumns();
+  const EXTRA_LIST_COLUMNS = extraListDbColumns();
   let extraColumns = null; // null = 还没探测；true/false = 旧库有没有新列
   const listColumns = () =>
     [...BASE_LIST_COLUMNS, ...(extraColumns ? EXTRA_LIST_COLUMNS : [])].join(",");
@@ -92,55 +67,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return out;
   };
 
-  const toUiProject = (row) => ({
-    id: row.id,
-    date: row.bid_date,
-    type: row.project_type,
-    name: row.name,
-    biddingCompany: row.bidding_company || "",
-    tenderer: row.tenderer || "",
-    amount: row.amount || "",
-    guarantee: row.guarantee,
-    contact: row.contact,
-    status: row.status,
-    notes: row.notes || "",
-    riskSummary: row.risk_summary || "",
-    riskPoints: row.risk_points || null,
-    qualification: row.qualification || null,
-    invalidBidClauses: row.invalid_bid_clauses || null,
-    extractedMeta: row.extracted_meta || null,
-    deletedAt: row.deleted_at || null,
-    // v0.3.0：废标检查清单
-    checklist: normalizeChecklist(row.checklist),
-    // v0.3.0：结构化金额 / 保证金（旧 amount / guarantee 文本列保留作兼容）
-    amountValue: toNumberOrNull(row.amount_value),
-    amountUnit: ["元", "万元"].includes(row.amount_unit)
-      ? row.amount_unit
-      : "万元",
-    guaranteeAmount: toNumberOrNull(row.guarantee_amount),
-    guaranteeUnit: ["元", "万元"].includes(row.guarantee_unit)
-      ? row.guarantee_unit
-      : "万元",
-    guaranteeStatus: ["未缴纳", "已缴纳", "已退回", "已没收"].includes(
-      row.guarantee_status
-    )
-      ? row.guarantee_status
-      : "未缴纳",
-    // v0.3.0：多截止时间
-    registrationDeadline: row.registration_deadline || null,
-    inquiryDeadline: row.inquiry_deadline || null,
-    clarificationDeadline: row.clarification_deadline || null,
-    guaranteeDeadline: row.guarantee_deadline || null,
-    // v0.35.0：精确开标时刻（HH:MM，选填）与中标结果（空 / 已中标 / 未中标）
-    bidTime: String(row.bid_time || "").slice(0, 5),
-    result: ["已中标", "未中标"].includes(row.result) ? row.result : "",
-    // v0.3.0：PDF 文本持久化
-    pdfText: row.pdf_text || "",
-    // v0.18.1：入库前已污染的文件名（末尾连拼"（N 字）"）在这里洗掉，
-    // 列表、查看、导出、保存回退拿到的都是干净名；下次保存即写回干净值。
-    pdfFilename: stripPdfFilenameSuffix(row.pdf_filename || ""),
-    pdfParsedAt: row.pdf_parsed_at || null,
-  });
+  // DB 行 → UI 对象派生自字段注册表（js/fields.js 的 toUiProject，按表逐字段调用）：
+  // 枚举回退（金额单位 / 保证金状态 / 中标结果）、金额转数值、清单规整、
+  // 开标时刻截断、文件名清洗等手写回退都在注册表各字段的 toUi 里原样保留。
+  // （本文件内直接用顶层 import 的 toUiProject；返回对象里也照常导出它。）
 
   // 分页拉取一页。useDeletedFilter=false 时不加 deleted_at 条件，
   // 用于还没执行 v0.2.7 增量迁移（无 deleted_at 列）的旧库兜底。
@@ -361,20 +291,40 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     }
     const validStatuses = new Set(["报名中", "制作中", "已开标"]);
     const invalid = [];
+    // 旧版本地数据（UI 形态）→ DB 载荷：字段映射派生自注册表；
+    // 只保留旧版特有的文本整形：bid_date 不 trim、部分列空文本转 null、
+    // biddingCompany 兼容旧 company 键、status 非法值回退“报名中”。
+    const LEGACY_MIGRATED_COLUMNS = new Set([
+      "bid_date", "project_type", "name", "bidding_company", "tenderer",
+      "amount", "guarantee", "contact", "status", "notes",
+    ]);
+    const LEGACY_TRIM_OR_NULL = new Set([
+      "tenderer", "amount", "guarantee", "notes",
+    ]);
     const payload = legacy.flatMap((p, index) => {
-      const project = {
-        user_id: state.user.id,
-        bid_date: String(p.date || ""),
-        project_type: String(p.type || "").trim(),
-        name: String(p.name || "").trim(),
-        bidding_company: String(p.biddingCompany || p.company || "").trim() || null,
-        tenderer: String(p.tenderer || "").trim() || null,
-        amount: String(p.amount || "").trim() || null,
-        guarantee: String(p.guarantee ?? "").trim() || null,
-        contact: String(p.contact || "").trim(),
-        status: validStatuses.has(p.status) ? p.status : "报名中",
-        notes: String(p.notes || "").trim() || null,
-      };
+      const project = { user_id: state.user.id };
+      for (const field of PROJECT_FIELDS) {
+        if (!LEGACY_MIGRATED_COLUMNS.has(field.db)) continue;
+        if (field.db === "status") {
+          project.status = validStatuses.has(p.status) ? p.status : "报名中";
+          continue;
+        }
+        const raw =
+          field.db === "bidding_company"
+            ? p.biddingCompany || p.company
+            : p[field.key];
+        if (field.db === "bid_date") {
+          project[field.db] = String(raw || "");
+        } else if (field.db === "bidding_company") {
+          // 第 12 节 D：旧版本地数据的投标公司缺失时归一化为 '未填写'（数据库 CHECK 要求 trim() > 0）。
+          project[field.db] = String(raw ?? "").trim() || "未填写";
+        } else {
+          const text = String(raw ?? "").trim();
+          project[field.db] = LEGACY_TRIM_OR_NULL.has(field.db)
+            ? text || null
+            : text;
+        }
+      }
       if (
         !project.bid_date ||
         !project.project_type ||
@@ -439,13 +389,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
 
   // v0.4.0：保证金 / 金额均选填。必填：开标日期、项目类型、项目名称、投标公司、联系人。
   // v0.35.0：从“一句总话”改成结构化结果 —— 调用方能指出是哪几项没填、把光标送过去。
-  const REQUIRED_FIELDS = [
-    { field: "bid_date", label: "开标日期" },
-    { field: "project_type", label: "项目类型" },
-    { field: "name", label: "项目名称" },
-    { field: "bidding_company", label: "投标公司" },
-    { field: "contact", label: "联系人" },
-  ];
+  // 必填字段派生自字段注册表（required 字段，按注册表顺序）。
+  const REQUIRED_FIELDS = requiredDbFields();
   function validate(project) {
     const missingRows = REQUIRED_FIELDS.filter(
       ({ field }) => !String(project?.[field] ?? "").trim()
@@ -472,15 +417,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(`还有 ${check.missing.length} 项必填：${check.missing.join("、")}`);
       return false;
     }
-    // 保证金原文为空时存 null（v0.4.0 起 guarantee 列可为空，见 supabase.sql 第 8 节）
+    // 载荷按注册表逐字段规整（toDbProject）：保证金原文为空时存 null
+    //（v0.4.0 起 guarantee 列可为空，见 supabase.sql 第 8 节），其余字段同理。
     await ensureExtraColumns();
-    const payload = stripUnavailableColumns({
-      ...project,
-      guarantee:
-        typeof project.guarantee === "string" && project.guarantee.trim()
-          ? project.guarantee
-          : null,
-    });
+    const payload = stripUnavailableColumns(toDbProject(project));
     ui.setSyncStatus("正在保存…");
     const wasEditing = Boolean(editingId);
     // v0.16.0：保存成功返回项目 id（新建时取刚插入行的 id），供调用方定位到该卡片；
@@ -544,15 +484,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     writeQueue.run(id, () => runUpdateProjectFields(id, patch));
 
   // 补丁字段 → 本地 UI 字段（乐观写入 / 失败回滚用）；pdfText 不进列表 state，故意不列。
-  const LOCAL_PATCH_FIELDS = [
-    "checklist", "riskPoints", "qualification", "invalidBidClauses",
-    "riskSummary", "amountValue", "amountUnit", "guaranteeAmount",
-    "guaranteeUnit", "guaranteeStatus", "registrationDeadline",
-    "inquiryDeadline", "clarificationDeadline", "guaranteeDeadline",
-    "pdfFilename", "pdfParsedAt", "bidTime", "result",
-    "status", "notes", "name", "type", "date", "biddingCompany",
-    "tenderer", "amount", "guarantee", "contact",
-  ];
+  // 本地乐观字段派生自字段注册表（localPatch 标记）。
+  const LOCAL_PATCH_FIELDS = localPatchKeys();
   const applyPatchToLocal = (project, patchObj) => {
     const next = { ...project };
     let touched = false;
@@ -578,31 +511,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     if (!current) return false;
     const patchObj = typeof patch === "function" ? patch(current) : patch;
     const dbPatch = {};
-    const fieldMap = {
-      checklist: "checklist",
-      // v0.15.0：AI 结论证据项（核对态走此通道整列回写，无需改表）
-      riskPoints: "risk_points",
-      qualification: "qualification",
-      invalidBidClauses: "invalid_bid_clauses",
-      // v0.17.0：一键清空风险与条款时，风险摘要也走此通道回写 null
-      riskSummary: "risk_summary",
-      amountValue: "amount_value",
-      amountUnit: "amount_unit",
-      guaranteeAmount: "guarantee_amount",
-      guaranteeUnit: "guarantee_unit",
-      guaranteeStatus: "guarantee_status",
-      registrationDeadline: "registration_deadline",
-      inquiryDeadline: "inquiry_deadline",
-      clarificationDeadline: "clarification_deadline",
-      guaranteeDeadline: "guarantee_deadline",
-      pdfText: "pdf_text",
-      pdfFilename: "pdf_filename",
-      pdfParsedAt: "pdf_parsed_at",
-      // v0.35.0：开标时刻 / 中标结果 / 状态一键切换
-      bidTime: "bid_time",
-      result: "result",
-      status: "status",
-    };
+    // UI 键 → DB 列派生自注册表（patchable 标记）；AI 列仍走此通道整列回写
+    //（v0.15.0 结论证据项 / v0.17.0 一键清空风险摘要回写 null），
+    // 开标时刻 / 中标结果 / 状态一键切换见 v0.35.0。
+    const fieldMap = patchFieldMap();
     let needsMigration = false;
     for (const [uiKey, dbKey] of Object.entries(fieldMap)) {
       if (!(uiKey in (patchObj || {}))) continue;
@@ -916,38 +828,18 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     )
       return false;
     await ensureExtraColumns();
+    // insert 载荷派生自注册表（uiToDbInsert：UI 形态 → DB 列）；
+    // 副本特例仍显式覆盖：名称 +“（副本）”、状态回到“报名中”、
+    // 中标结果不跟（副本是一次新投标）、保证金状态回到“未缴纳”、
+    // 清单全部未完成、PDF 持久化字段清空；开标时刻随副本复制。
     const payload = stripUnavailableColumns({
       user_id: state.user.id,
-      bid_date: project.date,
-      project_type: project.type,
+      ...uiToDbInsert(project),
       name: `${project.name}（副本）`,
-      bidding_company: project.biddingCompany,
-      tenderer: project.tenderer || null,
-      amount: project.amount || null,
-      guarantee: project.guarantee || null,
-      contact: project.contact,
       status: "报名中",
-      notes: project.notes || null,
-      // v0.35.0：开标时刻随副本复制；中标结果不跟——副本是一次新投标。
-      bid_time: project.bidTime || null,
       result: null,
-      risk_summary: project.riskSummary || null,
-      risk_points: project.riskPoints?.length ? project.riskPoints : null,
-      qualification: project.qualification?.length ? project.qualification : null,
-      invalid_bid_clauses: project.invalidBidClauses?.length
-        ? project.invalidBidClauses
-        : null,
-      extracted_meta: project.extractedMeta || null,
       checklist: (project.checklist || []).map((item) => ({ ...item, done: false })),
-      amount_value: project.amountValue ?? null,
-      amount_unit: project.amountUnit || "万元",
-      guarantee_amount: project.guaranteeAmount ?? null,
-      guarantee_unit: project.guaranteeUnit || "万元",
       guarantee_status: "未缴纳",
-      registration_deadline: project.registrationDeadline || null,
-      inquiry_deadline: project.inquiryDeadline || null,
-      clarification_deadline: project.clarificationDeadline || null,
-      guarantee_deadline: project.guaranteeDeadline || null,
       pdf_text: null,
       pdf_filename: null,
       pdf_parsed_at: null,
@@ -969,57 +861,16 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   }
 
   const exportCsv = (projects) => {
-    // v0.6.0：开标时间移到第一列，其余顺序不变
-    const headers = [
-      "开标时间",
-      "开标时刻",
-      "项目名称",
-      "项目类型",
-      "投标公司",
-      "招标单位",
-      "联系人",
-      "保证金/保函",
-      "项目金额",
-      "项目状态",
-      "中标结果",
-      "备注",
-      "风险摘要",
-      "项目金额（数值）",
-      "项目金额单位",
-      "保证金金额",
-      "保证金单位",
-      "保证金状态",
-      // v0.4.0：导出补齐清单 + PDF 文件名（新增列放末尾，原有列顺序不变）
-      "检查清单（已完成/总数）",
-      "检查清单详情",
-      "PDF 文件名",
-    ];
-    const rows = projects.map((p) => [
-      p.date,
-      p.bidTime || "",
-      p.name,
-      p.type,
-      p.biddingCompany || "",
-      p.tenderer || "",
-      p.contact,
-      p.guarantee,
-      p.amount || "",
-      p.status,
-      p.result || "",
-      p.notes || "",
-      p.riskSummary || "",
-      p.amountValue ?? "",
-      p.amountUnit || "",
-      p.guaranteeAmount ?? "",
-      p.guaranteeUnit || "",
-      p.guaranteeStatus || "",
-      // v0.4.0：清单详情格式 [x] 文本1; [ ] 文本2，无清单则空
-      `${(p.checklist || []).filter((i) => i?.done).length}/${(p.checklist || []).length}`,
-      (p.checklist || [])
-        .map((i) => `[${i?.done ? "x" : " "}] ${i?.text || ""}`)
-        .join("; "),
-      p.pdfFilename || "",
-    ]);
+    // 导出列派生自注册表（csv 定义 + csvOrder 列序；v0.6.0：开标时间第一列，
+    // v0.4.0：清单 + PDF 文件名补在末尾）。无 get 的列默认取 p[key] ?? ""；
+    // 清单两列（计数 / 详情）由 checklist 字段的一对 get 得出。
+    const columns = exportCsvColumns();
+    const headers = columns.map((c) => c.label);
+    const rows = projects.map((p) =>
+      columns.map((c) =>
+        typeof c.get === "function" ? c.get(p) : (p[c.key] ?? "")
+      )
+    );
     const csv =
       "\ufeff" +
       [headers, ...rows]
@@ -1174,7 +1025,11 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       const overwrite = mode === "overwrite";
       // 旧库没有 bid_time / result 列时，备份里带的这两列要去掉，否则整批 upsert 报错。
       await ensureExtraColumns();
-      const writeRows = rows.map(stripUnavailableColumns);
+      // 第 12 节 D：旧备份里的 bidding_company 可能缺失或为空白，数据库 CHECK 要求 trim() > 0，统一归一化为 '未填写'。
+      const writeRows = rows.map(stripUnavailableColumns).map((row) => ({
+        ...row,
+        bidding_company: String(row.bidding_company || "").trim() || "未填写",
+      }));
       // 恢复前快照：只拉会被覆盖的那些行的当前内容（覆盖模式才需要）
       if (overwrite && update.length) {
         const ids = update.map((r) => r.id);
