@@ -436,7 +436,7 @@ export function createUi(elements, getState) {
       : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
     const toggleBtn =
       `<button class="checklist-toggle" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${open ? "true" : "false"}" aria-controls="${escapeHtml(bodyId)}" title="${open ? "收起清单" : "展开清单"}">` +
-      `<span class="checklist-title">${svgIcon(ICON.clipboard)}废标检查清单</span>` +
+      `<span class="checklist-title">废标检查清单</span>` +
       `<span class="checklist-count">已完成 ${done}/${total}</span>` +
       `<span class="checklist-chevron" aria-hidden="true">⌄</span>` +
       `</button>`;
@@ -514,7 +514,7 @@ export function createUi(elements, getState) {
         // v0.35.4：这一行挂 kv-row-status —— 手机竖屏下标签与控件各占一整行，
         // 控件本身三等分 grid，保证三个状态胶囊在 360/375/390 都是单行（之前被挤成 2+1）。
         kv("项目状态", statusQuick, "kv-row-status") +
-        kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置开标时间") +
+        kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置开标时间", "kv-row-time") +
         (p.result
           ? kv(
               "中标结果",

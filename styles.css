@@ -2624,7 +2624,6 @@ body.dark .kv-row {
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
-.kv-row-status,
 .kv-row-name,
 .kv-row-note {
   grid-column: 1 / -1;
@@ -2702,6 +2701,73 @@ body.dark .kv-row {
   gap: 8px;
 }
 .drawer-panel .up-summary { display: none; }
+
+/* ---------- v0.39.0：顶部临期提醒 · 详情三项一行 · 无图标清单对齐 · 高级操作按钮 ---------- */
+#dashboardView > .upcoming-panel {
+  grid-area: upcoming;
+  margin-bottom: 14px;
+  padding: 16px 20px;
+}
+#dashboardView > .upcoming-panel .upcoming-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+  overflow: visible;
+}
+/* 展开详情：桌面 6 列网格 -> 状态/开标时间/类型各占 span 2（共占第一行），其余两两并排（span 3），全名与备注整行 */
+@media (min-width: 681px) {
+  .kv-list {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  .kv-row {
+    grid-column: span 3;
+  }
+  .kv-row-status,
+  .kv-row-time,
+  .kv-row-type {
+    grid-column: span 2;
+  }
+  .kv-row-name,
+  .kv-row-note {
+    grid-column: 1 / -1;
+  }
+}
+/* 右侧操作按钮（解析 / 编辑 / 复制 / 删除）精致统一 */
+.item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.item-actions .btn,
+.item-actions button {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid var(--hairline);
+  background: var(--surface, #FFFFFF);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+body.dark .item-actions .btn,
+body.dark .item-actions button {
+  background: rgba(255, 255, 255, 0.05);
+}
+.item-actions .btn:hover,
+.item-actions button:hover {
+  border-color: rgba(37, 99, 235, 0.32);
+  background: rgba(37, 99, 235, 0.06);
+  color: #2563EB;
+  transform: translateY(-0.5px);
+}
+.item-actions .btn.danger:hover,
+.item-actions button[data-action="delete"]:hover {
+  border-color: rgba(220, 38, 38, 0.35);
+  background: rgba(220, 38, 38, 0.08);
+  color: #DC2626;
+}
 
 /* v0.35.3：max-width 断点块统一放到文件末尾 ========== */
 /* 本文件的部分组件基础样式（统计卡、状态三选一、项目箭头、日历格）历史上写在文件靠后的位置，
@@ -3478,7 +3544,7 @@ body.dark .theme-moon { display: none; }
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "banner"
-      "hero"
+      "upcoming"
       "stats"
       "list";
     row-gap: 0;
