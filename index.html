@@ -170,9 +170,6 @@
       <!-- v0.35.0：表单改成真 <form> —— 桌面按回车即可提交；novalidate 是为了用自己的中文提示，
            不依赖浏览器原生气泡（各平台语言与样式不一致）。 -->
       <form id="projectForm" class="project-form" novalidate>
-      <!-- v0.20.0：解析入口挪进表单（可选）—— 标题栏按钮已删；从这里进抽屉，
-        回填后回到同一张表单（新建仍是新建，编辑仍是正在改的那张）。 -->
-      
       <div class="form-grid">
         <div class="form-section">
           <div class="form-section-title">必填信息</div>
@@ -522,7 +519,7 @@
     </div>
   </div>
 
-  <!-- v0.29.0：我的资质抽屉 —— 录入企业自有资质 / 人员 / 业绩，AI 分析招标文件时逐条对照资格要求 -->
+  <!-- v0.29.0：我的资质抽屉 —— 录入企业自有资质 / 人员 / 业绩，投标前逐条核对资格要求 -->
   <div id="qualSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="qualSheetTitle">
     <div class="sheet-backdrop" data-action="close-qual"></div>
     <div class="sheet-panel card">
