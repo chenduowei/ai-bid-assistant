@@ -2338,9 +2338,27 @@ import { createDrawers } from "./js/drawers.js";
           `投标公司：${p.biddingCompany || "-"}`,
           `联系人：${p.contact || "-"}`,
         ].join("\n");
-        navigator.clipboard?.writeText(summary).then(() => {
-          ui.showToast?.("已复制项目摘要");
-        }).catch(() => {});
+        const fallbackCopy = (text) => {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.cssText = "position:fixed;top:-9999px;left:-9999px;opacity:0;";
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, text.length);
+          let ok = false;
+          try { ok = document.execCommand("copy"); } catch {}
+          document.body.removeChild(ta);
+          return ok;
+        };
+        if (navigator.clipboard?.writeText) {
+          navigator.clipboard.writeText(summary).then(
+            () => ui.showToast?.("已复制项目摘要"),
+            () => ui.showToast?.(fallbackCopy(summary) ? "已复制项目摘要" : "复制失败，请手动复制")
+          );
+        } else {
+          ui.showToast?.(fallbackCopy(summary) ? "已复制项目摘要" : "复制失败，请手动复制");
+        }
         return;
       }
       if (button.dataset.action === "edit") {
