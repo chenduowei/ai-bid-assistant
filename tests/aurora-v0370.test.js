@@ -1,8 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { readCssBundle } from "./css-bundle.mjs";
 
-const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const css = readCssBundle();
 const ui = fs.readFileSync(new URL("../js/ui.js", import.meta.url), "utf8");
 
 test("v0.37.0+：展开详情采用等高整齐网格与跨视图直达跳转", () => {

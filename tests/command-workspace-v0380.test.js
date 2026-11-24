@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { parseHTML } from "linkedom";
+import { readCssBundle } from "./css-bundle.mjs";
 
 const html = fs.readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const css = fs.readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const css = readCssBundle();
 const { document } = parseHTML(html);
 
 test("v0.38.0+：新增编辑项目收进顶栏表单抽屉，主画布移除右侧栏", () => {

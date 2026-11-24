@@ -14,7 +14,8 @@ function runStrict(env = {}) {
   fs.copyFileSync(script, path.join(dir, "scripts", "generate-config.mjs"));
   return spawnSync(process.execPath, [path.join(dir, "scripts", "generate-config.mjs"), "--strict"], {
     encoding: "utf8",
-    env: { ...process.env, ...env, SUPABASE_URL: "", SUPABASE_ANON_KEY: "", VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "", NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_ANON_KEY: "" },
+    // 空值默认值必须在 ...env 之前，否则会覆盖调用方传入的“变量齐全”值（基线 bug：该用例恒失败）。
+    env: { SUPABASE_URL: "", SUPABASE_ANON_KEY: "", VITE_SUPABASE_URL: "", VITE_SUPABASE_ANON_KEY: "", NEXT_PUBLIC_SUPABASE_URL: "", NEXT_PUBLIC_SUPABASE_ANON_KEY: "", ...process.env, ...env },
   });
 }
 

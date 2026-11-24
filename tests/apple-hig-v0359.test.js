@@ -8,9 +8,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
+import { readCssBundle } from "./css-bundle.mjs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-const css = readFileSync(new URL("../styles.css", import.meta.url), "utf8");
+const css = readCssBundle();
 const { document } = parseHTML(html);
 
 /** 取某个选择器的全部规则声明体（同一选择器在本文件里可能出现多次，后出现的才生效）。 */
