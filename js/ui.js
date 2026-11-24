@@ -627,11 +627,13 @@ export function createUi(elements, getState) {
   // 「报名截止」那几行的日期正好被它压住（实测 390×844 盖住 44×44）。
   // 展开 / 收起走的是 toggleProjectDetails（只改 DOM，不全量重渲染），所以两边都要调它。
   const syncDetailOpenState = () => {
-    if (!document.body) return;
-    document.body.classList.toggle(
-      "detail-open",
-      Boolean(getState().expandedIds?.size)
-    );
+    const hasOpen = Boolean(getState().expandedIds?.size);
+    if (document.body) {
+      document.body.classList.toggle("detail-open", hasOpen);
+    }
+    if (elements.collapseAllBtn) {
+      elements.collapseAllBtn.disabled = !hasOpen;
+    }
   };
 
   // v0.32.0：没有展开的卡片时“全部折叠”不可点。

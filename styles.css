@@ -2717,9 +2717,6 @@ body.dark .kv-row {
   .kv-row {
     grid-column: span 2;
   }
-  .kv-row-name {
-    grid-column: 1 / -1;
-  }
 }
 /* 右侧操作按钮（解析 / 编辑 / 复制 / 删除）精致统一 */
 .item-actions {
