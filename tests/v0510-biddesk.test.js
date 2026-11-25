@@ -11,7 +11,8 @@ test("v0.51.1：定名为 投标工作台 · BidDesk，版本号紧跟 BidDesk �
   assert.match(document.title, /投标工作台 · BidDesk/);
   assert.equal(document.querySelector(".brand-main-title").textContent.trim(), "投标工作台");
   const lineText = document.querySelector(".brand-line").textContent;
-  assert.match(lineText, /BidDesk\s*让每一次投标，都心里有数。\s*v0\.51\.4/);
+  // v0.52.0：版本号随发版 bump（check:version 的同一事实来源），断言同步到 v0.52.0。
+  assert.match(lineText, /BidDesk\s*让每一次投标，都心里有数。\s*v0\.52\.0/);
 });
 
 test("v0.51.1：彻底清除页面底部 AI 残留与列表右侧倒计时胶囊", () => {

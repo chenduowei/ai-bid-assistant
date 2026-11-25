@@ -44,18 +44,22 @@
   position: relative;
   overflow: hidden;
   font-family: inherit;
-  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out);
+  /* v0.52.0：按钮过渡统一 200ms 标准曲线（按压仍是 0.98 缩放，见下方 :active） */
+  transition: transform var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard), filter var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard);
 }
 
 .btn:hover { transform: translateY(-1px); }
 
 .btn:active { transform: scale(0.96); }
 
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
 .btn:disabled { opacity: 0.45; cursor: default; transform: none; }
 
-.btn.primary { background: var(--accent); color: #fff; }
+/* v0.52.0：主按钮改深蓝底（设计稿第 6 节：抽屉主按钮深蓝底白字；全站主按钮同此） */
+.btn.primary { background: var(--bp-ink); color: #fff; }
 
-.btn.primary:hover { filter: brightness(1.06); }
+.btn.primary:hover { filter: brightness(1.12); }
 
 .btn.secondary { background: var(--btn-fill); color: var(--text); }
 
@@ -188,7 +192,8 @@ body.dark .sort-select {
   font-size: var(--fs-base);
   font-family: inherit;
   padding: var(--sp-3) 14px;
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-med) var(--ease-spring);
+  /* v0.52.0：输入框过渡统一 200ms 标准曲线 */
+  transition: border-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard);
 }
 
 .field textarea { min-height: 94px; resize: vertical; }
@@ -375,10 +380,11 @@ body.dark .sort-select {
   font-weight: 500;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  animation: toast-in var(--dur-med) var(--ease-spring) both;
+  /* v0.52.0：toast 入场 200ms 标准曲线、退场 120ms，干脆利落 */
+  animation: toast-in var(--dur-quick) var(--ease-standard) both;
 }
 
-.toast.out { animation: toast-out var(--dur-fast) var(--ease-out) both; }
+.toast.out { animation: toast-out var(--dur-xfast) var(--ease-standard) both; }
 
 /* ---------- 回顶 / 进度条 / 高亮 ---------- */
 .scroll-progress {
@@ -684,7 +690,11 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
 
 .btn.secondary:hover { background: var(--seg-track); filter: none; }
 
-.btn.primary { background: var(--accent); color: #fff; }
+/* v0.52.0：主按钮深蓝底（与上方旧规则同值，保持两处一致）；深色模式下深蓝在深底上太沉，
+   提亮一档（#1B4A7A，仍是深蓝家族），只为可读性微调。 */
+.btn.primary { background: var(--bp-ink); color: #fff; }
+
+body.dark .btn.primary { background: #1B4A7A; }
 
 .btn.primary:hover { filter: brightness(1.05); }
 
@@ -796,7 +806,7 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
   border-radius: 9px;
   background: var(--seg-knob);
   box-shadow: var(--seg-shadow);
-  transition: transform 0.28s var(--ease-spring), width 0.28s var(--ease-spring);
+  transition: transform var(--dur-slow) var(--ease-spring), width var(--dur-slow) var(--ease-spring);
   pointer-events: none;
   z-index: 0;
 }
@@ -810,15 +820,15 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
 }
 
 .seg-btn {
-  transition: color 0.18s ease, transform 0.16s var(--ease-spring);
+  transition: color var(--dur-quick) var(--ease-standard), transform var(--dur-xfast) var(--ease-spring);
 }
 
 .collapse {
-  transition: grid-template-rows 0.30s var(--ease-spring), opacity 0.22s ease;
+  transition: grid-template-rows var(--dur-slow) var(--ease-spring), opacity var(--dur-quick) var(--ease-standard);
 }
 
 .collapse > .collapse-inner {
-  transition: opacity 0.20s ease;
+  transition: opacity var(--dur-quick) var(--ease-standard);
   opacity: 0;
 }
 
@@ -827,7 +837,7 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
 }
 
 .row-btn, .btn, .upcoming-item {
-  transition: transform 0.16s var(--ease-spring), background-color 0.18s ease, box-shadow 0.20s ease, border-color 0.18s ease;
+  transition: transform var(--dur-xfast) var(--ease-spring), background-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard);
 }
 
 .row-btn:active, .btn:active, .upcoming-item:active {
@@ -835,30 +845,34 @@ body.dark .btn.danger-text.armed { background: #FF453A; }
 }
 
 .collapse {
-  transition: grid-template-rows 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: grid-template-rows var(--dur-slow) var(--ease-out);
 }
 
 .collapse-inner {
-  transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity var(--dur-slow) var(--ease-standard), transform var(--dur-slow) var(--ease-out);
 }
 
 /* 按钮抛光 */
 .btn {
-  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+  transition: transform var(--dur-xfast) var(--ease-out), box-shadow var(--dur-quick) var(--ease-standard), background-color var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard);
 }
 
 .btn:active { transform: scale(0.97); }
 
+/* v0.52.0：主按钮深蓝底（与 components.css:60/695 的两处同口径；此前这里
+   仍写 #2563EB 且后层胜出，导致登录按钮实际是亮蓝而非深蓝）。hover 只提亮，
+   不上浮（v0.51.4 已定：按钮去 hover 上浮，只保留按压 0.97 回馈）。 */
 .btn.primary {
-  background: #2563EB;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.22);
+  background: var(--bp-ink);
+  box-shadow: 0 2px 8px rgba(10, 37, 64, 0.22);
 }
 
 .btn.primary:hover {
-  background: #1D4ED8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
-  transform: translateY(-1px);
+  filter: brightness(1.12);
+  box-shadow: 0 4px 12px rgba(10, 37, 64, 0.28);
 }
+
+body.dark .btn.primary { background: #1B4A7A; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4); }
 
 .drawer-close-btn {
   min-width: 36px;

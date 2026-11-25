@@ -32,7 +32,8 @@
       min-width: 0;
     }
 
-  .user-menu { flex-wrap: wrap; padding: var(--sp-1); }
+  /* v0.52.0：上下 padding 归零（原 4px 把同步状态文字顶低约 2px，纵向不居中） */
+  .user-menu { flex-wrap: wrap; padding: 0 var(--sp-1); }
 }
 
 /* 尊重系统"减少动态效果"设置 */
@@ -68,7 +69,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
+  /* v0.52.0：减动效时全站动效关闭 —— 所有动画与过渡瞬间完成，滚动不平滑。
+     注意：.project-item.save-glow 等“靠动效传达结果”的样式本就另有文字说明兜底。 */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 展开详情：桌面 6 列网格 -> 状态/开标时间/类型各占 span 2（共占第一行），其余两两并排（span 3），全名与备注整行 */
@@ -112,7 +122,8 @@
   /* v0.35.3：海报 220 → 160px、卡片上下内边距 28 → 20px —— 375×667 的整页从 775px 收到一屏内。 */
   .auth-poster { height: 160px; min-height: 160px; }
 
-  .auth-poster-overlay { padding: var(--sp-4) var(--sp-6); gap: 4px; }
+  /* v0.52.0：横条里标题垂直居中（不再贴底），一眼就是品牌横条 */
+  .auth-poster-overlay { padding: var(--sp-4) var(--sp-6); gap: 4px; justify-content: center; }
 
   .auth-poster-title { font-size: var(--fs-3xl); }
 
@@ -431,7 +442,14 @@
   /* v0.35.3：页头在 390px 被挤成「竖条」（实测标题宽 104px、副标题三行高 42px）——
        窄屏去掉副标题、标题收到 20px，「新增项目」只留「＋」（文案给读屏）。
        v0.35.6：版本号回到标题旁（小徽标）；品牌角标 52 → 48，右上两个动作改成 44px 圆钮，页头高 94 → 不足 80px。 */
-  .header { padding: 6px var(--page-x) 7px; margin: 0 calc(-1 * var(--page-x)) 10px; }
+  /* v0.52.0：顶栏贴左缘的根因 —— layout.css 的 width: 100% !important +
+     padding: 12px 0 !important 把负外边距通栏顶破了：宽被钉在内容盒 358px，
+     负边距只把它向左推了 16px，整栏落在 [0,358]，比下方内容左移 16px。
+     桌面端同一套规则下顶栏本就是内容盒宽（margin 0 auto），这里对齐桌面：
+     去掉负边距（margin 0 0 10px），顶栏回到内容盒 [16,374]，与统计卡左右对齐。
+     注意：不要另起一条 .header 规则盖 margin，check-css 会把同断点内的
+     后盖前判为顺序覆盖（v0.35.3 的教训），改动必须直接落在这条规则上。 */
+  .header { padding: 6px var(--page-x) 7px; margin: 0 0 10px; }
 
   .header-top { flex-wrap: wrap; gap: 10px; align-items: center; }
 
@@ -440,6 +458,13 @@
   .header-title h1 { font-size: 19px; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 0; }
 
   .brand-text p { display: none; }
+
+  /* v0.52.0：上面这条在 v0.51.2/51.3 之后失效了 —— layout.css 的
+     .brand-text-inline .brand-line { display: flex } 特异度 (0,2,0) 高于
+     .brand-text p (0,1,1)，副标题在窄屏又冒出来，white-space: nowrap
+     把它顶出页头、和「云端同步中」重叠（390px 实测）。同等特异度补一条，
+     断点文件在最后、同特异度后胜出，恢复 v0.35.3「窄屏去掉副标题」的决定。 */
+  .brand-text-inline .brand-line { display: none; }
 
   .app-version-badge {
       display: inline-block;
@@ -464,7 +489,15 @@
 
   .header-top-actions .btn.primary .btn-label-long { display: none; }
 
-  .user-menu { padding-top: 2px; gap: 6px; font-size: 11px; line-height: 1.35; }
+  /* v0.52.0：顶栏第二行四个按钮统一 44px 高、纵向居中（此前胶囊 36px、
+     圆形「＋」与汉堡 44px，同一行高低不齐）。胶囊横向内边距 16px → 12px：
+     四个按钮加间距原来 366.3px，比内容盒 358px 宽 8.3px，汉堡会探出右缘。 */
+  .header-top-actions .btn { height: 44px; min-height: 44px; padding: 0 12px; }
+
+  .header-top-actions .menu-toggle { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+
+  /* v0.52.0：去掉顶 padding，同步状态纵向居中（原 2px 把文字顶低约 1px） */
+  .user-menu { padding-top: 0; gap: 6px; font-size: 11px; line-height: 1.35; }
 
   #userEmail { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
@@ -857,12 +890,17 @@
 
   .header-title h1 { font-size: 23px; margin: 0; }
 
-  /* 标题与副标题排同一基线（桌面端也是这样），页头从 95px 收到 80px */
+  /* v0.52.0：副标题行在平板也去掉 —— 标题列只剩约 170px，323px 的副标题行
+     会溢出标题列、被「新增项目」按钮盖住（副标题尾巴与版本号都藏到按钮后面，
+     768px 实测）。与 ≤680px 的决定一致（v0.35.3），副标题只在桌面端出现。 */
   .brand-text { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+
+  .brand-text-inline .brand-line { display: none; }
 
   .header { padding: 6px var(--page-x); }
 
-  .user-menu { padding-top: 5px; font-size: 11.5px; }
+  /* v0.52.0：去掉顶 padding，同步状态纵向居中（原 5px 把文字顶低约 2.5px） */
+  .user-menu { padding-top: 0; font-size: 11.5px; }
 
   .page { --appbar-h: 80px; }
 }
@@ -888,7 +926,8 @@
 
   .header-title p { font-size: 13px; line-height: 1.45; }
 
-  .user-menu { padding: 5px 2px 0; font-size: 11.5px; gap: 10px; line-height: 1.35; }
+  /* v0.52.0：去掉顶 padding，同步状态纵向居中（原 5px 把文字顶低约 2.5px） */
+  .user-menu { padding: 0 2px; font-size: 11.5px; gap: 10px; line-height: 1.35; }
 
   .header-top-actions { gap: 10px; }
 

@@ -15,11 +15,18 @@
 }
 
 /* iOS 分组卡片：白底 + hairline，无投影 */
+/* v0.52.0：卡片过渡统一 200ms 标准曲线；桌面端悬停微升 2px（只在 hover 设备上，
+   触屏不动，避免点按时抖动） */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
+  transition: transform var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard);
+}
+
+@media (hover: hover) {
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-raised); }
 }
 
 /* ---------- 页头：iOS 大标题 ---------- */
@@ -145,6 +152,8 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 .user-menu { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: var(--fs-sm); padding: var(--sp-2) var(--sp-1) 0; flex-wrap: wrap; }
 
 /* ---------- 统计：4 张核心概览卡 + hairline 分隔 ---------- */
+/* v0.52.0：统计行再收紧一档（内边距 14px → 12px、与下方间距 20px → 16px），
+   数字仍是 26px 等宽 tabular（见下方 v0.35.9 层），可点高度仍不低于 44px。 */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -153,7 +162,7 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
   overflow: hidden;
-  margin-bottom: var(--sp-5);
+  margin-bottom: var(--sp-4);
 }
 
 /* v0.34.0：卡片改成原生 <button> —— 清掉按钮默认样式，文字仍按卡片排版；
@@ -269,7 +278,8 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   background: rgba(0, 0, 0, 0.42);
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
-  animation: sheet-fade var(--dur-fast) var(--ease-out) both;
+  /* v0.52.0：遮罩淡入统一 200ms 标准曲线 */
+  animation: sheet-fade var(--dur-quick) var(--ease-standard) both;
 }
 
 .sheet-panel {
@@ -279,7 +289,8 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
   overflow-y: auto;
   border-radius: 20px 20px 0 0;
   padding: var(--sp-5);
-  animation: sheet-up var(--dur-med) var(--ease-spring) both;
+  /* v0.52.0：抽屉滑入统一 320ms（弹簧曲线保留，抽屉是全站最重的动效） */
+  animation: sheet-up var(--dur-slow) var(--ease-spring) both;
 }
 
 .sheet-head {
@@ -349,7 +360,8 @@ button.brand-mark:hover { filter: brightness(1.04); }
 }
 
 /* ---------- 3. 统计：分组卡 + 单一蓝强调，选中是柔色底而不是色条 ---------- */
-.stat-card { padding: 14px 16px 15px; }
+/* v0.52.0：内边距 14px → 12px（收紧约三分之一，相对最初的 16px） */
+.stat-card { padding: 12px 16px 13px; }
 
 .stat-card .label { font-size: 12px; letter-spacing: 0.01em; margin-bottom: 4px; }
 
@@ -375,6 +387,10 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
 .sheet-backdrop { background: rgba(0, 0, 0, 0.36); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
 
 .sheet-head h2 { font-weight: 600; letter-spacing: -0.018em; }
+
+/* v0.52.0：抽屉标题用深蓝（设计稿第 6 节）；深色模式仍用正文色，保证对比度 */
+body:not(.dark) .sheet-head h2,
+body:not(.dark) .drawer-bar-title { color: var(--bp-ink); }
 
 /* ---------- 12. 排版：标题字重降一档、数字等宽 ---------- */
 .panel-title h2,
@@ -461,9 +477,10 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
 }
 
 /* 统计卡：克制高级中性卡片，去掉花哨左侧色条 */
+/* v0.52.0：过渡统一 320ms 标准曲线（0.24s 手写值收敛到变量档） */
 .stat-card {
   border: 1px solid var(--hairline);
-  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease, border-color 0.24s ease;
+  transition: transform var(--dur-slow) var(--ease-standard), box-shadow var(--dur-slow) var(--ease-standard), border-color var(--dur-slow) var(--ease-standard);
 }
 
 .stat-card:hover {
@@ -482,6 +499,8 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   z-index: 60;
   background: rgba(11, 15, 23, 0.45);
   backdrop-filter: blur(6px);
+  /* v0.52.0：遮罩淡入统一 200ms 标准曲线 */
+  animation: sheet-fade var(--dur-quick) var(--ease-standard) both;
   display: flex;
   justify-content: flex-end;
   align-items: stretch;
@@ -502,6 +521,8 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* v0.52.0：右侧抽屉从右滑入 320ms；遮罩淡入见 .drawer-overlay */
+  animation: drawer-in var(--dur-slow) var(--ease-standard) both;
 }
 
 .drawer-panel-wide {
@@ -577,7 +598,16 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
 
 .header-top-actions .btn {
   white-space: nowrap;
-  height: 36px;
+  height: 40px;
+}
+
+/* v0.52.0：顶栏按钮与汉堡统一 40px 高（此前胶囊 36px、汉堡 40/44px，
+   同一行高低不齐）；窄屏（≤680px）见 breakpoints.css，一律 44px 触控高度。 */
+.header-top-actions .menu-toggle {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 /* 抽屉统一风格 */
@@ -606,12 +636,14 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   letter-spacing: -0.02em;
 }
 
+/* v0.52.0：同步状态与按钮组的间距只由 .header-top 的 gap: 12px 给 ——
+   原 margin-right: 12px 让「同步→按钮」24px，是「品牌→同步」12px 的两倍。 */
 .user-menu-inline {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   margin-left: auto;
-  margin-right: 12px;
+  margin-right: 0;
   font-size: 12.5px;
   color: var(--muted);
   white-space: nowrap;
@@ -644,11 +676,13 @@ body.dark .sheet-panel { box-shadow: 0 -12px 48px rgba(0, 0, 0, 0.70); }
   white-space: nowrap;
 }
 
+/* v0.52.0：BidDesk 放小一档、去粗体（22px/700 → 20px/400），
+   与 22px 加粗的中文「投标工作台」搭配更协调。 */
 .brand-text-inline .brand-en {
   margin: 0 !important;
   padding: 0 !important;
-  font-size: 22px !important;
-  font-weight: 700 !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
   line-height: 1.2 !important;
   letter-spacing: -0.02em;
   color: var(--text) !important;

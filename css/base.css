@@ -99,11 +99,25 @@
 }
 
 /* ===== 蓝图指挥舱主题变量 (v0.36.2 新增，可整体删除回退) ===== */
+/* v0.52.0：补齐设计稿第 2 节的全部变量 —— 深蓝 / 再深 / 网格线 / 金色；
+   之前只落了 --bp-paper 等 4 个，本版起 --bp-* 可完整取用。金色只用于关键点缀，
+   同屏不超过三处（见 views.css 登录页与抽屉标题的注释）。 */
 :root {
+  --bp-ink: #0A2540;
+  --bp-ink-deep: #071A30;
+  --bp-grid: rgba(255, 255, 255, 0.08);
+  --bp-gold: #E8B84B;
   --bp-paper: #F7F3EA;
   --bp-on-ink: #FFFFFF;
   --bp-on-ink-sub: #A9BFD8;
   --bp-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  /* v0.52.0：全站动效统一三档时长 + 两条曲线（设计稿 8pt 网格的动效等价物）：
+     120ms 微反馈（按压/开关）、200ms 常规过渡（悬停/聚焦/滑块）、320ms 入场与抽屉。
+     --dur-fast（0.18s）与 --dur-med（0.35s）是旧名，保留不改名，逐步向新档收敛。 */
+  --dur-xfast: 120ms;
+  --dur-quick: 200ms;
+  --dur-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
 body.dark {
@@ -203,6 +217,12 @@ body.sheet-open { overflow: hidden; }
   to { transform: none; opacity: 1; }
 }
 
+/* v0.52.0：右侧抽屉从右滑入（与底部 sheet 的上滑区分方向） */
+@keyframes drawer-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
 @keyframes sheet-fade {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -223,8 +243,10 @@ body:not(.dark) {
 }
 
 /* ---------- v0.38.0：克制高级全宽指令台（去花哨色条 · 顶栏重塑 · 抽屉表单与临期 · 单行标题 · 丝滑展开） ---------- */
+/* v0.52.0：浅色工作区底改映射到 --bp-paper（暖纸 #F7F3EA，设计稿第 4 节）；
+   卡片仍为白色，不跟着变暖；深色模式画布不变。 */
 body:not(.dark) {
-  background-color: #F6F7F9;
+  background-color: var(--bp-paper);
   background-image: none;
 }
 
