@@ -106,3 +106,28 @@ test("v0.52.0：窄屏页眉不重叠 —— 副标题行在 ≤680px 必须真�
   // 桌面端品牌行仍是 flex 不换行（只改窄屏）。
   assert.match(css, /\.brand-text-inline \.brand-line \{[\s\S]*?display: flex;/);
 });
+
+test("v0.52.0：顶栏对齐 —— 桌面按钮统一 40px，窄屏四个按钮统一 44px，顶栏不贴左缘", () => {
+  // 桌面：胶囊与汉堡同高 40px（此前胶囊 36px、汉堡 40/44px，同一行高低不齐）。
+  assert.match(css, /\.header-top-actions \.btn \{[\s\S]*?height: 40px;/);
+  assert.match(css, /\.header-top-actions \.menu-toggle \{[\s\S]*?height: 40px;/);
+  // ≤680px：四个按钮一律 44px 触控高度；胶囊内边距收窄，四按钮加间距 ≤ 358px 内容盒。
+  assert.match(css, /\.header-top-actions \.btn \{ height: 44px; min-height: 44px; padding: 0 12px; \}/);
+  assert.match(css, /\.header-top-actions \.menu-toggle \{ width: 44px; height: 44px; min-width: 44px; min-height: 44px; \}/);
+  // 回归：负外边距 + width: 100% !important 曾把窄屏顶栏推到 [0,358]、
+  // 比下方内容左移 16px。窄屏顶栏去掉负边距，回到内容盒 [16,374]。
+  assert.match(css, /\.header \{ padding: 6px var\(--page-x\) 7px; margin: 0 0 10px; \}/);
+  // 同步状态去顶 padding，纵向居中（原 5px/2px 把文字顶低约 2.5px/1px）。
+  assert.doesNotMatch(css, /\.user-menu \{ padding-top: [1-9]/);
+  assert.doesNotMatch(css, /\.user-menu \{ padding: [1-9]/);
+  // 回归：681–1023px 副标题行曾溢出标题列、被「新增项目」按钮盖住（768px 实测），
+  // 平板与手机一样去掉副标题行，只在桌面端出现。
+  assert.match(css, /@media \(min-width: 681px\) and \(max-width: 1023px\) \{[\s\S]*?\.brand-text-inline \.brand-line \{ display: none; \}/);
+});
+
+test("v0.52.0：BidDesk 放小一档、去粗体（20px/400），与中文标题搭配", () => {
+  // 用 [^}]* 把匹配钉在同一条规则块内，[\s\S]*? 会跨规则误命中后面的 700。
+  assert.match(css, /\.brand-text-inline \.brand-en \{[^}]*font-size: 20px !important;/);
+  assert.match(css, /\.brand-text-inline \.brand-en \{[^}]*font-weight: 400 !important;/);
+  assert.doesNotMatch(css, /\.brand-text-inline \.brand-en \{[^}]*font-weight: 700/);
+});

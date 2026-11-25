@@ -598,7 +598,16 @@ body:not(.dark) .drawer-bar-title { color: var(--bp-ink); }
 
 .header-top-actions .btn {
   white-space: nowrap;
-  height: 36px;
+  height: 40px;
+}
+
+/* v0.52.0：顶栏按钮与汉堡统一 40px 高（此前胶囊 36px、汉堡 40/44px，
+   同一行高低不齐）；窄屏（≤680px）见 breakpoints.css，一律 44px 触控高度。 */
+.header-top-actions .menu-toggle {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
 }
 
 /* 抽屉统一风格 */
@@ -627,12 +636,14 @@ body:not(.dark) .drawer-bar-title { color: var(--bp-ink); }
   letter-spacing: -0.02em;
 }
 
+/* v0.52.0：同步状态与按钮组的间距只由 .header-top 的 gap: 12px 给 ——
+   原 margin-right: 12px 让「同步→按钮」24px，是「品牌→同步」12px 的两倍。 */
 .user-menu-inline {
   display: inline-flex;
   align-items: center;
   gap: 10px;
   margin-left: auto;
-  margin-right: 12px;
+  margin-right: 0;
   font-size: 12.5px;
   color: var(--muted);
   white-space: nowrap;
@@ -665,11 +676,13 @@ body:not(.dark) .drawer-bar-title { color: var(--bp-ink); }
   white-space: nowrap;
 }
 
+/* v0.52.0：BidDesk 放小一档、去粗体（22px/700 → 20px/400），
+   与 22px 加粗的中文「投标工作台」搭配更协调。 */
 .brand-text-inline .brand-en {
   margin: 0 !important;
   padding: 0 !important;
-  font-size: 22px !important;
-  font-weight: 700 !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
   line-height: 1.2 !important;
   letter-spacing: -0.02em;
   color: var(--text) !important;
