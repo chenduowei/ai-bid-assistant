@@ -10,7 +10,7 @@
 
 1. `sw.js` 的 `CACHE_NAME`（如 `bid-assistant-v0.51.4`）
 2. `docs/changelog.md` 的版本标题（如 `## [0.51.4]`）
-3. `index.html` 里的版本号（如 `v0.53.0`）：两处都要改 —— 页眉徽标里的文字（v0.53.0 起徽标已隐藏，但文字仍随版 bump）与设置页底部的版本号行（`settings-version`，用户在设置页查看版本）；`check:version` 只认「index.html 里出现当前版本号」，不钉死位置。
+3. `index.html` 里的版本号（如 `v0.54.0`）：两处都要改 —— 页眉徽标里的文字（v0.53.0 起徽标已隐藏，但文字仍随版 bump）与设置页底部的版本号行（`settings-version`，用户在设置页查看版本）；`check:version` 只认「index.html 里出现当前版本号」，不钉死位置。
 4. `README.md` 里的当前版本（如 `v0.51.4`）
 5. `docs/notes.md` 里的当前版本（如 `v0.51.4`）
 6. `js/utils.js` 的 `APP_VERSION`（如 `APP_VERSION = "0.51.4"`）

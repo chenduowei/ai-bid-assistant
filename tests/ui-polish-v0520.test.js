@@ -87,10 +87,10 @@ test("v0.52.0：浅色工作区底是暖纸，统计行收紧，减动效时全�
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?transition-duration: 0\.01ms !important/);
 });
 
-test("v0.52.0：版本号 0.52.0（与 check:version 同一事实来源）", () => {
-  assert.equal(pkg.version, "0.53.0");
-  // v0.53.0：版本号随发版 bump，断言同步到 v0.53.0。
-  assert.match(html, /v0\.53\.0/);
+test("v0.54.0：版本号 0.54.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "0.54.0");
+  // v0.54.0：版本号随发版 bump，断言同步到 v0.54.0。
+  assert.match(html, /v0\.54\.0/);
 });
 
 test("v0.52.0：登录页结构未动 —— 元素 id 与表单行为一律不动", () => {

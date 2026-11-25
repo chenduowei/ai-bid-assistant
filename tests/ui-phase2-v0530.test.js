@@ -3,13 +3,18 @@
  * 只加载 index.html 骨架 + js/ui.js（linkedom），不跑 app.js、不碰网络。
  * 守的是：英雄区 DOM 与分钟级渲染（无项目整区隐藏、有项目填数且不启动
  * 1 秒定时器）、顶栏两按钮已进菜单、字体统一、页眉版本号隐藏、临期事项
- * 卡片直开临期提醒抽屉，以及版本号 0.53.0 全仓一致。
+ * 卡片直开临期提醒抽屉，以及版本号（当前 0.54.0）全仓一致。
+ * v0.54.0 说明：本文件仍钉 v0.53.0 的行为，唯两处跟随当前版 ——
+ * 「renderHero 启动 1 秒定时器」的断言已翻转（见该测试注释），版本号断言
+ * 跟到 0.54.0；另装了 tests/hero-timer-fake.mjs 的桩，否则 FUTURE_PROJECT
+ *（2030 年）会让 renderHero 启动真 interval、把 node --test 进程钉住。
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { readCssBundle } from "./css-bundle.mjs";
+import { installHeroTimerFake } from "./hero-timer-fake.mjs";
 import { parseCssRules } from "../scripts/check-css.mjs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
@@ -32,6 +37,9 @@ const rulesFor = (selector, mediaPart) =>
 const { window, document } = parseHTML(html);
 globalThis.window = window;
 globalThis.document = document;
+// v0.54.0：先装假定时器再 import ui.js —— 本文件调 renderHero 且用的
+// FUTURE_PROJECT 在 2030 年，真 interval 会把 node --test 进程钉住。
+installHeroTimerFake();
 const store = new Map();
 globalThis.localStorage = {
   getItem: (k) => (store.has(k) ? store.get(k) : null),
@@ -107,7 +115,7 @@ test("v0.53.0：renderHero —— 无待开标项目时整区隐藏，不留空�
   assert.equal(hero.hidden, true, "只剩已开标项目时也隐藏");
 });
 
-test("v0.53.0：renderHero —— 有待开标项目时显示并填数（分钟级，不启动 1 秒定时器）", () => {
+test("v0.53.0：renderHero —— 有待开标项目时显示并填数（v0.54.0 起启动 1 秒定时器）", () => {
   const elements = buildElements(document);
   const ui = createUi(elements, () => ({
     projects: [FUTURE_PROJECT],
@@ -138,13 +146,15 @@ test("v0.53.0：renderHero —— 有待开标项目时显示并填数（分钟�
     false,
     "有项目时显示查看按钮"
   );
-  // 分钟级：renderHero 不启动 1 秒定时器（秒级跳动留待后续一期）。
+  // v0.54.0：秒级跳动已启用 —— renderHero 末尾调 startHeroTimer（1 秒间隔只写
+  // #bpHeroCount）；本文件装了 tests/hero-timer-fake.mjs 的桩，真 interval 不启动，
+  // 进程不会被钉住（见该文件注释）。此前 v0.53.0 的断言是 doesNotMatch，已翻转。
   const renderHeroSrc = uiJs.slice(
     uiJs.indexOf("const renderHero"),
     uiJs.indexOf("const renderAfterWrite")
   );
-  assert.doesNotMatch(renderHeroSrc, /startHeroTimer\(\)/);
-  // 分钟级刷新仍在：app.js 的 60 秒定时器调 renderHero。
+  assert.match(renderHeroSrc, /startHeroTimer\(\);/);
+  // 60 秒定时器仍在：app.js 的 60 秒定时器调 renderHero（重算 + 先清后建）。
   assert.match(appJs, /ui\.renderHero\?\.\(\)/);
 });
 
@@ -203,14 +213,15 @@ test("v0.53.0：页眉版本号隐藏，版本改在设置页底部显示", () =
   assert.ok(withDisplay.length > 0);
   assert.equal(declOf(withDisplay[withDisplay.length - 1], "display"), "none");
   // 元素与文字保留在 HTML 里（check:version 的 index.html 载体之一）。
+  // 徽标与设置页两处文字永远跟当前版（本期 0.54.0），与版本号测试同口径。
   assert.ok(document.querySelector(".app-version-badge"));
   assert.match(
     document.querySelector(".app-version-badge").textContent,
-    /v0\.53\.0/
+    /v0\.54\.0/
   );
   assert.match(
     document.querySelector(".settings-version").textContent,
-    /投标工作台 · BidDesk v0\.53\.0/
+    /投标工作台 · BidDesk v0\.54\.0/
   );
 });
 
@@ -246,23 +257,23 @@ test("v0.53.0：窄屏页头标题不被压扁 —— 同步状态一长，标�
   assert.equal(declOf(actions680[actions680.length - 1], "margin-left"), "auto");
 });
 
-test("v0.53.0：版本号 0.53.0（与 check:version 同一事实来源）", () => {
-  assert.equal(pkg.version, "0.53.0");
+test("v0.54.0：版本号 0.54.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "0.54.0");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
-  assert.match(utils, /APP_VERSION = "0\.53\.0"/);
+  assert.match(utils, /APP_VERSION = "0\.54\.0"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /bid-assistant-v0\.53\.0/);
+  assert.match(sw, /bid-assistant-v0\.54\.0/);
   const changelog = readFileSync(
     new URL("../docs/changelog.md", import.meta.url),
     "utf8"
   );
-  assert.match(changelog, /## \[0\.53\.0\]/);
+  assert.match(changelog, /## \[0\.54\.0\]/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /v0\.53\.0/);
+  assert.match(readme, /v0\.54\.0/);
   const notes = readFileSync(
     new URL("../docs/notes.md", import.meta.url),
     "utf8"
   );
-  assert.match(notes, /v0\.53\.0/);
-  assert.match(html, /v0\.53\.0/);
+  assert.match(notes, /v0\.54\.0/);
+  assert.match(html, /v0\.54\.0/);
 });

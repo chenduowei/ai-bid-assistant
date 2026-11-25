@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseHTML } from "linkedom";
 import { readCssBundle } from "./css-bundle.mjs";
+import { installHeroTimerFake } from "./hero-timer-fake.mjs";
 
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
 const css = readCssBundle();
@@ -123,6 +124,10 @@ const state = {
 };
 
 const { createUi } = await import("../js/ui.js");
+// v0.54.0：先装假定时器 —— 本文件调 ui.render() 且 p2 在 2026-11-28（未来），
+// renderHero 会启动真 1 秒 interval、把 node --test 进程钉住；只桩
+// setInterval/clearInterval，sleep 用的 setTimeout 不动。
+installHeroTimerFake();
 const ui = createUi(elements, () => state);
 
 const project = (over = {}) => ({

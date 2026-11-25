@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/chenduowei/bid-desk/actions/workflows/ci.yml/badge.svg)](https://github.com/chenduowei/bid-desk/actions/workflows/ci.yml)
 
-轻量、克制、实用的工程投标台账与开标提醒工作台（当前版本：`v0.53.0`）。
+轻量、克制、实用的工程投标台账与开标提醒工作台（当前版本：`v0.54.0`）。
 
 ## ✨ 亮点
 
@@ -25,7 +25,7 @@
 
 ## 🖼️ 截图
 
-> v0.53.0 实拍（2026-11-25，本地静态服务 + 无头 Chromium，390/768/1280 × 浅色/深色验收通过）。
+> v0.54.0 实拍（2026-11-25，本地静态服务 + 无头 Chromium，390/768/1280 × 浅色/深色验收通过）。
 
 ![倒计时英雄区（桌面）](docs/screenshots/hero-desktop.png)
 
