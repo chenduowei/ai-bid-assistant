@@ -218,11 +218,19 @@
     .project-head-main,
     .project-head-top { display: contents; }
 
-  .project-head .status-dot { grid-column: 1; grid-row: 1; margin-top: 8px; }
+  /* v0.55.1 列表对齐：行 1 高 44px 由 44px 箭头按钮定死，标题（21/42px）
+       顶对齐导致一行标题下方留 25px 空洞、两行只剩 4px，副行看着参差；
+       箭头字形居中在 44px 按钮里，比标题首行中心低 11.5px、看着下沉，
+       圆点（margin-top 8px）又比箭头高 9px，三者不在同一基线。
+       改：行 1 三项全部 align-self: center——标题块、圆点、箭头字形共用行中心线
+       （一行标题与副行间距 25 → 13.5px，两行仍约 4px；卡高与 chips/按钮行不动，
+       它们本来就是对齐的）。 */
+  .project-head .status-dot { grid-column: 1; grid-row: 1; align-self: center; margin-top: 0; }
 
   .project-head .project-name {
       grid-column: 2 / span 2;
       grid-row: 1;
+      align-self: center;
       display: -webkit-box;
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
@@ -237,7 +245,7 @@
       max-height: 2.8em;
     }
 
-  .project-chevron-btn { grid-column: 4; grid-row: 1; align-self: start; }
+  .project-chevron-btn { grid-column: 4; grid-row: 1; align-self: center; }
 
   .project-head .project-sub { grid-column: 2; grid-row: 2; margin: 0; align-self: center; font-size: 12px; line-height: 1.4; }
 
@@ -251,7 +259,7 @@
        而且这时候选的是「哪几条」，不是「什么状态」），省下的位置给项目名 */
   .project-list.selecting .project-head { grid-template-columns: auto minmax(0, 1fr) auto 44px; }
 
-  .project-list.selecting .project-head .select-check { grid-column: 1; grid-row: 1; align-self: start; margin-top: 4px; }
+  .project-list.selecting .project-head .select-check { grid-column: 1; grid-row: 1; align-self: center; margin-top: 0; }
 
   .project-list.selecting .project-head .status-dot { display: none; }
 

@@ -741,3 +741,24 @@ test("v0.55.1：窄屏顶栏去芯片、标语回位 —— 标语 12px 小字�
   // 下拉指示器顶部居中
   assert.equal(valueOf(MOBILE, ".ptr-indicator", "position"), "fixed");
 });
+
+test("v0.55.1：窄屏列表卡片行 1 三项共用中心线 —— 标题/圆点/箭头纵向对齐", () => {
+  // 诊断（390px 实测）：行 1 高 44px 由 44px 箭头按钮定死；标题顶对齐时，
+  // 一行标题下方留 25px 空洞、两行只剩约 4px，副行看着参差；箭头字形居中在
+  // 44px 按钮里，比标题首行中心低 11.5px、看着下沉；圆点 margin-top 8px 又比
+  // 箭头高 9px。改：行 1 三项全部 align-self: center，标题块、圆点、箭头字形
+  // 共用行中心线（一行标题与副行间距 25 → 13.5px；卡高 173.8px 与 chips/按钮行
+  // 不动，它们实测本来就是对齐的；副行相对卡顶 56px 全卡一致，未动）。
+  assert.equal(valueOf(MOBILE, ".project-head .project-name", "align-self"), "center");
+  assert.equal(valueOf(MOBILE, ".project-head .status-dot", "align-self"), "center");
+  assert.equal(valueOf(MOBILE, ".project-head .status-dot", "margin-top"), "0");
+  assert.equal(valueOf(MOBILE, ".project-chevron-btn", "align-self"), "center");
+  // 选择模式：行首复选框同样居中（圆点此时隐藏，复选框替它占第一列）
+  assert.equal(
+    valueOf(MOBILE, ".project-list.selecting .project-head .select-check", "align-self"),
+    "center"
+  );
+  // 底线：标题仍两行夹断、副行仍在行 2，不为整齐砍信息
+  assert.equal(valueOf(MOBILE, ".project-head .project-name", "line-clamp"), "2");
+  assert.equal(valueOf(MOBILE, ".project-head .project-sub", "grid-row"), "2");
+});
