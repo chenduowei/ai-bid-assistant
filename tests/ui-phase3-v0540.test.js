@@ -3,7 +3,7 @@
  * 只加载 index.html 骨架 + js/ui.js（linkedom），不跑 app.js、不碰网络。
  * 守的是：秒级定时器的完整生命周期（创建一次、重复进入不叠加、切后台即停、
  * 回来先重算再恢复、无项目即清、过期切换到下一个项目），以及 v0.39 收尾
- *（390px 英雄区收版、两行截断、倒计时 36px）与版本号 0.54.0 全仓一致。
+ *（390px 英雄区收版、两行截断、倒计时 36px）与版本号 0.55.0 全仓一致。
  *
  * 两个桩缺一不可：
  * 1. tests/hero-timer-fake.mjs —— 真 setInterval 会把 node --test 进程钉住；
@@ -291,11 +291,17 @@ test("v0.54.0：切后台走 ui.stopHeroTimer 直接清；日历视图不启动"
     /visibilitychange[\s\S]*?if \(document\.hidden\) ui\.stopHeroTimer\?\.\(\);[\s\S]*?else ui\.renderHero\?\.\(\);/,
     "visibilitychange 隐藏停、可见重算"
   );
-  // 60 秒定时器仍在：重算 + 先清后建，不叠加。
+  // 60 秒定时器仍在：走共用 refreshNow（v0.55.0 JS 批 B4 抽出，定时器与下拉刷新
+  // 共用；refreshNow 内仍调 renderHero，重算 + 先清后建，不叠加）。
   assert.match(
     appJs,
-    /setInterval\(\(\) => \{[^}]*ui\.renderHero\?\.\(\)[^}]*\}, 60000\)/s,
-    "60 秒定时器仍调 renderHero"
+    /setInterval\(\(\) => \{\s*\n\s*if \(!state\.user\) return;\s*\n\s*refreshNow\(\);\s*\n\s*\}, 60000\)/,
+    "60 秒定时器仍走 refreshNow"
+  );
+  assert.match(
+    appJs,
+    /const refreshNow = async[\s\S]*?ui\.renderHero\?\.\(\);/,
+    "refreshNow 内仍调 renderHero"
   );
 });
 
@@ -371,23 +377,23 @@ test("v0.54.0：v0.39 收尾复查 —— 390px 英雄区收版、两行截断�
   ui.stopHeroTimer();
 });
 
-test("v0.54.0：版本号 0.54.0（与 check:version 同一事实来源）", () => {
-  assert.equal(pkg.version, "0.54.0");
+test("v0.55.0：版本号 0.55.0（与 check:version 同一事实来源）", () => {
+  assert.equal(pkg.version, "0.55.0");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
-  assert.match(utils, /APP_VERSION = "0\.54\.0"/);
+  assert.match(utils, /APP_VERSION = "0\.55\.0"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /bid-assistant-v0\.54\.0/);
+  assert.match(sw, /bid-assistant-v0\.55\.0/);
   const changelog = readFileSync(
     new URL("../docs/changelog.md", import.meta.url),
     "utf8"
   );
-  assert.match(changelog, /## \[0\.54\.0\]/);
+  assert.match(changelog, /## \[0\.55\.0\]/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /v0\.54\.0/);
+  assert.match(readme, /v0\.55\.0/);
   const notes = readFileSync(
     new URL("../docs/notes.md", import.meta.url),
     "utf8"
   );
-  assert.match(notes, /v0\.54\.0/);
-  assert.match(html, /v0\.54\.0/);
+  assert.match(notes, /v0\.55\.0/);
+  assert.match(html, /v0\.55\.0/);
 });

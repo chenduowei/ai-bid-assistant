@@ -174,12 +174,19 @@
   .auth-split .auth-card { padding: 12px 16px; }
 }
 
+/* v0.55.0 JS 批：窄屏专属顶栏/抽屉元素 —— 默认（桌面端）全部隐藏，
+   只在 ≤680px 块里放出来。无条件规则写在媒体块之前，级联顺序安全
+   （check-css 禁的是“断点里写过、后面又无条件重写”，反过来没问题）。 */
+.hero-chip, .header-date, .menu-toggle-badge, .sheet-handle { display: none; }
+
 /* v0.35.0：同一断点的规则已合并（之前 680px 出现 7 次，改窄屏样式容易只改到一处） */
 @media (max-width: 680px) {
   .back-to-top { display: none; }
 
   /* 底部留白由本块末尾那条按「有底部 Tab」写的 padding-bottom 决定 */
-  .page { padding: 10px var(--sp-4) var(--sp-4); --page-x: 16px; --appbar-h: 80px; }
+  /* v0.55.0 mobile-polish B11：横屏左右留刘海安全边距 —— 竖屏 / 无刘海时
+       env(...) 为 0，max() 回落到原来的 16px，竖屏与桌面零变化。 */
+  .page { padding: 10px var(--sp-4) var(--sp-4); padding-left: max(var(--sp-4), env(safe-area-inset-left)); padding-right: max(var(--sp-4), env(safe-area-inset-right)); --page-x: 16px; --appbar-h: 80px; }
 
   .panel { padding: var(--sp-4); }
 
@@ -237,7 +244,7 @@
 
   .project-head-top .cd-pill { grid-column: 3; grid-row: 2; justify-self: end; align-self: center; font-size: 11px; padding: 4px 9px; }
 
-  .project-head-actions { grid-column: 1 / -1; grid-row: 3; width: 100%; margin: 2px 0 0; padding-bottom: 2px; gap: 0; }
+  .project-head-actions { grid-column: 1 / -1; grid-row: 3; width: 100%; margin: 2px 0 0; padding-bottom: 2px; gap: 6px; }
 
   /* 选择模式：行首圆形复选框独占一列；状态圆点收起来（它和复选框挨着会像第二个勾选框，
        而且这时候选的是「哪几条」，不是「什么状态」），省下的位置给项目名 */
@@ -256,17 +263,29 @@
   .project-list.selecting .project-chevron-btn { grid-column: 4; }
 
   /* 操作条：一行四个等分点击区（各 44px 高），文字收一档、去掉按钮底色与分隔线，
-       只靠颜色分主次——解析 / 编辑 蓝、复制 灰、删除 红。 */
+       只靠颜色分主次——解析 / 编辑 蓝、复制 灰、删除 红。
+       v0.55.0 mobile-polish C1：按钮加 white-space: nowrap + min-width: 0，
+       两字不再折成竖排；chips 与按钮拆行见下面两条新规则。 */
   .project-head-actions .row-btn {
       flex: 1;
       justify-content: center;
+      min-width: 0;
       min-height: 44px;
       padding: 0 4px;
       border-radius: 10px;
       font-size: 12.5px;
       font-weight: 600;
       letter-spacing: 0.01em;
+      white-space: nowrap;
     }
+
+  /* v0.55.0 mobile-polish C1：chips 独占一行（三枚三等分）、4 个按钮第二行四等分。
+       原来 chips 与按钮挤在同一 flex 行，chips 先占 177px，只剩约 113px 给 4 个按钮
+       → 每个 26px 竖排字；360px 下「删除」被折到第二行又被 flex: 1 拉满整行。
+       390px 下按钮行每枚约 (290 - 3×6) / 4 ≈ 68px，360px 下约 65px，两字横排刚好。 */
+  .project-head-actions .status-quick-inline { flex: 1 1 100%; }
+
+  .project-head-actions .status-quick-inline .status-chip { flex: 1 1 0; min-width: 0; padding: 8px 4px; white-space: nowrap; }
 
   .project-details.collapse.expanded > .collapse-inner { margin: 4px var(--sp-4) 0; padding: 2px 0 12px; }
 
@@ -357,12 +376,25 @@
 
   .fab-add.visible { opacity: 1; pointer-events: auto; transform: none; }
 
+  /* v0.55.0 mobile-polish C2：列表尾与日历底部留出浮钮安全垫 —— 52px 浮钮 + 间距。
+       浮钮固定在 bottom: calc(132px + safe-area)，页面底垫 112px 只够让内容底边落在
+       浮钮带下方 4px（实测重叠约 1160 平方 px）；列表尾 / 日历再垫 76px，滑到底时
+       文案与末行日期格才能整个滚到浮钮带之上。 */
+  .list-end { padding-bottom: 76px; }
+
+  .calendar-view { padding-bottom: 76px; }
+
   /* 触摸目标：行内操作与抽屉按钮达到 44pt */
   .row-btn { min-height: 44px; padding: 0 10px; display: inline-flex; align-items: center; }
 
   .trash-actions .btn { min-height: 44px; }
 
   .sheet-head .btn { min-height: 44px; }
+
+  /* v0.55.0 mobile-polish C3/B8：表单「新增项目 / 保存修改」提交与设置「保存设置」
+       按钮 38px → 44px（.btn 基底高 38px，见 components.css）。 */
+  #formSheet .form-actions .btn-block,
+    .settings-save-row .btn-block { height: 44px; min-height: 44px; }
 
   /* v0.35.3：剩余三处高频点击区补到 44pt（此前实测 32/32/33px）——
        详情区状态三选一、行尾展开箭头、工具栏「选择 / 全部折叠」。 */
@@ -449,7 +481,13 @@
      去掉负边距（margin 0 0 10px），顶栏回到内容盒 [16,374]，与统计卡左右对齐。
      注意：不要另起一条 .header 规则盖 margin，check-css 会把同断点内的
      后盖前判为顺序覆盖（v0.35.3 的教训），改动必须直接落在这条规则上。 */
-  .header { padding: 6px var(--page-x) 7px; margin: 0 0 10px; }
+  /* v0.55.0 mobile-polish B1/C4：顶栏顶垫留出刘海 / 灵动岛安全区（浏览器里 env 为 0，
+       回落到原来的 6px）；底色改 100% 不透明实色，与 .sheet-head 同款透字问题一并处理。
+       只改窄屏这条规则，桌面端仍走 layout.css 的 96% 毛玻璃。
+       注意 !important 不可少：layout.css 里 v0.40.0/v0.41.0/v0.50.0 三层顶栏规则钉了
+       padding: 12px 0 !important，普通声明会被它盖掉（实测算得 padding-top 仍是 12px）；
+       这里只提 padding-top 一条长属性，不碰左右 / 底部（横向仍是 0，内容左缘仍对齐统计卡）。 */
+  .header { padding: 6px var(--page-x) 7px; margin: 0 0 10px; padding-top: max(6px, env(safe-area-inset-top)) !important; background: var(--bg); }
 
   .header-top { flex-wrap: wrap; gap: 10px; align-items: center; }
 
@@ -491,7 +529,7 @@
      保住自然宽，同步状态与按钮折到第二行；按钮组 margin-left: auto 贴右缘。 */
   .header-title { flex: none; }
 
-  .header-top-actions { margin-left: auto; }
+  .header-top-actions { margin-left: auto; order: 1; }
 
   .header-top-actions .btn.primary { padding: 0; width: 44px; min-height: 44px; border-radius: 50%; font-size: 24px; font-weight: 500; line-height: 1; }
 
@@ -504,10 +542,46 @@
 
   .header-top-actions .menu-toggle { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
 
+  /* v0.55.0 JS 批 A-D：汉堡角标（.menu-toggle-badge，absolute）以汉堡按钮为定位父级。
+     单独一条规则，不动上面 v0.52.0 钉住的尺寸文本。 */
+  .header-top-actions .menu-toggle { position: relative; }
+
   /* v0.52.0：去掉顶 padding，同步状态纵向居中（原 2px 把文字顶低约 1px） */
   .user-menu { padding-top: 0; gap: 6px; font-size: 11px; line-height: 1.35; }
 
-  #userEmail { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  /* v0.55.0 JS 批 A-E：窄屏顶栏邮箱收起来 —— 邮箱只在设置页“账户”区展示
+     （#settingsAccountEmail），顶栏第二行腾给同步状态 + 日期 + 倒计时芯片。 */
+  #userEmail { display: none; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  /* v0.55.0 JS 批 A-C：顶栏第二行日期（同步状态旁），纯展示，随 ui.render 更新。 */
+  .header-date { display: inline; flex: none; white-space: nowrap; color: var(--muted); }
+
+  /* v0.55.0 JS 批 A：顶栏倒计时小芯片 —— 可点（跳对应项目详情），只在窄屏显示；
+     占第二行剩余宽度，项目名过长单行省略（等效于 .bp-clamp-2 的截断意图，
+     芯片一行高只能放单行省略）。flex-basis 0：不在第二行按内容宽占位，
+     而是在同步 + 日期之后剩下的宽度里截断。hidden 属性由 [hidden] 的 !important 兜底。 */
+  .hero-chip { display: inline-flex; flex: 1 1 0; min-width: 0; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+  /* v0.55.0 JS 批 A：窄屏顶栏改两行 —— 第一行品牌 + 动作（+ / 汉堡），
+     第二行同步状态 + 日期 + 倒计时芯片占满宽。没有这两条，芯片的内容宽
+     会把 .user-menu 撑到独自占一行，动作组被挤到第三行（390px 实测）。
+     只改窄屏，桌面端一行排布不动。order 已合进上面钉住 margin-left: auto 的
+     那条规则（v0.53.0 测试取最后一条 .header-top-actions 断言 margin-left）。 */
+  .user-menu { order: 2; flex: 1 1 100%; }
+
+  .hero-chip:active { transform: scale(0.97); }
+
+  .hero-chip-label { flex: none; }
+
+  .hero-chip-count { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .hero-chip-sep { flex: none; }
+
+  .hero-chip-name { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
+
+  /* v0.55.0 JS 批 A-D：汉堡角标 —— 复用 #upcomingBadgeCount 的计数，
+     同一次更新、同一数字；0 时 hidden（.hidden 的 !important 兜底）。 */
+  .menu-toggle-badge { position: absolute; top: -4px; right: -4px; display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; border: 2px solid var(--bg); background: #FF3B30; color: #FFFFFF; font-size: 11px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
 
   /* v0.53.0：英雄区手机版 —— 上下内边距收紧约四分之一（20px → 16px，左右不小于
      16px），倒计时 48px → 36px，项目名 24px → 20px；倒计时一行放不下时整行换行
@@ -633,8 +707,62 @@
   /* G8：抽屉底部补安全区——「保存设置 / 保存资质 / 生成订阅链接」原来落在 iPhone 底部手势区里 */
   .sheet-panel { padding-bottom: calc(var(--sp-5) + env(safe-area-inset-bottom)); }
 
+  /* v0.55.0 JS 批 B2：抽屉改 iOS 风格底部 sheet（只在窄屏，桌面端不动）——
+     临期/表单抽屉（.drawer-overlay > .drawer-panel）与设置/回收站等 .sheet-panel
+     一律全宽贴边、仅顶部圆角；遮罩内边距去掉，面板贴底；右侧滑入改上滑。
+     确认框（.confirm-panel）是小对话框，不参与。 */
+  .sheet { padding: 0; }
+
+  .sheet-panel { width: 100%; max-height: 92dvh; border-radius: 20px 20px 0 0; }
+
+  .drawer-overlay { padding: 0; align-items: flex-end; justify-content: center; }
+
+  .drawer-panel, .drawer-panel-wide { width: 100%; max-width: 100%; max-height: 92dvh; border-radius: 20px 20px 0 0; border-left: 0; border-right: 0; border-bottom: 0; animation: sheet-up var(--dur-slow) var(--ease-spring) both; }
+
+  /* v0.55.0 JS 批 B2：拖拽手柄 —— 吸顶横条，面板滚到底 / 滚一半时手柄仍留在
+     面板顶部可抓（表单打开时首个输入框聚焦会把面板滚下去，普通手柄会滚出可视区）；
+     整条占满宽、底色与面板一致（内容从下面滑过不透），横条本身用 ::after 居中 36×4px。 */
+  .sheet-handle { position: sticky; top: 0; z-index: 5; display: block; flex: none; width: 100%; height: 18px; margin: 0 0 10px; background: var(--surface); }
+
+  .sheet-handle::after { content: ""; display: block; width: 36px; height: 4px; margin: 7px auto 0; border-radius: 999px; background: var(--border); }
+
+  /* v0.55.0 JS 批 B4：滚动回弹 —— 页面顶部/底部猛拉不再整页橡皮筋，
+     抽屉内部滚动到头只在面板内回弹。 */
+  body { overscroll-behavior: none; }
+
+  .drawer-panel, .sheet-panel { overscroll-behavior: contain; }
+
+  /* v0.55.0 JS 批 B4：下拉刷新指示器 —— 外层只定位，视觉复用内层 .toast，
+     不新造一套；平时 hidden，只在下拉超阈值时短暂显示。 */
+  .ptr-indicator { position: fixed; top: calc(10px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 80; }
+
+  /* v0.55.0 JS 批 B5：底部菜单操作表 —— 复用 .sheet-panel 底部 sheet 形态，
+     6 个菜单项各占一行（44px 触控高），取消单独成行。 */
+  .menu-action-panel { padding-top: 12px; }
+
+  .menu-action-list { display: grid; }
+
+  .menu-action-item { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: 10px 12px; border: 0; border-top: 1px solid var(--hairline); background: none; font: inherit; font-size: 16px; color: var(--text); cursor: pointer; }
+
+  .menu-action-item:first-child { border-top: 0; }
+
+  .menu-action-item:active { background: var(--accent-soft); }
+
+  .menu-action-cancel { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; margin-top: 8px; border: 0; border-radius: 12px; background: var(--btn-fill); font: inherit; font-size: 16px; font-weight: 600; color: var(--accent); cursor: pointer; }
+
+  .menu-action-cancel:active { transform: scale(0.98); }
+
+  /* v0.55.0 JS 批 B12：键盘弹出时表单抽屉收缩（高度取 visualViewport 高度，
+     JS 写 --keyboard-vv-height）、提交按钮吸底；只影响窄屏表单抽屉。 */
+  body.keyboard-open #formSheet .drawer-panel { height: var(--keyboard-vv-height, 100dvh); max-height: var(--keyboard-vv-height, 100dvh); }
+
+  body.keyboard-open #formSheet .form-actions { position: sticky; bottom: 0; z-index: 2; background: var(--surface); padding-top: 8px; box-shadow: 0 -6px 12px rgba(0, 0, 0, 0.06); }
+
   /* v0.35.9：手机抽屉标题栏也吸顶 + 毛玻璃（长抽屉滚到一半时标题与关闭按钮还在），
-       与桌面端 .sheet-head 同一档；负边距抵消面板 20px 内边距，底边一条 hairline。 */
+       与桌面端 .sheet-head 同一档；负边距抵消面板 20px 内边距，底边一条 hairline。
+       v0.55.0 mobile-polish C4：底色改 100% 不透明实色 —— 原来 96% + 毛玻璃，
+       滚动时正文从标题栏下掠过会淡淡透出来（副标题附近见重影）；backdrop-filter 保留，
+       实色之上不起透字作用。 */
   .sheet-head {
       position: sticky;
       /* 面板自身有 20px 内边距，负外边距把标题栏提到面板上沿；sticky 的 top 也要跟着负回去，
@@ -643,7 +771,7 @@
       z-index: 4;
       margin: calc(-1 * var(--sp-5)) calc(-1 * var(--sp-5)) 12px;
       padding: var(--sp-5) var(--sp-5) 10px;
-      background: color-mix(in srgb, var(--surface) 96%, transparent);
+      background: var(--surface);
       -webkit-backdrop-filter: saturate(180%) blur(20px);
       backdrop-filter: saturate(180%) blur(20px);
       border-bottom: 1px solid var(--hairline);
@@ -655,6 +783,10 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
+
+  /* v0.55.0 mobile-polish B3：汉堡菜单入场淡入 + 轻微缩放 0.18s（@keyframes menu-fade-scale，
+       参考 toast-in 的模式；display 不能过渡，所以用 animation 而不用 transition）。 */
+  .header-actions.open { animation: menu-fade-scale 0.18s var(--ease-out); transform-origin: top right; }
 
   /* M10：列表标题的三行长说明（110px）只留标题一行，搜索计数并到搜索框右侧（省 18px） */
   .list-panel .panel-title p { display: none; }
@@ -700,7 +832,7 @@
        这一行只剩中标率一枚 —— 整行一起收掉，日历多出 36px。 */
   .list-tools.calendar-mode .list-tools-actions { display: none; }
 
-  .list-tools .view-seg .seg-btn { min-height: 36px; padding: 0 12px; font-size: 12.5px; }
+  .list-tools .view-seg .seg-btn { min-height: 44px; padding: 0 12px; font-size: 12.5px; }
 
   .list-tools .sort-select {
       margin-left: 0;
@@ -805,8 +937,9 @@
   /* L1：「选填信息」标题按钮两侧各 4px 外扩，右缘超出容器 4px 被裁 */
   .form-section-title.collapsible { width: auto; margin-left: 0; margin-right: 0; }
 
-  /* L4：列表 / 日历段控件 33px → 可点（v0.35.6 统一成 36px，与胶囊同高） */
-  .list-tools .seg-btn { min-height: 36px; }
+  /* L4：列表 / 日历段控件 33px → 可点（v0.35.6 统一成 36px，与胶囊同高）
+       v0.55.0 mobile-polish C3/B8：触控目标提到 44px（设计稿要求；筛选分段按钮实测 36px）。 */
+  .list-tools .seg-btn { min-height: 44px; }
 
   body.dark .bottom-tabs { background: color-mix(in srgb, var(--surface) 96%, transparent); }
 
@@ -832,6 +965,9 @@
     .seg-btn,
     .up-summary { -webkit-tap-highlight-color: transparent; }
 
+  /* v0.55.0 mobile-polish B9：长按项目卡片 / 临期条目不弹出 iOS 系统菜单。 */
+  .project-item, .upcoming-item { -webkit-touch-callout: none; }
+
   /* 页头菜单：从「一摞灰底大按钮」改成 iOS 菜单的样子 —— 透明行 + hairline 分隔 + 分组小标题，
        点按有浅蓝高亮（触摸屏没有 hover） */
   .header-actions {
@@ -849,6 +985,7 @@
       border-radius: 0;
       box-shadow: none;
       padding: 12px var(--sp-4);
+      min-height: 44px;
       font-size: 15px;
       font-weight: 500;
     }

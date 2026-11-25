@@ -5,7 +5,8 @@
  * js/ai-extract.js 均已删除）；已入库的旧风险结论与检查清单
  * 仍在卡片里展示与管理，见 js/utils.js。
  */
-import { THEME_KEY, formatBidMoment, getMissedBidProjects, getDeadlineItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
+import { THEME_KEY, formatBidMoment, getMissedBidProjects, getDeadlineItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen, vibrate, isKeyboardOpen } from "./js/utils.js";
+import { bindSheetSwipeGesture, bindPullToRefresh } from "./js/sheet-gestures.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { requiredFormFields } from "./js/fields.js";
@@ -60,7 +61,15 @@ import { createSettings } from "./js/settings.js";
     importFileInput: document.getElementById("importFileInput"),
     signOutBtn: document.getElementById("signOutBtn"),
     userEmail: document.getElementById("userEmail"),
+    settingsAccountEmail: document.getElementById("settingsAccountEmail"),
     syncStatus: document.getElementById("syncStatus"),
+    headerDate: document.getElementById("headerDate"),
+    heroChip: document.getElementById("heroChip"),
+    heroChipCount: document.getElementById("heroChipCount"),
+    heroChipName: document.getElementById("heroChipName"),
+    menuToggleBadge: document.getElementById("menuToggleBadge"),
+    menuActionSheet: document.getElementById("menuActionSheet"),
+    ptrIndicator: document.getElementById("ptrIndicator"),
     offlineBanner: document.getElementById("offlineBanner"),
     bpHero: document.getElementById("bpHero"),
     bpHeroLabel: document.getElementById("bpHeroLabel"),
@@ -730,6 +739,7 @@ import { createSettings } from "./js/settings.js";
       return false;
     }
     resetForm();
+    vibrate(10); // v0.55.0 JS 批 B6：表单提交成功轻震
     // v0.35.2：等表单收起动画落定再回到这张卡片（以前同一帧定位，结果页面被抽到列表底部）。
     locateProjectAfterSave(savedId);
     return true;
@@ -822,6 +832,10 @@ import { createSettings } from "./js/settings.js";
       return;
     state.user = user;
     elements.userEmail.textContent = user.email || "";
+    // v0.55.0 JS 批 A-E：窄屏顶栏邮箱收起后，当前登录邮箱在设置“账户”区展示；
+    // 设置打开时 settings.js 也会按 state.user 重填一次。
+    if (elements.settingsAccountEmail)
+      elements.settingsAccountEmail.textContent = user.email || "未登录";
     elements.authView.classList.add("hidden");
     elements.appView.classList.remove("hidden");
     // v0.35.3：登录时只刷新通知状态行，不再自动申请权限（见 requestNotificationPermission 注释）；
@@ -1285,6 +1299,8 @@ import { createSettings } from "./js/settings.js";
         openHeroProject();
       }
     });
+    // v0.55.0 JS 批 A：点顶栏倒计时芯片跳到对应项目详情，与点英雄区项目名同一行为。
+    elements.heroChip?.addEventListener("click", openHeroProject);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) ui.stopHeroTimer?.();
       else ui.renderHero?.();
@@ -1302,8 +1318,62 @@ import { createSettings } from "./js/settings.js";
     elements.formSheet?.addEventListener("click", (e) => {
       if (e.target === elements.formSheet) setFormExpanded(false);
     });
+
+    // v0.55.0 JS 批 B5：底部 Tab「菜单」的操作表 —— 就地从底部弹出（复用 .sheet-panel
+    // 底部 sheet 形态），不再先 window.scrollTo 回顶（v0.23.0 的绕法已删，见下方
+    // 底部 Tab 分支；菜单锚在页顶，下滑后点它会把页面拽回顶部，原生做法是操作表
+    // 不动滚动位置）。内容为现有 6 个菜单项：点某项先收起本表，再点一次对应的
+    // 原菜单按钮（data-menu-target），行为与点汉堡菜单完全一致（事件与角标逻辑
+    // 全部走原路，不复制一份）；「切换为深色/浅色」文案打开时从原按钮同步。
+    const openMenuActionSheet = () => {
+      const themeItem = elements.menuActionSheet?.querySelector(
+        '[data-menu-target="themeBtn"]'
+      );
+      const themeLabel = elements.themeBtn?.querySelector(".btn-label")?.textContent;
+      if (themeItem && themeLabel) themeItem.textContent = themeLabel;
+      elements.menuActionSheet?.classList.remove("hidden");
+      document.body.classList.add("sheet-open");
+    };
+    const closeMenuActionSheet = () => {
+      if (!elements.menuActionSheet || elements.menuActionSheet.classList.contains("hidden")) return false;
+      elements.menuActionSheet.classList.add("hidden");
+      // 下面没有别的浮层时才解滚动锁（抽屉/设置可能还盖着）。
+      const layerBelow =
+        [...document.querySelectorAll(".sheet")].some(
+          (el) => el !== elements.menuActionSheet && !el.classList.contains("hidden")
+        ) ||
+        [...document.querySelectorAll(".drawer-overlay")].some(
+          (el) => !el.classList.contains("hidden")
+        );
+      if (!layerBelow) document.body.classList.remove("sheet-open");
+      return true;
+    };
+    elements.menuActionSheet?.addEventListener("click", (event) => {
+      if (event.target.closest("[data-action='close-menu-sheet']")) {
+        closeMenuActionSheet();
+        return;
+      }
+      const item = event.target.closest("[data-menu-target]");
+      if (!item) return;
+      const target = document.getElementById(item.dataset.menuTarget);
+      closeMenuActionSheet();
+      target?.click();
+    });
+    // v0.55.0 JS 批 B2：操作表也是底部 sheet，下滑关闭走同一手势模块。
+    bindSheetSwipeGesture(elements.menuActionSheet?.querySelector(".sheet-panel"), {
+      onClose: closeMenuActionSheet,
+    });
+    // v0.55.0 JS 批 B2：临期抽屉与项目表单抽屉下滑关闭（只在窄屏 + 触摸设备
+    // 上绑定），关闭走现有的 closeUpcomingSheet / setFormExpanded(false)。
+    bindSheetSwipeGesture(elements.upcomingSheet?.querySelector(".drawer-panel"), {
+      onClose: closeUpcomingSheet,
+    });
+    bindSheetSwipeGesture(elements.formSheet?.querySelector(".drawer-panel"), {
+      onClose: () => setFormExpanded(false),
+    });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        closeMenuActionSheet();
         closeUpcomingSheet();
         if (state.formExpanded) setFormExpanded(false);
       }
@@ -1323,10 +1393,11 @@ import { createSettings } from "./js/settings.js";
     });
 
     // v0.11.0：移动端底部 Tab —— 复用现有视图切换，不新增视图状态；
-    // 项目/日历走 setViewMode，菜单走现有菜单开关。
+    // 项目/日历走 setViewMode，菜单走底部操作表。
     document.querySelectorAll(".bottom-tab").forEach((btn) =>
       btn.addEventListener("click", () => {
         const tab = btn.dataset.tab;
+        vibrate(10); // v0.55.0 JS 批 B6：切换底部 Tab 轻震
         if (tab === "projects") {
           // v0.30.0：从日历回来时恢复列表滚动位置；已经在列表时点“项目”仍是回顶。
           const returning = state.viewMode !== "list";
@@ -1341,12 +1412,11 @@ import { createSettings } from "./js/settings.js";
           showDashboard();
           setViewMode("calendar");
         } else if (tab === "menu") {
-          // v0.23.0：菜单锚在页顶（header 内的绝对定位下拉框），下滑后从底部点它
-          // 会开在看不见的页顶——打开时先回顶；关闭时不动（本来就在顶上）。
-          const menu = document.getElementById("headerMenu");
-          const wasOpen = menu?.classList.contains("open");
-          ui.toggleMobileMenu();
-          if (!wasOpen) window.scrollTo({ top: 0, behavior: "smooth" });
+          // v0.55.0 JS 批 B5：v0.23.0 的绕法已删 —— 菜单锚在页顶（header 内的
+          // 绝对定位下拉框），下滑后从底部点它会先 window.scrollTo 回顶再打开，
+          // 页面被拽回顶部；改成就地打开底部操作表（openMenuActionSheet），
+          // 不改变页面滚动位置。点底部「项目」Tab 回顶的行为不动。
+          openMenuActionSheet();
         }
       })
     );
@@ -1388,7 +1458,10 @@ import { createSettings } from "./js/settings.js";
     });
     elements.deleteSelectedBtn?.addEventListener("click", async () => {
       const ok = await projectsApi.deleteProjects([...state.selectedIds]);
-      if (ok) exitSelectMode();
+      if (ok) {
+        vibrate(10); // v0.55.0 JS 批 B6：删除成功轻震
+        exitSelectMode();
+      }
     });
 
     // v0.16.0：编辑回填抽出共用 —— 卡片"编辑"走这里。
@@ -1525,7 +1598,10 @@ import { createSettings } from "./js/settings.js";
       }
       if (button.dataset.action === "delete") {
         const ok = await projectsApi.deleteProject(id);
-        if (ok && state.editingId === id) resetForm();
+        if (ok) {
+          vibrate(10); // v0.55.0 JS 批 B6：删除成功轻震
+          if (state.editingId === id) resetForm();
+        }
       }
       if (button.dataset.action === "clone") {
         await projectsApi.cloneProject(id);
@@ -1718,6 +1794,7 @@ import { createSettings } from "./js/settings.js";
         !elements.confirmDialog.classList.contains("hidden")
       )
         return; // 确认框在最上层，它自己收
+      if (closeMenuActionSheet()) return; // v0.55.0 JS 批 B5：底部菜单操作表
       if (settings.isOpen()) {
         settings.close();
         return;
@@ -1771,6 +1848,7 @@ import { createSettings } from "./js/settings.js";
     // 悬浮组已拿掉，返回靠各层自带关闭（菜单 / 抽屉 / 设置 / 底部 Tab），
     // 回顶部靠底部“项目”Tab（showDashboard 自带回顶）。
     const closeTopLayer = () => {
+      if (closeMenuActionSheet()) return true; // v0.55.0 JS 批 B5
       if (elements.headerMenu?.classList.contains("open")) {
         ui.toggleMobileMenu(false);
         return true;
@@ -1817,9 +1895,49 @@ import { createSettings } from "./js/settings.js";
     );
   }
 
+  // v0.55.0 JS 批 B4：60 秒定时器与下拉刷新共用的刷新入口。
+  // 注意：60 秒定时器原来只做倒计时/英雄区/通知三件，从不拉数据 ——
+  // loadProjects 只留给首次加载 / 联网恢复 / 重置 / 恢复备份（见 js/projects.js，
+  // 它会全量 ui.render()）。所以 refreshNow 默认只包定时器原有的三件，
+  // 定时器行为一字不改；下拉刷新传 { reloadData: true } 才多拉一次数据。
+  const refreshNow = async ({ reloadData = false } = {}) => {
+    if (reloadData) await projectsApi.loadProjects();
+    ui.updateCountdowns();
+    ui.renderHero?.();
+    sendBidNotifications();
+  };
+
   async function init() {
     ui.applyTheme(state.darkMode);
     bindEvents();
+    // v0.55.0 JS 批 B4：顶部下拉刷新 —— 只在窄屏触摸设备启用（手势模块内判断），
+    // 松手触发一次数据刷新；刷新态先画骨架屏（复用登录后的 showListSkeleton），
+    // 数据回来后 loadProjects 的 ui.render() 把骨架换成列表。
+    bindPullToRefresh({
+      indicatorEl: elements.ptrIndicator,
+      onRefresh: async () => {
+        ui.showListSkeleton();
+        await refreshNow({ reloadData: true });
+      },
+    });
+    // v0.55.0 JS 批 B12：键盘弹出时收缩表单抽屉、提交按钮吸底（CSS 侧
+    // body.keyboard-open）。只看 visualViewport 相对窗口的收缩量，
+    // 顶栏折叠等小幅变化（<=150px）不误判；键盘收起时恢复。
+    const visualViewport = window.visualViewport;
+    if (visualViewport) {
+      visualViewport.addEventListener("resize", () => {
+        const open = isKeyboardOpen(window.innerHeight, visualViewport.height);
+        document.body.classList.toggle("keyboard-open", open);
+        if (open) {
+          document.documentElement.style.setProperty(
+            "--keyboard-vv-height",
+            `${visualViewport.height}px`
+          );
+        } else {
+          document.documentElement.style.removeProperty("--keyboard-vv-height");
+        }
+      });
+    }
     // v0.34.0：初始渲染前把统计卡片的 aria-pressed 与默认筛选（全部）对齐
     if (typeof state.syncSegControl === "function") state.syncSegControl();
     ui.updateScrollUi();
@@ -1854,9 +1972,7 @@ import { createSettings } from "./js/settings.js";
 
     setInterval(() => {
       if (!state.user) return;
-      ui.updateCountdowns();
-      ui.renderHero?.();
-      sendBidNotifications();
+      refreshNow();
     }, 60000);
   }
 
