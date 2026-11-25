@@ -5,7 +5,6 @@ import {
   getTrashExpiryCutoff,
   TRASH_RETENTION_DAYS,
   normalizeChecklist,
-  buildChecklistFromAi,
   getChecklistProgress,
   formatMoney,
   getGuaranteeTotals,
@@ -25,8 +24,6 @@ import {
   isFormDataEmpty,
   isFormDraftUsable,
   isFormDraftStale,
-  qualMatchBadge,
-  qualMatchSummary,
   saveProjectsSnapshot,
   loadProjectsSnapshot,
   SNAPSHOT_TTL_MS,
@@ -34,10 +31,6 @@ import {
   isSectionOpen,
   toggleSectionOpen,
   SECTION_OPEN_BY_DEFAULT,
-  normalizeEvidencePage,
-  normalizeEvidenceItem,
-  normalizeEvidenceItems,
-  getEvidenceState,
   stripPdfFilenameSuffix,
   countPdfPagesFromText,
 } from "../js/utils.js";
@@ -96,34 +89,6 @@ test("normalizeChecklist：清洗非法项、截断 500 字、最多 100 项", (
   assert.equal(normalizeChecklist(many).length, 100);
 });
 
-test("buildChecklistFromAi：废标全转、高/中风险转、低风险不转、去重、最多 50", () => {
-  const list = buildChecklistFromAi(
-    ["废标 A", "废标 B", "废标 A", "  "],
-    [
-      { text: "高风险", level: "high" },
-      { text: "中风险", level: "medium" },
-      { text: "低风险", level: "low" },
-      { text: "无等级" },
-      "字符串风险点",
-    ]
-  );
-  assert.deepEqual(
-    list.map((i) => [i.text, i.source]),
-    [
-      ["废标 A", "ai-invalid"],
-      ["废标 B", "ai-invalid"],
-      ["高风险", "ai-risk"],
-      ["中风险", "ai-risk"],
-    ]
-  );
-  assert.ok(list.every((i) => i.done === false));
-  assert.deepEqual(buildChecklistFromAi(null, null), []);
-  const big = buildChecklistFromAi(
-    Array.from({ length: 60 }, (_, i) => `条款 ${i}`),
-    []
-  );
-  assert.equal(big.length, 50);
-});
 
 test("getChecklistProgress：返回 done/total", () => {
   assert.deepEqual(
@@ -469,65 +434,10 @@ test("splitRestoreRows：已有进 update、新行进 insert", () => {
   assert.deepEqual(update.map((r) => r.id), ["a", "c"]);
 });
 
-test("normalizeEvidencePage：数字与中文页码取首个正整数，取不到为 null", () => {
-  assert.equal(normalizeEvidencePage(12), 12);
-  assert.equal(normalizeEvidencePage("12"), 12);
-  assert.equal(normalizeEvidencePage("第12页"), 12);
-  assert.equal(normalizeEvidencePage("12-14"), 12);
-  assert.equal(normalizeEvidencePage(null), null);
-  assert.equal(normalizeEvidencePage(""), null);
-  assert.equal(normalizeEvidencePage("没有页码"), null);
-  assert.equal(normalizeEvidencePage(0), null);
-});
 
-test("normalizeEvidenceItem：字符串与对象兼容，原文截断 200 字、保留合法 level", () => {
-  assert.deepEqual(normalizeEvidenceItem("  须有施工资质  "), {
-    text: "须有施工资质",
-    page: null,
-    quote: "",
-    verified: false,
-  });
-  const item = normalizeEvidenceItem({
-    text: "保证金 80 万",
-    page: "第36页",
-    quote: "x".repeat(250),
-    verified: true,
-    level: "high",
-  });
-  assert.equal(item.page, 36);
-  assert.equal(item.quote.length, 200);
-  assert.equal(item.verified, true);
-  assert.equal(item.level, "high");
-  assert.equal(normalizeEvidenceItem({ text: "  " }), null);
-  assert.equal(normalizeEvidenceItem(null), null);
-  assert.equal(
-    normalizeEvidenceItem({ text: "A", level: "critical" }).level,
-    undefined
-  );
-});
 
-test("normalizeEvidenceItems：非数组返回 []，空项过滤", () => {
-  assert.deepEqual(normalizeEvidenceItems(null), []);
-  assert.equal(normalizeEvidenceItems(["A", "", { text: "B", page: 3 }]).length, 2);
-});
 
-test("getEvidenceState：人工已核对 > 未给出来源 > AI 已提取", () => {
-  assert.equal(getEvidenceState({ verified: true }).label, "人工已核对");
-  assert.equal(getEvidenceState({ page: null, quote: "" }).label, "未给出来源");
-  assert.equal(getEvidenceState({ page: 5, quote: "" }).label, "AI 已提取");
-  assert.equal(getEvidenceState({ page: null, quote: "原文" }).label, "AI 已提取");
-  assert.equal(getEvidenceState("旧字符串").label, "未给出来源");
-});
 
-test("buildChecklistFromAi：对象形态的结论仍能生成清单", () => {
-  const list = buildChecklistFromAi(
-    [{ text: "逾期投标无效", page: 36, quote: "原文", verified: false }],
-    [{ level: "high", text: "保证金过高", page: 12, quote: "", verified: false }]
-  );
-  assert.equal(list.length, 2);
-  assert.equal(list[0].text, "逾期投标无效");
-  assert.equal(list[1].source, "ai-risk");
-});
 
 /* ============ v0.18.1：已保存文本的文件名与页数 ============ */
 
@@ -632,37 +542,8 @@ test("isFormDraftStale：坏结构/过期为真，editingId 对不上不算过�
   );
 });
 
-test("normalizeEvidenceItem：match / match_note 只留合法值", () => {
-  const ok = normalizeEvidenceItem({
-    text: "须具备建筑工程施工总承包壹级",
-    match: "matched",
-    match_note: "自有壹级满足要求",
-  });
-  assert.equal(ok.match, "matched");
-  assert.equal(ok.match_note, "自有壹级满足要求");
-  const bad = normalizeEvidenceItem({ text: "x", match: "yes", match_note: "  " });
-  assert.equal(bad.match, undefined);
-  assert.equal(bad.match_note, undefined);
-});
 
-test("qualMatchBadge：三种状态出徽标，无 match 出空", () => {
-  assert.match(qualMatchBadge({ match: "matched", match_note: "自有壹级" }), /✓ 满足/);
-  assert.match(qualMatchBadge({ match: "missing" }), /✗ 缺失/);
-  assert.match(qualMatchBadge({ match: "unclear" }), /\? 待确认/);
-  assert.equal(qualMatchBadge({ text: "x" }), "");
-  assert.equal(qualMatchBadge(null), "");
-  assert.match(qualMatchBadge({ match: "matched", match_note: "自有壹级" }), /自有壹级/);
-});
 
-test("qualMatchSummary：计数汇总，无对照结果时为空", () => {
-  assert.equal(
-    qualMatchSummary([{ match: "matched" }, { match: "matched" }, { match: "missing" }, { match: "unclear" }, {}]),
-    "（2 满足 · 1 缺失 · 1 待确认）"
-  );
-  assert.equal(qualMatchSummary([{ text: "x" }]), "");
-  assert.equal(qualMatchSummary([]), "");
-  assert.equal(qualMatchSummary(null), "");
-});
 
 class FakeStorage {
   constructor() {
@@ -710,15 +591,14 @@ test("pruneNotificationKeys：只清 30 天以上的去重键", () => {
 
 /* ================= v0.35.7：卡片内分区的默认展开态 ================= */
 
-test("SECTION_OPEN_BY_DEFAULT：风险默认展开、废标清单默认收起", () => {
-  assert.equal(SECTION_OPEN_BY_DEFAULT.risk, true);
+test("SECTION_OPEN_BY_DEFAULT：废标清单默认收起（第 4 批：风险分区已下线）", () => {
   assert.equal(SECTION_OPEN_BY_DEFAULT.checklist, false);
+  assert.equal("risk" in SECTION_OPEN_BY_DEFAULT, false);
 });
 
-test("isSectionOpen：没点过时用默认态（清单收起、风险展开）", () => {
+test("isSectionOpen：没点过时用默认态（清单收起）", () => {
   const state = { collapsedSections: new Set(), expandedSections: new Set() };
   assert.equal(isSectionOpen(state, "p1", "checklist"), false);
-  assert.equal(isSectionOpen(state, "p1", "risk"), true);
   // 兼容缺字段的旧 state（渲染时 getState() 可能还没有 expandedSections）
   assert.equal(isSectionOpen({}, "p1", "checklist"), false);
 });
@@ -734,15 +614,6 @@ test("toggleSectionOpen：清单点一下开、再点一下关，并写回对应
   assert.equal(isSectionOpen(state, "p1", "checklist"), false);
 });
 
-test("toggleSectionOpen：风险仍按默认展开记录（点一下收起写进 collapsedSections）", () => {
-  const state = { collapsedSections: new Set(), expandedSections: new Set() };
-  assert.equal(toggleSectionOpen(state, "p2", "risk"), false);
-  assert.deepEqual([...state.collapsedSections], ["p2:risk"]);
-  assert.equal(state.expandedSections.size, 0);
-  assert.equal(isSectionOpen(state, "p2", "risk"), false);
-  assert.equal(toggleSectionOpen(state, "p2", "risk"), true);
-  assert.equal(state.collapsedSections.size, 0);
-});
 
 test("toggleSectionOpen：两个项目互不影响", () => {
   const state = { collapsedSections: new Set(), expandedSections: new Set() };
