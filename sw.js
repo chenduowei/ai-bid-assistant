@@ -5,7 +5,7 @@
  * 用户刷新也看不到新功能（v0.8.1 教训：只改了页面没改 sw.js，
  * 缓存名不变导致新版按钮一直不出现）。发版前跑 npm run check:version 校验。
  */
-const CACHE_NAME = "bid-assistant-v0.54.0";
+const CACHE_NAME = "bid-assistant-v0.55.0";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -34,6 +34,15 @@ const APP_SHELL = [
   "./favicon.svg",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  // v0.55.0 B7：iOS 启动图（index.html 里 8 档 apple-touch-startup-image 的同一批文件）
+  "./icons/splash-1290x2796.png",
+  "./icons/splash-1179x2556.png",
+  "./icons/splash-1284x2778.png",
+  "./icons/splash-1170x2532.png",
+  "./icons/splash-1125x2436.png",
+  "./icons/splash-1242x2688.png",
+  "./icons/splash-750x1334.png",
+  "./icons/splash-640x1136.png",
   "./manifest.json",
 ];
 

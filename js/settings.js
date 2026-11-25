@@ -10,6 +10,7 @@
  * 品牌首页“关最上层浮层”复用；updateNotificationRow() 供登录后刷新通知状态行。
  */
 import { getReminderDays, setReminderDays } from "./utils.js";
+import { bindSheetSwipeGesture } from "./sheet-gestures.js";
 
 export function createSettings({
   elements,
@@ -73,6 +74,11 @@ export function createSettings({
     if (elements.reminderDays) {
       elements.reminderDays.value = String(getReminderDays());
     }
+    // v0.55.0 JS 批 A-E：窄屏顶栏邮箱收起后，当前登录邮箱只在设置“账户”区展示；
+    // 每次打开都按 state.user 重填（登录时 app.js 也填一次，双保险）。
+    if (elements.settingsAccountEmail)
+      elements.settingsAccountEmail.textContent =
+        getState().user?.email || "未登录";
     updateNotificationRow();
   };
   const closeSettingsSheet = () => {
@@ -94,6 +100,11 @@ export function createSettings({
   };
 
   const bindSettings = () => {
+    // v0.55.0 JS 批 B2：设置抽屉下滑关闭（只在窄屏 + 触摸设备上绑定），
+    // 关闭走现有的 closeSettingsSheet。
+    bindSheetSwipeGesture(elements.settingsSheet?.querySelector(".sheet-panel"), {
+      onClose: closeSettingsSheet,
+    });
     elements.aiSettingsBtn?.addEventListener("click", openSettingsSheet);
     // v0.35.0：通知权限在应用里终于可见可开 —— 已拒绝时给去站点设置的说明。
     elements.notifBtn?.addEventListener("click", async () => {

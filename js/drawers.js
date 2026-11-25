@@ -7,7 +7,8 @@
  * 注入：elements / getState / setState / ui / projectsApi。
  * 返回：bindDrawers() 绑全部事件；closeTop() 供品牌首页等“关最上层浮层”复用。
  */
-import { CALENDAR_TOKEN_TTL_DAYS, formatDateTimeDisplay } from "./utils.js";
+import { CALENDAR_TOKEN_TTL_DAYS, formatDateTimeDisplay, vibrate } from "./utils.js";
+import { bindSheetSwipeGesture } from "./sheet-gestures.js";
 
 export function createDrawers({ elements, getState, setState, ui, projectsApi }) {
   let guaranteeOpen = false;
@@ -175,6 +176,21 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
   };
 
   const bindDrawers = () => {
+    // v0.55.0 JS 批 B2：四个抽屉在窄屏改 iOS 风格底部 sheet（CSS 侧全宽贴边 + 手柄），
+    // 下滑关闭只在窄屏 + 触摸设备上绑定（bindSheetSwipeGesture 内判断），
+    // 关闭走各抽屉现有的 close 函数，不另写关闭逻辑。
+    bindSheetSwipeGesture(elements.guaranteeSheet?.querySelector(".sheet-panel"), {
+      onClose: closeGuaranteeSheet,
+    });
+    bindSheetSwipeGesture(elements.qualSheet?.querySelector(".sheet-panel"), {
+      onClose: closeQualSheet,
+    });
+    bindSheetSwipeGesture(elements.calendarSheet?.querySelector(".sheet-panel"), {
+      onClose: closeCalendarSheet,
+    });
+    bindSheetSwipeGesture(elements.trashSheet?.querySelector(".sheet-panel"), {
+      onClose: closeTrashSheet,
+    });
     // 保证金清单：菜单入口 / 统计卡片打开，关闭按钮 / 遮罩 / Esc 关闭
     elements.guaranteeMenuBtn?.addEventListener("click", openGuaranteeSheet);
     elements.guaranteeSheetClose?.addEventListener("click", closeGuaranteeSheet);
@@ -346,6 +362,7 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
       }
       const ok = await projectsApi.permanentlyDeleteProjects(deleted.map((p) => p.id));
       if (ok) {
+        vibrate(10); // v0.55.0 JS 批 B6：删除成功轻震
         await refreshTrashList(); // 列表已空，按钮保持禁用
         return;
       }
@@ -361,7 +378,10 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
       }
       if (button.dataset.action === "permanent-delete") {
         const ok = await projectsApi.permanentlyDeleteProject(id, button.dataset.name);
-        if (ok) await refreshTrashList();
+        if (ok) {
+          vibrate(10); // v0.55.0 JS 批 B6：删除成功轻震
+          await refreshTrashList();
+        }
       }
       // v0.30.0：回收站“加载更多”——每页 50 条，续一页。
       if (button.dataset.action === "trash-load-more") {

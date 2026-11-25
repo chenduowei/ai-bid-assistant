@@ -8,6 +8,17 @@
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <!-- v0.35.0：iOS 期望 180×180，直接给一张，不再让系统把 192 缩放糊掉 -->
   <link rel="apple-touch-icon" sizes="180x180" href="./icons/apple-touch-icon.png" />
+  <!-- v0.55.0 B7：iOS 启动图 —— 现有品牌图标（icons/icon-512.png）居中放在
+       蓝图深蓝 #0A2540 底上 + “投标工作台”白字（Noto Sans CJK SC 生成，
+       生成脚本见 PR 说明）；8 档 iPhone 竖屏尺寸，media 按设备宽高 + 像素比逐档匹配 -->
+  <link rel="apple-touch-startup-image" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icons/splash-1290x2796.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icons/splash-1179x2556.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icons/splash-1284x2778.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icons/splash-1170x2532.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icons/splash-1125x2436.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)" href="./icons/splash-1242x2688.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./icons/splash-750x1334.png" />
+  <link rel="apple-touch-startup-image" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2) and (orientation: portrait)" href="./icons/splash-640x1136.png" />
   <link rel="manifest" href="./manifest.json" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -24,6 +35,9 @@
 <body>
   <div id="scrollProgress" class="scroll-progress"></div>
   <div id="toastWrap" class="toast-wrap" aria-live="polite"></div>
+  <!-- v0.55.0 JS 批 B4：下拉刷新指示器 —— 复用 .toast 视觉（外层定位，内层 toast），
+       只在窄屏下拉超过阈值时由手势模块短暂显示，平时 hidden。 -->
+  <div id="ptrIndicator" class="ptr-indicator hidden" role="status"><div class="toast">↓ 松开刷新</div></div>
   <main id="authView" class="auth-shell">
     <div class="auth-split">
       <aside class="auth-poster">
@@ -79,13 +93,13 @@
           <button id="brandHomeBtn" class="brand-mark" type="button" aria-label="回到首页" title="回到首页"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5a2 2 0 0 1 6 0"/><path d="M8.8 12.6 11 14.8l4.2-4.6"/></svg></button>
           <div class="brand-text brand-text-inline">
             <h1 class="brand-main-title">投标工作台</h1>
-            <p class="brand-line"><span class="brand-en">BidDesk</span><span id="headerSubtitle" class="brand-sub">让每一次投标，都心里有数。</span><span class="app-version-badge" aria-label="应用版本">v0.54.0</span></p>
+            <p class="brand-line"><span class="brand-en">BidDesk</span><span id="headerSubtitle" class="brand-sub">让每一次投标，都心里有数。</span><span class="app-version-badge" aria-label="应用版本">v0.55.0</span></p>
           </div>
         </div>
-        <div class="user-menu user-menu-inline"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span></div>
+        <div class="user-menu user-menu-inline"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span><span id="headerDate" class="header-date"></span><button id="heroChip" class="hero-chip" type="button" hidden><span class="hero-chip-label" aria-hidden="true">⏳</span><span id="heroChipCount" class="hero-chip-count"></span><span class="hero-chip-sep" aria-hidden="true">·</span><span id="heroChipName" class="hero-chip-name"></span></button></div>
         <div class="header-top-actions">
           <button id="addProjectBtn" class="btn primary" type="button" aria-label="新增项目" title="新增项目"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg><span class="btn-label-long">新增项目</span></button>
-          <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false"><svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.2h16M4 12h16M4 16.8h16"/></svg></button>
+          <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false"><svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.2h16M4 12h16M4 16.8h16"/></svg><span id="menuToggleBadge" class="menu-toggle-badge hidden">0</span></button>
         </div>
       </div>
       <!-- v0.51.4：一级菜单收口到 5 个高频入口；模板下载、日历订阅、退出登录收进「设置」，
@@ -147,6 +161,7 @@
 
     <div id="upcomingSheet" class="drawer-overlay hidden" role="dialog" aria-modal="true" aria-label="即将到期事项">
       <div class="drawer-panel">
+        <span class="sheet-handle" aria-hidden="true"></span>
         <div class="drawer-bar">
           <span class="drawer-bar-title">临期提醒</span>
           <button id="upcomingCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭临期提醒"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -170,6 +185,7 @@
 
     <div id="formSheet" class="drawer-overlay hidden" role="dialog" aria-modal="true" aria-label="新增或编辑项目">
       <div class="drawer-panel drawer-panel-wide">
+        <span class="sheet-handle" aria-hidden="true"></span>
         <div class="drawer-bar">
           <span class="drawer-bar-title">项目表单</span>
           <button id="formCloseBtn" class="btn secondary drawer-close-btn" type="button" aria-label="关闭项目表单"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
@@ -407,6 +423,25 @@
       <button type="button" data-tab="calendar" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.6" y="5.2" width="16.8" height="15.2" rx="3"/><path d="M3.6 10.2h16.8M8.2 3.2v3.6M15.8 3.2v3.6"/><path d="M7.6 14.2h2.6M13.8 14.2h2.6M7.6 17.4h2.6"/></svg></span><span>日历</span></button>
       <button type="button" data-tab="menu" class="bottom-tab" aria-pressed="false"><span class="bottom-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span><span>菜单</span></button>
     </nav>
+    <!-- v0.55.0 JS 批 B5：底部 Tab「菜单」的操作表 —— 替代原来“先回顶再开页顶下拉菜单”
+         的绕法（v0.23.0），就地从底部弹出，不改变页面滚动位置。内容与行为复用现有
+         6 个菜单项：点某项先收起本表，再点一次对应的原菜单按钮（data-menu-target），
+         事件与角标逻辑全部走原路。底部 Tab 只在窄屏显示，本表也只在窄屏打开。 -->
+    <div id="menuActionSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-label="菜单">
+      <div class="sheet-backdrop" data-action="close-menu-sheet"></div>
+      <div class="sheet-panel menu-action-panel card">
+        <span class="sheet-handle" aria-hidden="true"></span>
+        <div class="menu-action-list" role="menu">
+          <button type="button" class="menu-action-item" role="menuitem" data-menu-target="importBtn">导入</button>
+          <button type="button" class="menu-action-item" role="menuitem" data-menu-target="exportBtn">导出</button>
+          <button type="button" class="menu-action-item" role="menuitem" data-menu-target="trashMenuBtn">回收站</button>
+          <button type="button" class="menu-action-item" role="menuitem" data-menu-target="upcomingDrawerBtn">临期提醒</button>
+          <button type="button" class="menu-action-item" role="menuitem" data-menu-target="themeBtn">切换为深色</button>
+          <button type="button" class="menu-action-item" role="menuitem" data-menu-target="aiSettingsBtn">设置</button>
+        </div>
+        <button type="button" class="menu-action-cancel" data-action="close-menu-sheet">取消</button>
+      </div>
+    </div>
     <!-- v0.51.4：去掉多余的「回到底部」浮钮，只保留轻盈的「回顶部」(桌面) 与「新增」(手机) -->
     <button id="backToTopBtn" class="float-btn back-to-top" type="button" aria-label="回到顶部"><svg class="float-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6.4 14.2 5.6-5.6 5.6 5.6"/></svg></button>
     <button id="fabAdd" class="float-btn fab-add" type="button" aria-label="新增项目" title="新增项目"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg></button>
@@ -418,6 +453,7 @@
   <div id="settingsSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="settingsSheetTitle">
     <div class="sheet-backdrop" data-action="close-settings"></div>
     <section id="aiSettingsPanel" class="sheet-panel settings-panel card">
+      <span class="sheet-handle" aria-hidden="true"></span>
       <div class="sheet-head">
         <div>
           <h2 id="settingsSheetTitle"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.4h8.4M17.6 8.4H20M4 15.6h4.4M13.6 15.6H20"/><circle cx="15" cy="8.4" r="2.2"/><circle cx="11" cy="15.6" r="2.2"/></svg>设置</h2>
@@ -487,6 +523,14 @@
 
       <div class="settings-group danger-zone">
         <div class="settings-group-title danger-title">账户</div>
+        <!-- v0.55.0 JS 批 A-E：窄屏顶栏邮箱收起后，当前登录邮箱只在这里展示
+             （纯展示，取 user.email，登录时由 app.js / 设置打开时填）。 -->
+        <div class="settings-row">
+          <div class="settings-row-main">
+            <div class="settings-row-label">当前账号</div>
+            <div class="settings-row-desc" id="settingsAccountEmail">未登录</div>
+          </div>
+        </div>
         <div class="settings-row">
           <div class="settings-row-main">
             <div class="settings-row-label">退出当前账号</div>
@@ -498,7 +542,7 @@
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
       <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
-      <p class="settings-version">投标工作台 · BidDesk v0.54.0</p>
+      <p class="settings-version">投标工作台 · BidDesk v0.55.0</p>
     </section>
   </div>
 
@@ -506,6 +550,7 @@
   <div id="trashSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="trashSheetTitle">
     <div class="sheet-backdrop" data-action="close-trash"></div>
     <div class="sheet-panel card">
+      <span class="sheet-handle" aria-hidden="true"></span>
       <div class="sheet-head">
         <div>
           <h2 id="trashSheetTitle">回收站</h2>
@@ -525,6 +570,7 @@
   <div id="guaranteeSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="guaranteeSheetTitle">
     <div class="sheet-backdrop" data-action="close-guarantee"></div>
     <div class="sheet-panel card">
+      <span class="sheet-handle" aria-hidden="true"></span>
       <div class="sheet-head">
         <div>
           <h2 id="guaranteeSheetTitle">保证金待退还清单</h2>
@@ -541,6 +587,7 @@
   <div id="qualSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="qualSheetTitle">
     <div class="sheet-backdrop" data-action="close-qual"></div>
     <div class="sheet-panel card">
+      <span class="sheet-handle" aria-hidden="true"></span>
       <div class="sheet-head">
         <div>
           <h2 id="qualSheetTitle">我的资质</h2>
@@ -584,6 +631,7 @@
   <div id="calendarSheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="calendarSheetTitle">
     <div class="sheet-backdrop" data-action="close-calendar"></div>
     <div class="sheet-panel card">
+      <span class="sheet-handle" aria-hidden="true"></span>
       <div class="sheet-head">
         <div>
           <h2 id="calendarSheetTitle"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.7" y="5.3" width="16.6" height="15" rx="3"/><path d="M3.7 10.3h16.6M8.2 3.3v3.6M15.8 3.3v3.6"/></svg>日历订阅</h2>

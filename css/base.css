@@ -176,6 +176,11 @@ body {
   background: var(--bg);
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  /* v0.55.0 mobile-polish B9：全局去双击缩放延迟、统一去掉点按灰色高亮
+     （-webkit-tap-highlight-color 可继承，body 上一条即覆盖全站；
+     :focus-visible 样式不动，可访问性不受影响）。 */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
   transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
 }
 
@@ -190,6 +195,10 @@ html { scroll-behavior: smooth; }
 @keyframes view-switch-in { from { opacity: 0; transform: translateY(6px) scale(0.994); } to { opacity: 1; transform: none; } }
 
 @keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+/* v0.55.0 mobile-polish B3：汉堡菜单入场 —— 淡入 + 轻微缩放（与 toast-in 同一模式；
+   只在 ≤680px 的 .header-actions.open 上使用，桌面端不用）。 */
+@keyframes menu-fade-scale { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 @keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
 

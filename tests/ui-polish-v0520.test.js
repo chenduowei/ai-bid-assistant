@@ -87,10 +87,10 @@ test("v0.52.0：浅色工作区底是暖纸，统计行收紧，减动效时全�
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?transition-duration: 0\.01ms !important/);
 });
 
-test("v0.54.0：版本号 0.54.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
-  assert.equal(pkg.version, "0.54.0");
-  // v0.54.0：版本号随发版 bump，断言同步到 v0.54.0。
-  assert.match(html, /v0\.54\.0/);
+test("v0.55.0：版本号 0.55.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "0.55.0");
+  // v0.55.0：版本号随发版 bump，断言同步到 v0.55.0。
+  assert.match(html, /v0\.55\.0/);
 });
 
 test("v0.52.0：登录页结构未动 —— 元素 id 与表单行为一律不动", () => {
@@ -124,7 +124,11 @@ test("v0.52.0：顶栏对齐 —— 桌面按钮统一 40px，窄屏四个按钮
   assert.match(css, /\.header-top-actions \.menu-toggle \{ width: 44px; height: 44px; min-width: 44px; min-height: 44px; \}/);
   // 回归：负外边距 + width: 100% !important 曾把窄屏顶栏推到 [0,358]、
   // 比下方内容左移 16px。窄屏顶栏去掉负边距，回到内容盒 [16,374]。
-  assert.match(css, /\.header \{ padding: 6px var\(--page-x\) 7px; margin: 0 0 10px; \}/);
+  // v0.55.0 mobile-polish B1/C4：顶垫改成 max(6px, env(safe-area-inset-top))（刘海安全区，
+  // 浏览器里 env 为 0 回落到 6px）、底色改实色防透字；margin 仍无负值，顶栏还在内容盒 [16,374]。
+  // padding-top 必须带 !important：layout.css 里 v0.40.0/v0.41.0/v0.50.0 三层顶栏规则钉了
+  // padding: 12px 0 !important，普通声明会被它盖掉（实测算得 padding-top 仍是 12px）。
+  assert.match(css, /\.header \{ padding: 6px var\(--page-x\) 7px; margin: 0 0 10px; padding-top: max\(6px, env\(safe-area-inset-top\)\) !important; background: var\(--bg\); \}/);
   // 同步状态去顶 padding，纵向居中（原 5px/2px 把文字顶低约 2.5px/1px）。
   assert.doesNotMatch(css, /\.user-menu \{ padding-top: [1-9]/);
   assert.doesNotMatch(css, /\.user-menu \{ padding: [1-9]/);

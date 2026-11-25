@@ -1,3 +1,36 @@
+/** v0.55.0 JS 批 B6：轻震 —— navigator.vibrate 包一层。
+ * iOS Safari 不支持 vibrate API（typeof 不是 function），静默返回 false，
+ * 不报错、不影响操作；调用方只在关键操作处调（切 Tab / 提交成功 / 删除成功），
+ * 不要每个按钮都震。pattern 默认 10ms 一记轻震。 */
+export function vibrate(pattern = 10) {
+  try {
+    if (
+      typeof navigator === "undefined" ||
+      typeof navigator.vibrate !== "function"
+    )
+      return false;
+    return navigator.vibrate(pattern);
+  } catch {
+    return false;
+  }
+}
+
+/** v0.55.0 JS 批 A-C：顶栏日期 —— "11月25日 周二"（星期中文）。 */
+export function formatHeaderDate(date = new Date()) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  const week = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"][d.getDay()];
+  return `${d.getMonth() + 1}月${d.getDate()}日 ${week}`;
+}
+
+/** v0.55.0 JS 批 B12：键盘是否弹出 —— visualViewport 高度比窗口明显收缩
+ * （默认阈值 150px，盖住顶栏折叠等小幅变化不误判）。纯函数，可单测。 */
+export function isKeyboardOpen(innerHeight, viewportHeight, threshold = 150) {
+  if (!Number.isFinite(innerHeight) || !Number.isFinite(viewportHeight))
+    return false;
+  return innerHeight - viewportHeight > threshold;
+}
+
 /** 通用工具函数 */
 
 export const escapeHtml = (value) =>
@@ -1063,7 +1096,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.54.0";
+export const APP_VERSION = "0.55.0";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {

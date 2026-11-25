@@ -3,10 +3,10 @@
  * 只加载 index.html 骨架 + js/ui.js（linkedom），不跑 app.js、不碰网络。
  * 守的是：英雄区 DOM 与分钟级渲染（无项目整区隐藏、有项目填数且不启动
  * 1 秒定时器）、顶栏两按钮已进菜单、字体统一、页眉版本号隐藏、临期事项
- * 卡片直开临期提醒抽屉，以及版本号（当前 0.54.0）全仓一致。
- * v0.54.0 说明：本文件仍钉 v0.53.0 的行为，唯两处跟随当前版 ——
+ * 卡片直开临期提醒抽屉，以及版本号（当前 0.55.0）全仓一致。
+ * v0.55.0 说明：本文件仍钉 v0.53.0 的行为，唯两处跟随当前版 ——
  * 「renderHero 启动 1 秒定时器」的断言已翻转（见该测试注释），版本号断言
- * 跟到 0.54.0；另装了 tests/hero-timer-fake.mjs 的桩，否则 FUTURE_PROJECT
+ * 跟到 0.55.0；另装了 tests/hero-timer-fake.mjs 的桩，否则 FUTURE_PROJECT
  *（2030 年）会让 renderHero 启动真 interval、把 node --test 进程钉住。
  */
 import test from "node:test";
@@ -213,15 +213,15 @@ test("v0.53.0：页眉版本号隐藏，版本改在设置页底部显示", () =
   assert.ok(withDisplay.length > 0);
   assert.equal(declOf(withDisplay[withDisplay.length - 1], "display"), "none");
   // 元素与文字保留在 HTML 里（check:version 的 index.html 载体之一）。
-  // 徽标与设置页两处文字永远跟当前版（本期 0.54.0），与版本号测试同口径。
+  // 徽标与设置页两处文字永远跟当前版（本期 0.55.0），与版本号测试同口径。
   assert.ok(document.querySelector(".app-version-badge"));
   assert.match(
     document.querySelector(".app-version-badge").textContent,
-    /v0\.54\.0/
+    /v0\.55\.0/
   );
   assert.match(
     document.querySelector(".settings-version").textContent,
-    /投标工作台 · BidDesk v0\.54\.0/
+    /投标工作台 · BidDesk v0\.55\.0/
   );
 });
 
@@ -257,23 +257,23 @@ test("v0.53.0：窄屏页头标题不被压扁 —— 同步状态一长，标�
   assert.equal(declOf(actions680[actions680.length - 1], "margin-left"), "auto");
 });
 
-test("v0.54.0：版本号 0.54.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
-  assert.equal(pkg.version, "0.54.0");
+test("v0.55.0：版本号 0.55.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "0.55.0");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
-  assert.match(utils, /APP_VERSION = "0\.54\.0"/);
+  assert.match(utils, /APP_VERSION = "0\.55\.0"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /bid-assistant-v0\.54\.0/);
+  assert.match(sw, /bid-assistant-v0\.55\.0/);
   const changelog = readFileSync(
     new URL("../docs/changelog.md", import.meta.url),
     "utf8"
   );
-  assert.match(changelog, /## \[0\.54\.0\]/);
+  assert.match(changelog, /## \[0\.55\.0\]/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /v0\.54\.0/);
+  assert.match(readme, /v0\.55\.0/);
   const notes = readFileSync(
     new URL("../docs/notes.md", import.meta.url),
     "utf8"
   );
-  assert.match(notes, /v0\.54\.0/);
-  assert.match(html, /v0\.54\.0/);
+  assert.match(notes, /v0\.55\.0/);
+  assert.match(html, /v0\.55\.0/);
 });

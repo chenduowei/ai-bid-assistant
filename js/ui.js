@@ -3,6 +3,7 @@
 import {
   escapeHtml,
   formatDateDisplay,
+  formatHeaderDate,
   formatBidMoment,
   getCountdownInfo,
   getNextHeroBid,
@@ -74,6 +75,17 @@ export function createUi(elements, getState) {
     // v0.35.0：跟随应用内开关改主题色（安卓地址栏 / iOS PWA 状态栏），深色不再留一条浅灰。
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", darkMode ? "#000000" : "#F2F2F7");
+    // v0.55.0 JS 批 B1：状态栏文字色也跟主题走 —— 深色顶栏下用 black-translucent
+    // （白字），浅色回 default（深字）。HTML 里 meta 初始仍是 default（浅色默认值），
+    // 这里只在主题切换时改；CSS 批已把“静态改 meta”钉死，改动只走这一处。
+    const statusBarMeta = document.querySelector(
+      'meta[name="apple-mobile-web-app-status-bar-style"]'
+    );
+    if (statusBarMeta)
+      statusBarMeta.setAttribute(
+        "content",
+        darkMode ? "black-translucent" : "default"
+      );
     if (elements.themeBtn) {
       // v0.34.0：主题按钮搬进了设置页的「外观」行 —— 文案改成动作（切换为深色 / 浅色），
       // 不会再把「⏿ 深色」误读成当前就是深色。
@@ -184,14 +196,23 @@ export function createUi(elements, getState) {
   };
 
   const renderDeadlineTip = (projects) => {
-    if (!elements.deadlineTip) return;
     const reminderDays = getReminderDays();
     const upcoming = getUpcomingDeadlines(projects, reminderDays);
+    // v0.55.0 JS 批 A-D：角标同步不依赖横幅元素 —— 横幅已在 v0.36.0 移除
+    // （apple-arch-v0360 断言它不在），但原来的 early return 在横幅缺失时
+    // 把角标更新一起跳过，导致 #upcomingBadgeCount 永远是 0；先同步两个角标，
+    // 再看横幅在不在。汉堡角标与菜单里的角标同一次更新、同一数字；0 时隐藏。
     const badgeEl = document.getElementById("upcomingBadgeCount");
     if (badgeEl) {
       badgeEl.textContent = String(upcoming.length);
       badgeEl.classList.toggle("hidden", upcoming.length === 0);
     }
+    const menuBadgeEl = document.getElementById("menuToggleBadge");
+    if (menuBadgeEl) {
+      menuBadgeEl.textContent = String(upcoming.length);
+      menuBadgeEl.classList.toggle("hidden", upcoming.length === 0);
+    }
+    if (!elements.deadlineTip) return;
     elements.deadlineTip.hidden = !upcoming.length;
     if (upcoming.length) {
       const first = upcoming[0];
@@ -262,7 +283,9 @@ export function createUi(elements, getState) {
         const [y, m, d] = String(date).split("-");
         const labelText =
           days === 0 ? "今日截止" : days === 1 ? "明日截止" : `${days} 天后`;
-        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" data-project-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="up-date"><span class="up-day">${escapeHtml(String(Number(d) || ""))}</span><span class="up-month">${escapeHtml(String(Number(m) || ""))}月</span></div><div class="up-main"><div class="up-name">${escapeHtml(project.name)}</div><div class="up-label">${escapeHtml(label)}${time ? ` · ${escapeHtml(time)}` : ""} · ${escapeHtml(formatDateDisplay(date))}</div></div><span class="up-pill">${escapeHtml(labelText)}</span></div>`;
+        // v0.55.0 mobile-polish C5：元信息行日期去年份（"11月27日"，复用卡片副行同款
+        // shortDateDisplay；同屏年份一致，短格式少折行）。其它日期展示不动。
+        return `<div class="upcoming-item ${level}" data-id="${escapeHtml(project.id)}" data-project-id="${escapeHtml(project.id)}" role="button" tabindex="0" title="点击定位到项目列表"><div class="up-date"><span class="up-day">${escapeHtml(String(Number(d) || ""))}</span><span class="up-month">${escapeHtml(String(Number(m) || ""))}月</span></div><div class="up-main"><div class="up-name">${escapeHtml(project.name)}</div><div class="up-label">${escapeHtml(label)}${time ? ` · ${escapeHtml(time)}` : ""} · ${escapeHtml(shortDateDisplay(date))}</div></div><span class="up-pill">${escapeHtml(labelText)}</span></div>`;
       })
       .join("");
   };
@@ -673,6 +696,13 @@ export function createUi(elements, getState) {
     return true;
   };
 
+  // v0.55.0 JS 批 A-C：顶栏日期（"11月25日 周二"），随 ui.render 更新，
+  // 不必单独定时器（日期一天只变一次，render 已足够）。
+  const renderHeaderDate = () => {
+    if (elements.headerDate)
+      elements.headerDate.textContent = formatHeaderDate(new Date());
+  };
+
   const tickHero = () => {
     const countEl = elements.bpHeroCount;
     if (!countEl || !heroTargetMs) return;
@@ -684,6 +714,10 @@ export function createUi(elements, getState) {
       return;
     }
     countEl.textContent = formatHeroCountdown(diff);
+    // v0.55.0 JS 批 A：顶栏芯片与英雄区同一秒 tick，只写芯片倒计时节点，
+    // 不另起定时器；芯片名与显隐由 renderHero 管，这里不动。
+    if (elements.heroChipCount)
+      elements.heroChipCount.textContent = formatHeroCountdown(diff);
   };
 
   const startHeroTimer = () => {
@@ -707,6 +741,8 @@ export function createUi(elements, getState) {
       hero.classList.add("is-empty");
       hero.classList.remove("is-urgent");
       hero.hidden = true;
+      // v0.55.0 JS 批 A：无下一场时顶栏芯片也隐藏（与英雄区同进退）。
+      if (elements.heroChip) elements.heroChip.hidden = true;
       return;
     }
     hero.classList.remove("is-empty");
@@ -731,6 +767,19 @@ export function createUi(elements, getState) {
     if (elements.bpHeroCount) {
       elements.bpHeroCount.textContent = formatHeroCountdown(heroTargetMs - Date.now());
     }
+    // v0.55.0 JS 批 A：顶栏倒计时芯片 —— 数据源与英雄区同一处（getNextHeroBid），
+    // 文案复用 formatHeroCountdown；点芯片跳项目详情（app.js 里与点英雄区项目名
+    // 同一行为）；项目名过长单行省略（CSS 侧 .hero-chip-name 省略）。只在窄屏显示。
+    if (elements.heroChip) {
+      elements.heroChip.hidden = false;
+      elements.heroChip.dataset.projectId = String(next.project.id);
+    }
+    if (elements.heroChipCount)
+      elements.heroChipCount.textContent = formatHeroCountdown(
+        heroTargetMs - Date.now()
+      );
+    if (elements.heroChipName)
+      elements.heroChipName.textContent = next.project.name || "未命名项目";
     // v0.54.0：秒级跳动启用（设计稿 v0.39）—— startHeroTimer 先清旧定时器再建
     // 1 秒间隔，只写 #bpHeroCount 的 textContent；切日历视图、切后台或仪表盘
     // 隐藏时 isHeroVisibleContext 拦住不启动，见 startHeroTimer。
@@ -1089,6 +1138,7 @@ export function createUi(elements, getState) {
     const state = getState();
     const filters = getCurrentFilters();
     renderOfflineBanner(state);
+    renderHeaderDate();
     renderStats(state.projects);
     renderUpcomingList(state.projects);
     renderDeadlineTip(state.projects);
