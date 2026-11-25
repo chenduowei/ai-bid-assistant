@@ -5,13 +5,14 @@
  * js/ai-extract.js 均已删除）；已入库的旧风险结论与检查清单
  * 仍在卡片里展示与管理，见 js/utils.js。
  */
-import { THEME_KEY, formatBidMoment, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
+import { THEME_KEY, formatBidMoment, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { requiredFormFields } from "./js/fields.js";
 import { createAuth } from "./js/auth.js";
 import { createDataIo } from "./js/data-io.js";
 import { createDrawers } from "./js/drawers.js";
+import { createSettings } from "./js/settings.js";
 
 (() => {
   const config = window.SUPABASE_CONFIG || {};
@@ -438,6 +439,14 @@ import { createDrawers } from "./js/drawers.js";
   const ui = createUi(elements, getState);
   const projectsApi = createProjectsApi({ getClient, getState, setState, ui });
   const drawers = createDrawers({ elements, getState, setState, ui, projectsApi });
+  const settings = createSettings({
+    elements,
+    getState,
+    setState,
+    ui,
+    projectsApi,
+    getClient,
+  });
 
   // v0.11.0：SheetJS 懒加载——只在用户第一次导入 .xlsx 时才拉 CDN 库（带 SRI），
   // 首屏不再背这个解析库；失败则回落提示改用 CSV。
@@ -726,41 +735,6 @@ import { createDrawers } from "./js/drawers.js";
     return true;
   };
 
-  async function requestNotificationPermission() {
-    // v0.35.3：只在设置里的「开启通知」按钮里调用（有用户手势）。登录时自动申请在 iOS 上
-    // 本来就被忽略（Safari 与主屏 PWA 都要求手势触发），第一次点了「不允许」还会永久没机会。
-    if (!("Notification" in window) || Notification.permission !== "default")
-      return;
-    try {
-      const permission = await Notification.requestPermission();
-      updateNotificationRow();
-      if (permission === "granted") ui.showToast("已开启开标提醒通知。");
-    } catch {
-      ui.showToast("当前浏览器不支持通知。");
-    }
-  }
-
-  /** v0.35.0：设置里的一行通知状态 —— 第一次登录拒绝后就再没有入口，也看不到当前状态。 */
-  function updateNotificationRow() {
-    if (!elements.notifStatus) return;
-    const supported = "Notification" in window;
-    const permission = supported ? Notification.permission : "unsupported";
-    const text =
-      permission === "granted"
-        ? "已开启"
-        : permission === "denied"
-          ? "已被浏览器阻止"
-          : permission === "unsupported"
-            ? "当前浏览器不支持"
-            : "未开启";
-    elements.notifStatus.textContent = text;
-    if (elements.notifBtn) {
-      elements.notifBtn.textContent =
-        permission === "granted" ? "已开启" : permission === "denied" ? "去浏览器设置" : "开启通知";
-      elements.notifBtn.disabled = permission === "granted" || permission === "unsupported";
-    }
-  }
-
   // 注意：浏览器通知仅在页面打开时触发（setInterval），关页后不会提醒。
   // v0.33.0 起关页提醒由 .ics 日历订阅承担（api/calendar.js + 系统日历通知），
   // 邮件提醒的 Edge Function 仍未部署，见 docs/reminders.md。
@@ -852,7 +826,7 @@ import { createDrawers } from "./js/drawers.js";
     elements.appView.classList.remove("hidden");
     // v0.35.3：登录时只刷新通知状态行，不再自动申请权限（见 requestNotificationPermission 注释）；
     // 去重键清理也从每分钟一轮挪到这里跑一次。
-    updateNotificationRow();
+    settings.updateNotificationRow();
     pruneNotificationKeys(localStorage);
     ui.showListSkeleton();
     // v0.29.0：登录后拉一次资质库（表未建时 projectsApi 只提示一次，不阻塞项目加载）
@@ -976,6 +950,8 @@ import { createDrawers } from "./js/drawers.js";
   function bindEvents() {
     // v0.35.0：四个抽屉（保证金 / 资质 / 日历订阅 / 回收站）的事件与开关在 js/drawers.js
     drawers.bindDrawers();
+    // v0.51.5：设置弹窗的事件与开关在 js/settings.js
+    settings.bindSettings();
     // v0.35.0：登录 / 注册两种模式的 UI 差异收到一处 —— 注册时隐藏与注册无关的
     // “忘记密码 / 重发验证邮件”，首段换成注册文案，并显示“确认密码”；
     // 同时给 tab 补 aria-pressed（之前选中态只写在 class 里，读屏读不出来）。
@@ -1091,7 +1067,7 @@ import { createDrawers } from "./js/drawers.js";
 
     elements.signOutBtn?.addEventListener("click", () => {
       // 设置弹窗里没有退出按钮，但层若还开着（如从菜单进来又点了退出），先收干净
-      closeSettingsSheet();
+      settings.close();
       auth.signOut();
     });
     elements.themeBtn?.addEventListener("click", () => {
@@ -1374,67 +1350,6 @@ import { createDrawers } from "./js/drawers.js";
         }
       })
     );
-    // v0.34.0：设置改为居中弹窗（桌面）/ 底部抽屉（移动）—— 之前是页面内面板，一点就把
-    // 项目列表整块推下去；现在盖在页面上，遮罩点击 / Esc / 关闭按钮关闭，焦点锁在层内，关后回到菜单按钮。
-    let settingsSheetOpen = false;
-    let settingsOpener = null;
-    const openSettingsSheet = async () => {
-      if (settingsSheetOpen) return;
-      settingsSheetOpen = true;
-      settingsOpener = document.activeElement;
-      elements.settingsSheet?.classList.remove("hidden");
-      document.body.classList.add("sheet-open");
-      ui.trapFocusIn(elements.settingsSheet);
-      elements.settingsSheetClose?.focus();
-      if (elements.reminderDays) {
-        elements.reminderDays.value = String(getReminderDays());
-      }
-      updateNotificationRow();
-    };
-    const closeSettingsSheet = () => {
-      if (!settingsSheetOpen) return;
-      settingsSheetOpen = false;
-      ui.releaseFocusTrap(elements.settingsSheet);
-      elements.settingsSheet?.classList.add("hidden");
-      // 确认框可能还盖在上面（如重置账户），滚动锁交给它自己收尾
-      if (
-        !elements.confirmDialog ||
-        elements.confirmDialog.classList.contains("hidden")
-      ) {
-        document.body.classList.remove("sheet-open");
-      }
-      const opener = settingsOpener;
-      settingsOpener = null;
-      // 打开它的菜单项随菜单一起收起了（不可见），就回 ☰；否则回原按钮
-      ui.restoreFocusTo(opener);
-    };
-    elements.aiSettingsBtn?.addEventListener("click", openSettingsSheet);
-    // v0.35.0：通知权限在应用里终于可见可开 —— 已拒绝时给去站点设置的说明。
-    elements.notifBtn?.addEventListener("click", async () => {
-      const perm = "Notification" in window ? Notification.permission : "unsupported";
-      if (perm === "unsupported") {
-        ui.showToast("当前浏览器不支持通知。");
-        return;
-      }
-      if (perm === "denied") {
-        ui.showToast("浏览器已阻止通知：在地址栏的站点设置里把「通知」改为允许，然后刷新页面。");
-        return;
-      }
-      await requestNotificationPermission();
-      updateNotificationRow();
-    });
-    elements.settingsSheetClose?.addEventListener("click", closeSettingsSheet);
-    elements.settingsSheet?.addEventListener("click", (event) => {
-      if (event.target.closest("[data-action='close-settings']")) closeSettingsSheet();
-    });
-    elements.aiSaveSettings?.addEventListener("click", async () => {
-      const days = setReminderDays(elements.reminderDays?.value);
-      if (elements.reminderDays) elements.reminderDays.value = String(days);
-      ui.render();
-      ui.showToast(`设置已保存，提醒窗口为未来 ${days} 天。`);
-      closeSettingsSheet();
-    });
-
     // v0.6.0：选填信息折叠开关 + 字段数
     elements.optionalToggle?.addEventListener("click", () => {
       setOptionalExpanded(!state.optionalExpanded);
@@ -1474,72 +1389,6 @@ import { createDrawers } from "./js/drawers.js";
     elements.deleteSelectedBtn?.addEventListener("click", async () => {
       const ok = await projectsApi.deleteProjects([...state.selectedIds]);
       if (ok) exitSelectMode();
-    });
-
-    // v0.6.0：重置账户（双重确认，只删当前用户数据）
-    let resetArmed = false;
-    let resetTimer = null;
-    elements.resetAccountBtn?.addEventListener("click", async () => {
-      const btn = elements.resetAccountBtn;
-      if (!resetArmed) {
-        resetArmed = true;
-        btn.textContent = "再次点击确认重置";
-        btn.classList.add("armed");
-        ui.showToast("再次点击确认重置，10 秒内有效；确认后需打字输入「确认重置」，再自动下载备份并清空数据。");
-        resetTimer = setTimeout(() => {
-          resetArmed = false;
-          btn.textContent = "重置账户";
-          btn.classList.remove("armed");
-        }, 10000);
-        return;
-      }
-      clearTimeout(resetTimer);
-      resetArmed = false;
-      btn.textContent = "重置账户";
-      btn.classList.remove("armed");
-      btn.disabled = true;
-      try {
-        const uid = state.user?.id;
-        if (!uid) throw new Error("未登录");
-        // v0.32.0：打字确认 —— 必须输入「确认重置」才能继续，输错 / 取消都不执行。
-        const typed = await ui.confirmDialog({
-          title: "确认重置账户",
-          message: "重置将先自动下载一份项目备份（不含资质库；资质库不受重置影响），再删除全部项目与通知记录，且无法撤销。",
-          confirmText: "确认重置并清空",
-          cancelText: "取消",
-          danger: true,
-          requireTyping: "确认重置",
-        });
-        if (!typed) return;
-        // v0.28.0：重置前先自动下载一份项目备份；备份失败则不执行重置。
-        const backedUp = await projectsApi.exportBackup();
-        if (!backedUp) {
-          ui.showToast("备份失败，未执行重置，请检查网络后重试。");
-          return;
-        }
-        const { error: e1 } = await client
-          .from("projects")
-          .delete()
-          .eq("user_id", uid);
-        if (e1) throw e1;
-        // notification_log 可能不存在（旧库），不存在则跳过
-        const { error: e2 } = await client
-          .from("notification_log")
-          .delete()
-          .eq("user_id", uid);
-        if (e2 && e2.code !== "42P01") throw e2;
-        state.selectedIds.clear();
-        state.expandedIds.clear();
-        await projectsApi.loadProjects();
-        ui.render();
-        ui.showToast("账户已重置，全部项目与通知记录已删除。");
-        // v0.34.0：重置完把设置弹窗也收了，让用户直接看到清空后的主界面
-        closeSettingsSheet();
-      } catch (err) {
-        ui.showToast(`重置失败：${err?.message || err}`);
-      } finally {
-        btn.disabled = false;
-      }
     });
 
     // v0.16.0：编辑回填抽出共用 —— 卡片"编辑"走这里。
@@ -1980,8 +1829,8 @@ import { createDrawers } from "./js/drawers.js";
         !elements.confirmDialog.classList.contains("hidden")
       )
         return; // 确认框在最上层，它自己收
-      if (settingsSheetOpen) {
-        closeSettingsSheet();
+      if (settings.isOpen()) {
+        settings.close();
         return;
       }
       if (drawers.closeTop()) return;
@@ -2041,8 +1890,8 @@ import { createDrawers } from "./js/drawers.js";
         return true;
       }
       if (drawers.closeTop()) return true;
-      if (settingsSheetOpen) {
-        closeSettingsSheet();
+      if (settings.isOpen()) {
+        settings.close();
         return true;
       }
       return false;
