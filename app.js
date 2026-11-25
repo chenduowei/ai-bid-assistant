@@ -124,6 +124,8 @@ import { createDrawers } from "./js/drawers.js";
     calendarRevokeBtn: document.getElementById("calendarRevokeBtn"),
     calendarGenerateBtn: document.getElementById("calendarGenerateBtn"),
     calendarSetupHint: document.getElementById("calendarSetupHint"),
+    calendarExpiredHint: document.getElementById("calendarExpiredHint"),
+    calendarMeta: document.getElementById("calendarMeta"),
     qualSheet: document.getElementById("qualSheet"),
     qualSheetClose: document.getElementById("qualSheetClose"),
     qualCategory: document.getElementById("qualCategory"),

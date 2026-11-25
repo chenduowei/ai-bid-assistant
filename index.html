@@ -581,6 +581,7 @@
       <div id="calendarEmpty" class="calendar-empty">
         <p>还没有订阅链接，生成后复制到日历 App 即可订阅。</p>
         <p id="calendarSetupHint" class="field-hint hidden">订阅表还没建：请先在 Supabase SQL Editor 执行 supabase.sql 第 10 节，执行完刷新页面再生成。</p>
+        <p id="calendarExpiredHint" class="field-hint hidden">订阅链接已过期（有效期 180 天），请重新生成。</p>
         <button id="calendarGenerateBtn" class="btn primary" type="button">生成订阅链接</button>
       </div>
       <div id="calendarActive" class="calendar-active hidden">
@@ -588,6 +589,7 @@
           <label for="calendarUrlInput">订阅链接（别外传，拿到链接就能看到你的开标日程）</label>
           <input id="calendarUrlInput" type="text" readonly />
         </div>
+        <p id="calendarMeta" class="field-hint"></p>
         <div class="calendar-actions">
           <button id="calendarCopyBtn" class="btn primary" type="button">复制链接</button>
           <button id="calendarRegenBtn" class="btn secondary" type="button">重新生成</button>

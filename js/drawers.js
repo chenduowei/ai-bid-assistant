@@ -7,6 +7,8 @@
  * 注入：elements / getState / setState / ui / projectsApi。
  * 返回：bindDrawers() 绑全部事件；closeTop() 供品牌首页等“关最上层浮层”复用。
  */
+import { CALENDAR_TOKEN_TTL_DAYS, formatDateTimeDisplay } from "./utils.js";
+
 export function createDrawers({ elements, getState, setState, ui, projectsApi }) {
   let guaranteeOpen = false;
   let qualOpen = false;
@@ -18,6 +20,8 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
   let openerTrash = null;
   let editingQualId = null;
   let calendarToken = null;
+  // 第 3 批：最新一条令牌的元信息 { token, expired, expiresAt, lastReadAt }。
+  let calendarInfo = null;
 
   /* ---------------- 保证金待退还 ---------------- */
   const openGuaranteeSheet = () => {
@@ -78,13 +82,34 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
       "hidden",
       hasToken || !projectsApi.isCalendarTableMissing()
     );
+    // 第 3 批：过期态提示（复用“生成订阅链接”按钮）与有效期/最近读取信息行。
+    elements.calendarExpiredHint?.classList.toggle(
+      "hidden",
+      hasToken || !calendarInfo?.expired
+    );
+    if (elements.calendarMeta) {
+      elements.calendarMeta.textContent =
+        hasToken && calendarInfo
+          ? `有效期至 ${
+              calendarInfo.expiresAt
+                ? formatDateTimeDisplay(calendarInfo.expiresAt)
+                : "未知"
+            } · 最近读取 ${
+              calendarInfo.lastReadAt
+                ? formatDateTimeDisplay(calendarInfo.lastReadAt)
+                : "从未读取"
+            }`
+          : "";
+    }
     if (hasToken && elements.calendarUrlInput)
       elements.calendarUrlInput.value = calendarUrl(calendarToken);
   };
   const openCalendarSheet = async () => {
     calendarOpen = true;
     openerCalendar = document.activeElement;
-    calendarToken = await projectsApi.getCalendarToken();
+    const info = await projectsApi.getCalendarToken();
+    calendarToken = info?.token || null;
+    calendarInfo = info || null;
     renderCalendarSheet();
     elements.calendarSheet?.classList.remove("hidden");
     document.body.classList.add("sheet-open");
@@ -221,6 +246,15 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
       btn.disabled = false;
       if (!token) return;
       calendarToken = token;
+      // 第 3 批：新令牌有效期 180 天（与 createCalendarToken 写入的 expires_at 一致）。
+      calendarInfo = {
+        token,
+        expired: false,
+        expiresAt: new Date(
+          Date.now() + CALENDAR_TOKEN_TTL_DAYS * 24 * 3600 * 1000
+        ).toISOString(),
+        lastReadAt: null,
+      };
       renderCalendarSheet();
       ui.showToast("订阅链接已生成，复制到日历 App 即可订阅。");
     });
@@ -248,6 +282,14 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
       const token = await projectsApi.createCalendarToken();
       if (!token) return;
       calendarToken = token;
+      calendarInfo = {
+        token,
+        expired: false,
+        expiresAt: new Date(
+          Date.now() + CALENDAR_TOKEN_TTL_DAYS * 24 * 3600 * 1000
+        ).toISOString(),
+        lastReadAt: null,
+      };
       renderCalendarSheet();
       ui.showToast("已生成新订阅链接，旧链接已失效。");
     });
@@ -263,6 +305,7 @@ export function createDrawers({ elements, getState, setState, ui, projectsApi })
       const revoked = await projectsApi.revokeCalendarTokens();
       if (!revoked) return;
       calendarToken = null;
+      calendarInfo = null;
       renderCalendarSheet();
       ui.showToast("订阅已停用。");
     });
