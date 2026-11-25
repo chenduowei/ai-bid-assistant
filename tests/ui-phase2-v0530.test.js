@@ -248,12 +248,14 @@ test("v0.53.0：汉堡菜单不透明 —— 94% 毛玻璃在深蓝英雄区上�
   assert.equal(declOf(withBg[withBg.length - 1], "-webkit-backdrop-filter"), undefined);
 });
 
-test("v0.55.1：窄屏页头标题不被压扁 —— 标题列可伸缩 + min-width: 0，标语过长单行省略", () => {
+test("v0.55.1：窄屏页头标题不被压扁 —— 标题列 basis 0 可伸缩 + min-width: 0，标语过长单行省略", () => {
   // v0.55.1：v0.53.0 的 flex: none 已改回可伸缩 —— 同步状态 v0.55.0 起已折到
   // 第二行，第一行只剩品牌 + 动作，标题不再被同步状态压扁；标语过长时省略。
+  // basis 0 而非 auto：换行先按 basis 分行，basis auto 取标语宽会把动作组挤到
+  // 第二行、顶栏变三行中间空一带；basis 0 让标题先以 0 宽分行再 grow 吃剩余宽。
   const title680 = rulesFor(".header-title", "max-width: 680px");
   assert.ok(title680.length > 0, "须在 680px 断点里钉住 .header-title");
-  assert.equal(declOf(title680[title680.length - 1], "flex"), "1 1 auto");
+  assert.equal(declOf(title680[title680.length - 1], "flex"), "1 1 0");
   assert.equal(declOf(title680[title680.length - 1], "min-width"), "0");
   const actions680 = rulesFor(".header-top-actions", "max-width: 680px");
   assert.ok(actions680.length > 0, "须在 680px 断点里钉住 .header-top-actions");

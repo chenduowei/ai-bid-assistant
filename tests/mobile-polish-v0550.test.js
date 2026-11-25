@@ -716,9 +716,17 @@ test("v0.55.1：窄屏顶栏去芯片、标语回位 —— 标语 12px 小字�
   );
   // 版本号徽标不跟回顶栏（版本只在设置页底部）
   assert.equal(valueOf(MOBILE, ".app-version-badge", "display"), "none");
-  // 标题列可伸缩 + min-width: 0，标语过长时省略而不把动作组挤到下一行
-  assert.equal(valueOf(MOBILE, ".header-title", "flex"), "1 1 auto");
+  // 标题列 basis 0 + min-width: 0 —— flex 换行先按 basis 分行、行内再收缩，
+  // basis auto 取标语宽时标题 + 动作共 363px 超出 358px 内容盒，动作组会被换到
+  // 第二行、顶栏变三行中间空一带；basis 0 让标题先以 0 宽分行再 grow 吃剩余宽，
+  // 标语在剩余宽度内省略，动作组留在第一行与标题对齐。行间距收紧：顶栏两行 gap 8px、
+  // 标题内 gap 8px、动作组 gap 6px、顶栏底垫 8px，顶栏由 144px 收至约 84px。
+  assert.equal(valueOf(MOBILE, ".header-title", "flex"), "1 1 0");
   assert.equal(valueOf(MOBILE, ".header-title", "min-width"), "0");
+  assert.equal(valueOf(MOBILE, ".header-top", "gap"), "8px");
+  assert.equal(valueOf(MOBILE, ".header-title", "gap"), "8px");
+  assert.equal(valueOf(MOBILE, ".header-top-actions", "gap"), "6px");
+  assert.equal(valueOf(MOBILE, ".header", "padding-bottom"), "8px");
   // 日期在 680 块里显式 display（无条件规则把它 display:none，漏了这条就一直隐藏）
   assert.equal(valueOf(MOBILE, ".header-date", "display"), "inline");
   // 两行顶栏：第一行品牌 + 动作，第二行同步 + 日期占满宽

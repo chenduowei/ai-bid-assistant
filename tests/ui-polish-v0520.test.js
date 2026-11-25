@@ -139,7 +139,9 @@ test("v0.52.0：顶栏对齐 —— 桌面按钮统一 40px，窄屏四个按钮
   // 浏览器里 env 为 0 回落到 6px）、底色改实色防透字；margin 仍无负值，顶栏还在内容盒 [16,374]。
   // padding-top 必须带 !important：layout.css 里 v0.40.0/v0.41.0/v0.50.0 三层顶栏规则钉了
   // padding: 12px 0 !important，普通声明会被它盖掉（实测算得 padding-top 仍是 12px）。
-  assert.match(css, /\.header \{ padding: 6px var\(--page-x\) 7px; margin: 0 0 10px; padding-top: max\(6px, env\(safe-area-inset-top\)\) !important; background: var\(--bg\); \}/);
+  // v0.55.1 修空白带：底垫 12px → 8px（同样 !important，否则被 layout 层盖回 12px），
+  // 与收紧的行间距一起把顶栏由 144px 收到约 84px。
+  assert.match(css, /\.header \{ padding: 6px var\(--page-x\) 7px; margin: 0 0 10px; padding-top: max\(6px, env\(safe-area-inset-top\)\) !important; padding-bottom: 8px !important; background: var\(--bg\); \}/);
   // 同步状态去顶 padding，纵向居中（原 5px/2px 把文字顶低约 2.5px/1px）。
   assert.doesNotMatch(css, /\.user-menu \{ padding-top: [1-9]/);
   assert.doesNotMatch(css, /\.user-menu \{ padding: [1-9]/);
