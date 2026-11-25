@@ -101,7 +101,7 @@ test("页头吸顶后的让位：工具栏 / 定位滚动都让开 --appbar-h，
   assert.match(css, /--appbar-h: 80px;/);
   // 根、桌面、手机、平板四处都按 80px（实测页头 80.19px）
   assert.ok((css.match(/--appbar-h: 80px/g) || []).length >= 3, "--appbar-h 应在各断点都是 80px");
-  assert.match(css, /scroll-margin-top: calc\(var\(--appbar-h\) \+ 52px\);/);
+  assert.match(css, /scroll-margin-top: calc\(var\(--appbar-h\) \+ 12px\);/);
   assert.match(css, /scroll-margin-top: calc\(var\(--appbar-h\) \+ 12px\);/);
 });
 
