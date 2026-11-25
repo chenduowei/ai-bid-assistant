@@ -78,6 +78,8 @@ test("第 4 批：列表查询列与 CSV 导出不再含 AI 列", () => {
   }
   const labels = exportCsvColumns().map((c) => c.label);
   assert.equal(labels.includes("风险摘要"), false);
+  assert.equal(labels.includes("检查清单详情"), false);
+  assert.equal(labels.includes("PDF 文件名"), false);
 });
 
 test("第 4 批：toUiProject / uiToDbInsert 丢弃 AI 列", () => {

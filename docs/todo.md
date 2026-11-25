@@ -15,7 +15,7 @@
 
 - 团队协作与权限（多成员、角色）：单人接单用不上。现在数据按 `user_id` + RLS 严格隔离，没有共享与角色概念。
 - 邮件提醒：`.ics` 日历订阅（v0.33.0）已覆盖「关页也提醒」，不部署 Edge Function。`supabase/functions/send-bid-reminders/` 与 `docs/reminders.md` 保留作参考，不删除。
-- 招标文件云端归档：不做，PDF 文件本身不落库；历史项目已保存的解析文字（`pdf_text`）仅供查看，不再新增。
+- 招标文件云端归档：不做，PDF 文件本身不落库。
 
 ## 已完成（按版本，细节见 `docs/changelog.md`）
 

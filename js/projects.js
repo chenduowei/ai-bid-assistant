@@ -934,7 +934,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       const now = new Date();
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const payload = {
-        app: "ai-bid-assistant",
+        app: "bid-desk",
         version: APP_VERSION,
         exportedAt: now.toISOString(),
         includesPdfText: Boolean(includePdfText),
@@ -948,7 +948,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       );
       const a = document.createElement("a");
       a.href = url;
-      a.download = `ai-bid-backup-${stamp}.json`;
+      a.download = `bid-desk-backup-${stamp}.json`;
       a.style.display = "none";
       document.body.appendChild(a);
       a.click();

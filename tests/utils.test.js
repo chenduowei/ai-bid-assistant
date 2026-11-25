@@ -311,7 +311,7 @@ test("parseCsvProjects：空文件与无表头", () => {
 
 test("buildImportCsvTemplate：含 BOM、表头与示例行", () => {
   const tpl = buildImportCsvTemplate();
-  assert.ok(tpl.startsWith("\uFEFF项目名称,项目类型,投标公司"));
+  assert.ok(tpl.startsWith("\uFEFF开标时间,开标时刻,项目类型"));
   assert.ok(tpl.includes("示例项目"));
   // 模板能被 parseCsvProjects 解析出 1 行
   const { rows, errors } = parseCsvProjects(tpl);

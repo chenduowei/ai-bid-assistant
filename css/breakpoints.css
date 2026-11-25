@@ -184,6 +184,8 @@
 @media (max-width: 680px) {
   .back-to-top { display: none; }
 
+  body.dark .header { background: transparent !important; border-bottom-color: transparent !important; }
+
   /* 底部留白由本块末尾那条按「有底部 Tab」写的 padding-bottom 决定 */
   /* v0.55.0 mobile-polish B11：横屏左右留刘海安全边距 —— 竖屏 / 无刘海时
        env(...) 为 0，max() 回落到原来的 16px，竖屏与桌面零变化。 */
@@ -834,7 +836,7 @@
 
   /* 日历视图里「选择 / 全部折叠」本来就隐藏（日历里没有可作用的对象），
        这一行只剩中标率一枚 —— 整行一起收掉，日历多出 36px。 */
-  .list-tools.calendar-mode .list-tools-actions { display: none; }
+  .list-tools.calendar-mode { display: none; }
 
   .list-tools .view-seg .seg-btn { min-height: 44px; padding: 0 12px; font-size: 12.5px; }
 
