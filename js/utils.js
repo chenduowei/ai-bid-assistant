@@ -1086,6 +1086,10 @@ export function dedupeImportRows(rows, existing) {
 // v0.8.1：备份恢复 —— 纯函数（可单测），不碰数据库。
 // 校验备份 JSON：必须是本应用的备份、projects 为数组、每行有 id、
 // 且全部行属于当前登录账号（user_id 一致）；备份内重复 id 只留第一条。
+// 第 3 批备份标识双认：旧标识 ai-bid-assistant（历史备份）与新标识
+// bid-desk（包名改名后）均接受；导出仍写旧串（js/projects.js
+// exportBackup），历史备份与新备份都能恢复。
+const BACKUP_APP_IDS = ["ai-bid-assistant", "bid-desk"];
 export function parseBackupPayload(text, uid) {
   let payload;
   try {
@@ -1093,7 +1097,7 @@ export function parseBackupPayload(text, uid) {
   } catch {
     return { ok: false, error: "文件不是有效的 JSON。" };
   }
-  if (!payload || typeof payload !== "object" || payload.app !== "ai-bid-assistant") {
+  if (!payload || typeof payload !== "object" || !BACKUP_APP_IDS.includes(payload.app)) {
     return { ok: false, error: "这不是投标工作台的备份文件。" };
   }
   if (!Array.isArray(payload.projects)) {
