@@ -1,7 +1,7 @@
 {
   "name": "bid-desk",
   "private": true,
-  "version": "0.51.4",
+  "version": "0.52.0",
   "description": "投标工作台 / BidDesk — 轻量工程投标台账与开标提醒工作台",
   "scripts": {
     "build": "node scripts/generate-config.mjs",

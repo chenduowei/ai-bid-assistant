@@ -68,7 +68,16 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
+  /* v0.52.0：减动效时全站动效关闭 —— 所有动画与过渡瞬间完成，滚动不平滑。
+     注意：.project-item.save-glow 等“靠动效传达结果”的样式本就另有文字说明兜底。 */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* 展开详情：桌面 6 列网格 -> 状态/开标时间/类型各占 span 2（共占第一行），其余两两并排（span 3），全名与备注整行 */
@@ -112,7 +121,8 @@
   /* v0.35.3：海报 220 → 160px、卡片上下内边距 28 → 20px —— 375×667 的整页从 775px 收到一屏内。 */
   .auth-poster { height: 160px; min-height: 160px; }
 
-  .auth-poster-overlay { padding: var(--sp-4) var(--sp-6); gap: 4px; }
+  /* v0.52.0：横条里标题垂直居中（不再贴底），一眼就是品牌横条 */
+  .auth-poster-overlay { padding: var(--sp-4) var(--sp-6); gap: 4px; justify-content: center; }
 
   .auth-poster-title { font-size: var(--fs-3xl); }
 
@@ -440,6 +450,13 @@
   .header-title h1 { font-size: 19px; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 0; }
 
   .brand-text p { display: none; }
+
+  /* v0.52.0：上面这条在 v0.51.2/51.3 之后失效了 —— layout.css 的
+     .brand-text-inline .brand-line { display: flex } 特异度 (0,2,0) 高于
+     .brand-text p (0,1,1)，副标题在窄屏又冒出来，white-space: nowrap
+     把它顶出页头、和「云端同步中」重叠（390px 实测）。同等特异度补一条，
+     断点文件在最后、同特异度后胜出，恢复 v0.35.3「窄屏去掉副标题」的决定。 */
+  .brand-text-inline .brand-line { display: none; }
 
   .app-version-badge {
       display: inline-block;

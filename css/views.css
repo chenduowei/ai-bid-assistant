@@ -354,12 +354,20 @@
 .empty-state .btn { padding: var(--sp-3) var(--sp-6); }
 
 /* ---------- 登录页 ---------- */
+/* v0.52.0：蓝图指挥舱入口 —— 深蓝画布 + 蓝图网格 + 顶部柔光；
+   表单卡片仍是白色毛玻璃，不在表单区铺深蓝底（设计稿第 1 节）。
+   入场错峰：海报先现、卡片随后、表单再后（延迟见下方各规则）。 */
 .auth-shell {
   display: grid;
   place-items: center;
   min-height: 100vh;
   padding: var(--sp-6);
-  background: var(--bg);
+  background-color: var(--bp-ink-deep);
+  background-image:
+    radial-gradient(120% 90% at 50% 0%, rgba(64, 120, 190, 0.35) 0%, rgba(64, 120, 190, 0) 55%),
+    linear-gradient(var(--bp-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bp-grid) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
 }
 
 .auth-split {
@@ -369,24 +377,50 @@
   min-height: min(540px, calc(100vh - 48px));
   border-radius: 20px;
   overflow: hidden;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow);
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 24px 64px rgba(4, 16, 34, 0.45), 0 2px 8px rgba(4, 16, 34, 0.30);
+  animation: auth-in var(--dur-slow) var(--ease-standard) both;
 }
 
 /* v0.35.0：海报从 styles.css 内联 base64（59KB，每次打开都要下，登录后根本用不到）还原成独立文件；
-   只有登录页会请求它，40KB 以内，gzip 后十几 KB。 */
+   只有登录页会请求它，40KB 以内，gzip 后十几 KB。
+   v0.52.0：照片海报改为纯 CSS 蓝图海报 —— 深蓝渐变 + 网格线 + 罗盘圆环，不再请求图片，
+   与指挥舱设计语言同源；文字层叠在网格之上。 */
 .auth-poster {
   position: relative;
   min-height: 100%;
-  background: #0b2545 url("./assets/login-poster.webp") center / cover no-repeat;
+  overflow: hidden;
+  background-color: var(--bp-ink);
+  background-image:
+    linear-gradient(180deg, rgba(7, 26, 48, 0) 0%, rgba(7, 26, 48, 0.55) 100%),
+    linear-gradient(var(--bp-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bp-grid) 1px, transparent 1px);
+  background-size: auto, 28px 28px, 28px 28px;
+}
+
+/* 罗盘圆环：右上角一枚淡线圆环 + 十字刻度，纯装饰（aria-hidden 由结构保证，overlay 在上层） */
+.auth-poster::before {
+  content: "";
+  position: absolute;
+  top: -140px;
+  right: -140px;
+  width: 320px;
+  height: 320px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 56px rgba(255, 255, 255, 0.03),
+    0 0 0 57px rgba(255, 255, 255, 0.07),
+    inset 0 0 0 56px rgba(255, 255, 255, 0.03),
+    inset 0 0 0 57px rgba(255, 255, 255, 0.07);
 }
 
 .auth-poster::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(4, 16, 34, 0.15) 0%, rgba(4, 16, 34, 0.05) 40%, rgba(4, 16, 34, 0.72) 100%);
+  background: linear-gradient(180deg, rgba(4, 16, 34, 0.05) 0%, rgba(4, 16, 34, 0.02) 40%, rgba(4, 16, 34, 0.55) 100%);
 }
 
 .auth-poster-overlay {
@@ -401,7 +435,10 @@
   color: #fff;
 }
 
-.auth-poster-en { margin: 0; font-size: var(--fs-xs); letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
+/* v0.52.0：金色点缀 1/2 —— 海报英文眉标前的金色短横，与深蓝形成指挥舱的点睛对比 */
+.auth-poster-en { margin: 0; display: flex; align-items: center; gap: 10px; font-size: var(--fs-xs); letter-spacing: 0.18em; text-transform: uppercase; color: rgba(255, 255, 255, 0.75); }
+
+.auth-poster-en::before { content: ""; flex: none; width: 24px; height: 2px; border-radius: 2px; background: var(--bp-gold); }
 
 .auth-poster-title { margin: 0; font-size: 40px; font-weight: 800; letter-spacing: 0.02em; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45); }
 
@@ -409,6 +446,7 @@
 
 .auth-poster-points li { display: flex; align-items: center; gap: 10px; }
 
+/* v0.52.0：金色点缀 2/2 —— 卖点前的对勾圆圈改金色描边 + 淡金底；全屏金色至此两处，不再加 */
 .auth-poster-points li::before {
   content: "✓";
   display: grid;
@@ -417,13 +455,16 @@
   height: 22px;
   flex: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.16);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(232, 184, 75, 0.16);
+  border: 1px solid rgba(232, 184, 75, 0.55);
+  color: var(--bp-gold);
   font-size: var(--fs-sm);
 }
 
 .auth-poster-foot { margin: 10px 0 0; padding-top: var(--sp-4); border-top: 1px solid rgba(255, 255, 255, 0.22); font-size: var(--fs-xs); color: rgba(255, 255, 255, 0.68); }
 
+/* v0.52.0：毛玻璃卡片 —— 浅色 94% 白 + blur(20px) saturate(180%)，深蓝画布在卡片边缘透出；
+   深色模式用深色玻璃（rgba(28,28,30,0.85)）。卡片比海报晚 90ms 入场。 */
 .auth-split .auth-card {
   width: 100%;
   max-width: 440px;
@@ -431,22 +472,37 @@
   align-self: center;
   padding: 44px var(--sp-10);
   border: none;
-  box-shadow: none;
-  background: transparent;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(4, 16, 34, 0.18);
+  background: rgba(255, 255, 255, 0.94);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  animation: auth-in var(--dur-slow) var(--ease-standard) 90ms both;
+}
+
+body.dark .auth-split .auth-card {
+  background: rgba(28, 28, 30, 0.85);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 .auth-card h1 { margin: 0 0 var(--sp-2); font-size: var(--fs-4xl); font-weight: 800; letter-spacing: -0.01em; }
 
 .auth-card > p { margin: 0 0 var(--sp-6); color: var(--muted); line-height: 1.65; font-size: var(--fs-md); }
 
-.auth-form { display: grid; gap: 14px; }
+/* v0.52.0：表单比标签组晚 180ms 入场（卡片 90ms → 标签组 140ms → 表单 180ms） */
+.auth-form { display: grid; gap: 14px; animation: auth-in var(--dur-slow) var(--ease-standard) 180ms both; }
 
 .auth-form .field input { font-size: var(--fs-lg); padding: 12px 14px; background: var(--surface-soft); }
 
-.auth-form .btn.primary { width: 100%; padding: 14px; font-size: var(--fs-lg); margin-top: var(--sp-1); }
+/* v0.52.0：登录主按钮 —— 深蓝底 + 柔和投影 + 按压 0.98；聚焦时深蓝光环 */
+.auth-form .btn.primary { width: 100%; padding: 14px; font-size: var(--fs-lg); margin-top: var(--sp-1); box-shadow: 0 8px 20px rgba(10, 37, 64, 0.28); }
+
+.auth-form .btn.primary:focus-visible { outline: 2px solid var(--bp-ink); outline-offset: 2px; box-shadow: 0 0 0 4px rgba(10, 37, 64, 0.18), 0 8px 20px rgba(10, 37, 64, 0.28); }
+
+body.dark .auth-form .btn.primary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; box-shadow: 0 0 0 4px var(--accent-soft), 0 8px 20px rgba(0, 0, 0, 0.4); }
 
 /* 登录/注册 segmented */
-.auth-tabs { display: flex; background: var(--btn-fill); border-radius: 10px; padding: 2px; gap: 2px; margin-bottom: var(--sp-5); }
+.auth-tabs { display: flex; background: var(--btn-fill); border-radius: 10px; padding: 2px; gap: 2px; margin-bottom: var(--sp-5); animation: auth-in var(--dur-slow) var(--ease-standard) 140ms both; }
 
 .auth-tab { flex: 1; border: 0; background: transparent; box-shadow: none; color: var(--text); }
 
@@ -454,10 +510,15 @@
 
 .auth-tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14); }
 
+/* v0.52.0：错误提示有内容时才现形为红色柔底小条（:empty 时只占位不染色，布局不跳） */
 .auth-message { min-height: 20px; margin: 2px 0 0; color: var(--danger); font-size: var(--fs-sm); }
+
+.auth-message:not(:empty) { padding: 8px 12px; border-radius: 8px; background: var(--tint-red-bg); color: var(--tint-red-text); line-height: 1.5; }
 
 /* v0.35.3：成功 / 失败不再用内联 style.color 切，交给类（applyAuthMode 与提交回调都只切类） */
 .auth-message.is-success { color: var(--success); }
+
+.auth-message.is-success:not(:empty) { background: var(--tint-green-bg); color: var(--tint-green-text); }
 
 .auth-links { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 
@@ -616,7 +677,7 @@
 .project-item.leaving {
   opacity: 0;
   transform: translateX(16px);
-  transition: opacity 0.28s var(--ease-spring), transform 0.28s var(--ease-spring), height 0.28s var(--ease-spring);
+  transition: opacity var(--dur-slow) var(--ease-spring), transform var(--dur-slow) var(--ease-spring), height var(--dur-slow) var(--ease-spring);
 }
 
 /* v0.33.0：日历订阅抽屉 */
@@ -1173,9 +1234,12 @@ body.dark .project-chevron { color: #636366; }
 
 .cal-day-row { border: 1px solid var(--hairline); box-shadow: none; }
 
+/* v0.52.0：列表项过渡统一 320ms 标准曲线；入场错峰由 ui.js 模板内联
+   animation-delay（12ms 步进，上限 96ms）承担，此处不另写 nth-child 延迟，
+   避免内联样式与样式表规则打架。 */
 .project-item {
   position: relative;
-  transition: background-color 0.20s ease, box-shadow 0.24s var(--ease-spring), margin 0.24s var(--ease-spring), border-radius 0.24s var(--ease-spring);
+  transition: background-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-slow) var(--ease-spring), margin var(--dur-slow) var(--ease-spring), border-radius var(--dur-slow) var(--ease-spring);
 }
 
 .project-item::before {
@@ -1187,7 +1251,7 @@ body.dark .project-chevron { color: #636366; }
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: transparent;
-  transition: background-color 0.20s ease, opacity 0.20s ease;
+  transition: background-color var(--dur-quick) var(--ease-standard), opacity var(--dur-quick) var(--ease-standard);
   opacity: 0;
 }
 
@@ -1212,17 +1276,21 @@ body.dark .project-item.expanded {
 }
 
 .project-chevron {
-  transition: transform 0.26s var(--ease-spring);
+  transition: transform var(--dur-slow) var(--ease-spring);
 }
 
 /* 列表项目卡：克制干净，单行项目名称，丝滑悬停与展开 */
+/* v0.52.0：悬停微升 1px（列表行内，2px 会顶到上下分隔线）；只在 hover 设备上 */
 .project-item {
-  transition: transform 0.26s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.26s ease, border-color 0.26s ease;
+  transition: transform var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) var(--ease-standard), border-color var(--dur-slow) var(--ease-standard);
 }
 
-.project-item:hover {
-  border-color: rgba(37, 99, 235, 0.24);
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+@media (hover: hover) {
+  .project-item:hover {
+    border-color: rgba(37, 99, 235, 0.24);
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05);
+    transform: translateY(-1px);
+  }
 }
 
 .project-head .project-name {
@@ -1232,7 +1300,7 @@ body.dark .project-item.expanded {
 }
 
 .project-item .chevron {
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform var(--dur-slow) var(--ease-out);
 }
 
 /* 展开详情：克制整齐的等宽等高信息网格 */
