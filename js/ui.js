@@ -699,25 +699,14 @@ export function createUi(elements, getState) {
     const next = getNextHeroBid(s.projects, new Date());
     hero.hidden = false;
     if (!next) {
+      // v0.53.0：无待开标项目时整区隐藏，不留空白卡（设计稿的降级占位文案不用，
+      // 统计卡与列表已能说明状态）；定时器停掉，目标与项目 id 清空待下次重填。
       stopHeroTimer();
       heroTargetMs = 0;
       heroProjectId = null;
       hero.classList.add("is-empty");
       hero.classList.remove("is-urgent");
-      if (elements.bpHeroLabel) elements.bpHeroLabel.textContent = "最近一场开标";
-      if (elements.bpHeroBadge) {
-        elements.bpHeroBadge.hidden = true;
-        elements.bpHeroBadge.textContent = "";
-      }
-      if (elements.bpHeroName) {
-        elements.bpHeroName.textContent = "暂无待开标项目";
-        elements.bpHeroName.removeAttribute("data-project-id");
-      }
-      if (elements.bpHeroTime) {
-        elements.bpHeroTime.textContent = "新增未开标项目即开启实时倒计时";
-      }
-      if (elements.bpHeroAction) elements.bpHeroAction.hidden = true;
-      if (elements.bpHeroCount) elements.bpHeroCount.textContent = "";
+      hero.hidden = true;
       return;
     }
     hero.classList.remove("is-empty");
@@ -742,7 +731,9 @@ export function createUi(elements, getState) {
     if (elements.bpHeroCount) {
       elements.bpHeroCount.textContent = formatHeroCountdown(heroTargetMs - Date.now());
     }
-    startHeroTimer();
+    // v0.53.0：本期只做到分钟级 —— 倒计时由 app.js 的 60 秒定时器与每次渲染重算；
+    // startHeroTimer 的 1 秒跳动留待后续单独一期（设计稿 v0.39），这里不启动。
+    // tickHero / startHeroTimer / isHeroVisibleContext 暂休眠，下期直接启用。
   };
 
     const renderAfterWrite = ({ changedIds = [] } = {}) => {

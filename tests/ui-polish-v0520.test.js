@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { readCssBundle } from "./css-bundle.mjs";
+import { parseCssRules } from "../scripts/check-css.mjs";
 
 const css = readCssBundle();
 const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
@@ -32,9 +33,15 @@ test("v0.52.0：登录页是蓝图指挥舱入口 —— 深蓝画布 + 网格 +
 });
 
 test("v0.52.0：金色同屏不超过两处 —— 海报眉标短横与卖点对勾圈", () => {
-  const goldUses = [...css.matchAll(/var\(--bp-gold\)/g)].length;
-  assert.ok(goldUses >= 2, "金色点缀应至少有两处");
-  assert.ok(goldUses <= 3, `金色出现 ${goldUses} 次，超过三处上限`);
+  // v0.53.0：金色预算按屏计 —— 登录页两处（海报眉标短横、卖点对勾圈）+
+  // 英雄区两处（小标题、倒计时）；徽标、查看按钮与焦点环用白幽灵，不占名额。
+  const goldIn = (match) =>
+    parseCssRules(css)
+      .filter((r) => match(r.selector))
+      .flatMap((r) => r.decls)
+      .filter((d) => d.normValue.includes("var(--bp-gold)")).length;
+  assert.equal(goldIn((s) => s.includes(".auth-")), 2, "登录页金色应为两处");
+  assert.equal(goldIn((s) => s.startsWith(".bp-hero")), 2, "英雄区金色应为两处");
 });
 
 test("v0.52.0：登录入场错峰 —— 海报 0ms、卡片 90ms、标签组 140ms、表单 180ms", () => {
@@ -81,8 +88,9 @@ test("v0.52.0：浅色工作区底是暖纸，统计行收紧，减动效时全�
 });
 
 test("v0.52.0：版本号 0.52.0（与 check:version 同一事实来源）", () => {
-  assert.equal(pkg.version, "0.52.0");
-  assert.match(html, /v0\.52\.0/);
+  assert.equal(pkg.version, "0.53.0");
+  // v0.53.0：版本号随发版 bump，断言同步到 v0.53.0。
+  assert.match(html, /v0\.53\.0/);
 });
 
 test("v0.52.0：登录页结构未动 —— 元素 id 与表单行为一律不动", () => {

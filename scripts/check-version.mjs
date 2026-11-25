@@ -1,6 +1,8 @@
 // v0.9.0：版本一致性校验 —— package.json 是唯一事实来源，
-// sw.js 缓存名、changelog 标题、页眉文案必须同步，否则发版后
+// sw.js 缓存名、changelog 标题、index.html 里的版本号必须同步，否则发版后
 // 旧缓存钉住新版（v0.8.1 教训）或用户报不出版本号。
+// v0.53.0：index.html 里的版本号在两处 —— 页眉徽标（已隐藏，文字仍随版 bump）
+// 与设置页底部；check 只认「index.html 里出现 vX.Y.Z」，不钉死具体位置。
 // v0.14.1：README 与 notes.md 也纳入校验（此前两处长期停在 v0.8.0）。
 // 用法：npm run check:version（发版前必跑）。
 import { readFileSync } from "node:fs";
@@ -41,5 +43,5 @@ for (const [file, needle, text] of checks) {
 }
 if (failed) process.exit(1);
 console.log(
-  `版本一致：${version}（package.json / sw.js / changelog / 页眉 / README / notes / utils.js APP_VERSION）`
+  `版本一致：${version}（package.json / sw.js / changelog / index.html / README / notes / utils.js APP_VERSION）`
 );

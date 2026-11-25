@@ -21,8 +21,12 @@ test("v0.36.0：统计区收敛为 4 张核心概览卡", () => {
 });
 
 test("v0.36.0：一级菜单精简为 4 项高频入口，低频入口收进设置", () => {
+  // v0.53.0：用户要求「临期提醒」与「切换为深色」从顶栏移入菜单，菜单由 4 项变 6 项；
+  // 其余收口决定不变（模板下载、日历订阅、退出登录仍在设置里）。
   const menuButtons = document.querySelectorAll("#headerMenu > button");
-  assert.equal(menuButtons.length, 4);
+  assert.equal(menuButtons.length, 6);
+  assert.ok(document.getElementById("upcomingDrawerBtn"));
+  assert.ok(document.getElementById("themeBtn"));
   assert.equal(document.getElementById("guaranteeMenuBtn"), null);
   const settings = document.getElementById("settingsSheet");
   assert.ok(settings.querySelector("#downloadTemplateBtn"));

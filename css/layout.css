@@ -351,10 +351,11 @@ button.brand-mark:hover { filter: brightness(1.04); }
 
 .header-title p { font-size: 13px; }
 
+/* v0.53.0：菜单改不透明底 —— 之前是 94% 毛玻璃，打开时压在深蓝英雄区上，
+   英雄区的白字会透出来（「查看项目」重影）；浅色内容上实底与毛玻璃看起来一样，
+   深色英雄区上只有实底才干净。backdrop-filter 随之去掉（实底下无效果）。 */
 .header-actions {
-  background: color-mix(in srgb, var(--surface-raised) 94%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  background: var(--surface-raised);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-raised);
 }
@@ -688,16 +689,17 @@ body:not(.dark) .drawer-bar-title { color: var(--bp-ink); }
   color: var(--text) !important;
 }
 
-.brand-text-inline .brand-sub,
-.brand-text-inline .app-version-badge {
+/* v0.53.0：标语与 BidDesk 同字号（20px/400）—— 用户要求三处字体一致；
+   副标题只在桌面端出现（≤1023px 断点里 display: none），窄屏不受影响。 */
+.brand-text-inline .brand-sub {
   margin: 0 !important;
   padding: 0 !important;
   background: transparent !important;
   border: 0 !important;
-  font-size: 14px !important;
+  font-size: 20px !important;
   font-weight: 400 !important;
   color: var(--text) !important;
-  line-height: 1.3 !important;
+  line-height: 1.2 !important;
 }
 
 /* ---------- v0.51.3：加粗大号「投标工作台」与后方统一非粗体信息排成同一行 ---------- */

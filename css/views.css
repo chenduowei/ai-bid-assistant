@@ -1499,3 +1499,83 @@ body.dark .kv-row {
 .checklist-title .ico { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2.5px; opacity: 0.8; }
 
 .empty-icon .empty-ico { width: 28px; height: 28px; margin: 0; }
+
+/* ============================================================
+   v0.53.0：蓝图指挥舱倒计时英雄区（设计稿第 3 节，分钟级刷新）
+   深蓝画布 + 28px 蓝图网格 + 金色等宽倒计时；无待开标项目时整区隐藏
+   （ui.renderHero），不留空白卡。深色模式沿用同一深蓝，不另起一套。
+   注意：不要给 .bp-hero 加 ::before（tests/command-workspace-v0380.test.js
+   钉住「非空英雄区无装饰伪元素」）；网格只用 background-image。
+   ============================================================ */
+.bp-hero {
+  overflow: hidden;
+  background-color: var(--bp-ink);
+  background-image:
+    linear-gradient(var(--bp-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--bp-grid) 1px, transparent 1px);
+  background-size: 28px 28px;
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  margin-bottom: var(--sp-4);
+  color: var(--bp-on-ink);
+  cursor: pointer;
+}
+
+.bp-hero[hidden] { display: none; }
+
+.bp-hero-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+
+.bp-hero-label { color: var(--bp-gold); font-size: 12px; font-weight: 600; letter-spacing: 0.28em; line-height: 1.3; }
+
+/* v0.53.0：徽标改白幽灵（金色只留小标题与倒计时两处，见下） */
+.bp-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  color: var(--bp-on-ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.bp-hero-name { margin: 0 0 6px; color: var(--bp-on-ink); font-size: 24px; font-weight: 600; line-height: 1.35; letter-spacing: -0.01em; }
+
+/* 长项目名两行截断（设计稿第 6 节，英雄区与卡片共用同一规则） */
+.bp-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+
+.bp-hero-time { color: var(--bp-on-ink-sub); font-size: 14px; line-height: 1.5; }
+
+.bp-hero-foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; margin-top: 10px; }
+
+.bp-hero-count {
+  color: var(--bp-gold);
+  font-family: var(--bp-mono);
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* v0.53.0：查看按钮改白幽灵（金色只留小标题与倒计时两处，见下） */
+.bp-hero-action {
+  flex: none;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--bp-on-ink);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.bp-hero-action:hover { background: rgba(255, 255, 255, 0.08); }
+
+.bp-hero:focus-visible { outline: 2px solid var(--bp-on-ink); outline-offset: 2px; }
+
+.bp-hero-name:focus-visible { outline: 2px solid var(--bp-on-ink); outline-offset: 2px; border-radius: 4px; }

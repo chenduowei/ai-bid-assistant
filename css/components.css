@@ -928,9 +928,12 @@ body.dark .btn.primary { background: #1B4A7A; box-shadow: 0 2px 8px rgba(0, 0, 0
   flex: 1 1 0;
 }
 
-/* ---------- v0.51.0：投标工作台 · BidDesk 版本徽标紧跟 BidDesk · 状态条去灰框 ---------- */
+/* ---------- v0.51.0：投标工作台 · BidDesk 版本徽标紧跟 BidDesk · 状态条去灰框 ----------
+   v0.53.0：页眉版本号徽标隐藏（版本改在设置页底部显示）—— display 直接改 none，
+   元素保留在 HTML 里（check:version 仍以它 + 设置页版本号为 index.html 的版本载体；
+   680px 断点里那条 inline-block 规则随之休眠，见 tests/css-cascade.test.js 注释）。 */
 .app-version-badge {
-  display: inline-flex !important;
+  display: none !important;
   align-items: center;
   margin-left: 8px;
   vertical-align: middle;
