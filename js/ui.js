@@ -731,9 +731,10 @@ export function createUi(elements, getState) {
     if (elements.bpHeroCount) {
       elements.bpHeroCount.textContent = formatHeroCountdown(heroTargetMs - Date.now());
     }
-    // v0.53.0：本期只做到分钟级 —— 倒计时由 app.js 的 60 秒定时器与每次渲染重算；
-    // startHeroTimer 的 1 秒跳动留待后续单独一期（设计稿 v0.39），这里不启动。
-    // tickHero / startHeroTimer / isHeroVisibleContext 暂休眠，下期直接启用。
+    // v0.54.0：秒级跳动启用（设计稿 v0.39）—— startHeroTimer 先清旧定时器再建
+    // 1 秒间隔，只写 #bpHeroCount 的 textContent；切日历视图、切后台或仪表盘
+    // 隐藏时 isHeroVisibleContext 拦住不启动，见 startHeroTimer。
+    startHeroTimer();
   };
 
     const renderAfterWrite = ({ changedIds = [] } = {}) => {
