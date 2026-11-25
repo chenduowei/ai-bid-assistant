@@ -1,0 +1,984 @@
+/* ============================================================
+   BidDesk CSS — components.css（v0.51.4 batch3：由 styles.css 拆分）
+   内容：通用组件：按钮 / 分段控件 / 搜索框 / 表单控件 / 提示条 / 浮钮等
+   加载顺序：第 3 个（共 5 个：base → layout → components → views → breakpoints）
+   注意：不要单独调整加载顺序；级联结果以 index.html 的 <link> 顺序为准。
+   ============================================================ */
+
+.sync-status { color: var(--success); font-size: var(--fs-xs); font-weight: 600; }
+
+.menu-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+  background: var(--btn-fill);
+  color: var(--text);
+  font-size: var(--fs-lg);
+  border: 0;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.menu-toggle:hover { filter: brightness(0.96); }
+
+.menu-toggle:active { transform: scale(0.94); }
+
+/* ---------- iOS 按钮：固定高度 + 绝对垂直水平居中 ---------- */
+.btn {
+  border: 0;
+  border-radius: var(--radius-md);
+  height: 38px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  font-family: inherit;
+  transition: transform var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), filter var(--dur-fast) var(--ease-out);
+}
+
+.btn:hover { transform: translateY(-1px); }
+
+.btn:active { transform: scale(0.96); }
+
+.btn:disabled { opacity: 0.45; cursor: default; transform: none; }
+
+.btn.primary { background: var(--accent); color: #fff; }
+
+.btn.primary:hover { filter: brightness(1.06); }
+
+.btn.secondary { background: var(--btn-fill); color: var(--text); }
+
+.btn.secondary:hover { filter: brightness(0.97); }
+
+.btn.danger, .btn.tint-red { background: var(--tint-red-bg); color: var(--tint-red-text); }
+
+.btn.tint-blue { background: var(--tint-blue-bg); color: var(--tint-blue-text); }
+
+.btn-block { width: 100%; padding: 14px 18px; font-size: var(--fs-lg); }
+
+/* ---------- Segmented Control ---------- */
+.seg-control {
+  display: inline-flex;
+  background: var(--btn-fill);
+  border-radius: 10px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.seg-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-family: inherit;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.seg-btn:active { transform: scale(0.96); }
+
+.seg-btn.active { background: var(--surface); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14); }
+
+/* ---------- iOS 搜索框 ---------- */
+.search-box { position: relative; margin-bottom: var(--sp-4); }
+
+/* v0.5.1：放大镜改用内联 SVG（::before 的 data-URI 渲染发虚） */
+.search-input-wrap { position: relative; }
+
+.search-input-wrap .search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  display: block;
+}
+
+.search-box input {
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: var(--btn-fill);
+  color: var(--text);
+  font-size: var(--fs-base);
+  font-family: inherit;
+  padding: 12px var(--sp-3) 12px 36px;
+  transition: box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.search-box input::placeholder { color: var(--muted); }
+
+.search-box input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); background: var(--surface); }
+
+.filter-result-count { margin-top: var(--sp-2); font-size: var(--fs-xs); color: var(--muted); }
+
+#aiSettingsBtn.has-badge::after {
+  content: "";
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+
+.sort-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  font-family: inherit;
+  padding: var(--sp-2) 22px var(--sp-2) var(--sp-2);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23007AFF' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+
+body.dark .sort-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%230A84FF' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* ---------- iOS 分组表单 ---------- */
+.form-grid { display: block; }
+
+.form-section-title {
+  margin: var(--sp-5) var(--sp-1) 8px;
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.form-section:first-child .form-section-title { margin-top: 0; }
+
+.form-actions { margin-top: var(--sp-5); display: grid; gap: var(--sp-3); }
+
+/* 经典字段样式（登录 / 设置 / 解析页用） */
+.field { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+
+.field label { font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: var(--fs-base);
+  font-family: inherit;
+  padding: var(--sp-3) 14px;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-med) var(--ease-spring);
+}
+
+.field textarea { min-height: 94px; resize: vertical; }
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.action-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-5); }
+
+/* ---------- 通用折叠（grid 高度动画） ---------- */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--dur-med) var(--ease-spring),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.collapse.expanded { grid-template-rows: 1fr; opacity: 1; }
+
+.collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+  /* v0.5.1：收起时内层零残留——padding/margin/border 只在 expanded 时应用 */
+  padding: 0;
+  margin: 0;
+  border: 0 solid transparent;
+  transition: padding var(--dur-med) var(--ease-spring),
+    margin var(--dur-med) var(--ease-spring),
+    border-width var(--dur-med) var(--ease-spring);
+}
+
+/* 状态圆点 + 微光圈 */
+.status-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; }
+
+.sd-info { background: var(--sd-info); box-shadow: 0 0 0 4px var(--sd-info-glow); }
+
+.sd-warn { background: var(--sd-warn); box-shadow: 0 0 0 4px var(--sd-warn-glow); }
+
+.sd-done { background: var(--sd-done); box-shadow: 0 0 0 4px var(--sd-done-glow); }
+
+/* 倒计时 pill */
+.cd-pill {
+  flex: none;
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1;
+  padding: 7px 11px;
+  border-radius: 999px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.cd-urgent, .cd-overdue { color: var(--tint-red-text); background: var(--tint-red-bg); }
+
+.cd-warn { color: var(--tint-orange-text); background: var(--tint-orange-bg); }
+
+.cd-normal, .cd-done { color: var(--muted); background: var(--btn-fill); }
+
+.countdown { font-variant-numeric: tabular-nums; }
+
+.row-btn {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--accent);
+  padding: 6px 10px;
+  min-height: 36px;
+  border-radius: 8px;
+  transition: background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+}
+
+.row-btn:hover { background: var(--accent-soft); }
+
+.row-btn:active { transform: scale(0.95); }
+
+.row-btn.act-clone { color: var(--muted); }
+
+.row-btn.act-clone:hover { background: var(--btn-fill); }
+
+.row-btn.act-del { color: var(--danger); }
+
+.row-btn.act-del:hover { background: rgba(255, 59, 48, 0.1); }
+
+/* 状态徽章 */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 5px var(--sp-3);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  background: var(--tint-blue-bg);
+  color: var(--tint-blue-text);
+}
+
+.badge.warning { background: var(--tint-orange-bg); color: var(--tint-orange-text); }
+
+.badge.success { background: var(--tint-green-bg); color: var(--tint-green-text); }
+
+.badge.danger { background: var(--tint-red-bg); color: var(--tint-red-text); }
+
+.form-badge {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  /* v0.35.9：改柔蓝底 + 蓝图标（原来是蓝紫渐变的实心块，比标题还重） */
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: none;
+  transition: transform var(--dur-fast) var(--ease-spring);
+  user-select: none;
+}
+
+.form-badge-edit { display: none; }
+
+.form-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: var(--btn-fill);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  transition: color var(--dur-fast) var(--ease-out);
+  user-select: none;
+}
+
+.form-pill-chevron {
+  display: inline-block;
+  font-size: var(--fs-base);
+  font-weight: 700;
+  line-height: 1;
+  transition: transform var(--dur-med) var(--ease-spring);
+}
+
+.form-body.collapse.expanded > .collapse-inner { padding-top: 18px; }
+
+.urgent .up-pill, .red .up-pill { background: var(--tint-red-bg); color: var(--tint-red-text); }
+
+.orange .up-pill { background: var(--tint-orange-bg); color: var(--tint-orange-text); }
+
+/* ---------- Toast：底部中央胶囊 ---------- */
+.toast-wrap {
+  position: fixed;
+  z-index: 20;
+  left: 50%;
+  bottom: 28px;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  max-width: min(440px, calc(100vw - 32px));
+}
+
+.toast {
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: toast-in var(--dur-med) var(--ease-spring) both;
+}
+
+.toast.out { animation: toast-out var(--dur-fast) var(--ease-out) both; }
+
+/* ---------- 回顶 / 进度条 / 高亮 ---------- */
+.scroll-progress {
+  position: fixed;
+  z-index: 10;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}
+
+/* ---------- v0.23.0：浮动按钮 —— 桌面端回顶部 / 移动端回到底部；v0.26.0 真根因：.page 的入场动画已删，按钮恢复相对视口定位 ---------- */
+.float-btn {
+  position: fixed;
+  z-index: 30;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-raised);
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+}
+
+.float-btn.visible { opacity: 1; pointer-events: auto; transform: none; }
+
+.float-btn:active { transform: scale(0.94); }
+
+.back-to-top { right: 20px; bottom: 24px; }
+
+.view-enter { animation: view-in var(--dur-med) var(--ease-spring) both; }
+
+.view-switch-enter { animation: view-switch-in 0.26s var(--ease-spring) both; }
+
+/* —— v0.6.0：批量选择模式 —— */
+.btn-text {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font-size: var(--fs-base);
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 6px var(--sp-2);
+}
+
+.btn-text:active { opacity: 0.6; }
+
+.btn-text:disabled { opacity: 0.35; cursor: default; }
+
+.select-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: var(--sp-1) var(--sp-1) var(--sp-3);
+}
+
+.select-count {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.select-spacer { flex: 1; }
+
+.select-check {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+}
+
+.select-check svg { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+
+.select-check[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.select-check[aria-checked="true"] svg { opacity: 1; }
+
+/* —— v0.6.0：危险区（重置账户） —— */
+.danger-zone { margin-top: 18px; }
+
+.danger-title { color: var(--danger); }
+
+body.dark .danger-title { color: #FF453A; }
+
+.danger-zone .field-hint { margin-bottom: var(--sp-2); display: block; }
+
+.btn.danger-text {
+  color: #FF3B30;
+  background: none;
+  border: 0;
+  font-weight: 600;
+  padding: var(--sp-2) 0;
+  align-self: flex-start;
+}
+
+body.dark .btn.danger-text { color: #FF453A; }
+
+.btn.danger-text.armed {
+  background: #FF3B30;
+  color: #fff;
+  border-radius: 10px;
+  padding: var(--sp-2) var(--sp-4);
+}
+
+body.dark .btn.danger-text.armed { background: #FF453A; }
+
+/* —— v0.6.0：选填信息折叠 —— */
+.form-section-title.collapsible {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: none;
+  border: 0;
+  padding-left: 0;
+  padding-right: 0;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.section-chevron {
+  color: var(--muted);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  transition: transform var(--dur-med) var(--ease-spring);
+  transform-origin: center;
+}
+
+#optionalToggle[aria-expanded="true"] .section-chevron { transform: rotate(90deg); }
+
+#optionalBody.collapse.expanded > .collapse-inner { padding-top: 10px; }
+
+#guaranteeStatCard { cursor: pointer; }
+
+.password-wrap { position: relative; }
+
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  /* v0.35.3：眼睛图标改成内联 SVG（原来是 emoji 👁️/🙈，在 iOS / Windows 上是彩色表情，
+     与整套线性图标不搭）；两个图标叠在同一位置，用 hidden 类切换。 */
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 8px;
+}
+
+.password-toggle svg { width: 20px; height: 20px; }
+
+.password-toggle .eye-off { display: none; }
+
+.password-toggle.is-visible .eye-open { display: none; }
+
+.password-toggle.is-visible .eye-off { display: block; }
+
+.password-toggle:active { transform: translateY(-50%) scale(0.9); }
+
+/* v0.18.0：绑定模式下“保存到项目”显示固定项目名，不再是下拉框 */
+/* toast 永远在最上层：抽屉内操作（恢复/彻底删除）的提示不能被遮罩盖住 */
+.toast-wrap { z-index: 50; }
+
+/* v0.24.0：版本号从页脚移到页眉用户栏（同步状态与邮箱同一行，右对齐）——以后报问题先对版本号 */
+.app-version { margin-left: auto; }
+
+/* ========== v0.10.0 ========== */
+/* —— 自定义确认框（复用抽屉骨架：移动端底部上滑，桌面端居中） —— */
+.confirm-panel h2 { margin: 0 0 var(--sp-2); font-size: var(--fs-2xl); font-weight: 800; }
+
+.confirm-panel p { margin: 0 0 var(--sp-5); color: var(--muted); font-size: var(--fs-base); line-height: 1.6; }
+
+.confirm-actions { display: flex; gap: 10px; }
+
+/* v0.32.0：打字确认输入区 */
+.confirm-typing { margin: 0 0 var(--sp-5); }
+
+.confirm-typing label { display: block; font-size: var(--fs-sm); color: var(--muted); margin-bottom: 8px; line-height: 1.5; }
+
+.confirm-typing label span { color: var(--text); font-weight: 700; }
+
+.confirm-typing input { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: var(--fs-lg); font-family: inherit; color: var(--text); background: var(--surface-soft); border: 1px solid var(--border); border-radius: 10px; outline: none; }
+
+.confirm-typing input:focus { border-color: var(--accent); }
+
+.confirm-actions .btn { flex: 1; }
+
+.btn.danger-solid { background: var(--danger); color: #fff; }
+
+/* —— 骨架屏：数据未到时先占位，微光扫过 —— */
+.skeleton-list { display: grid; }
+
+.skeleton-row { padding: 14px var(--sp-4); border-bottom: 1px solid var(--border); }
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--btn-fill), var(--surface-raised), var(--btn-fill));
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s var(--ease-out) infinite;
+}
+
+.skeleton-title { width: 55%; height: 16px; margin-bottom: var(--sp-2); }
+
+.skeleton-sub { width: 80%; }
+
+/* —— 列表分页"加载更多"按钮 —— */
+.load-more-btn { width: 100%; margin: var(--sp-3) 0 var(--sp-1); }
+
+.verify-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; min-height: 36px; }
+
+.verify-btn.verified { color: var(--tint-green-text); background: var(--tint-green-bg); }
+
+.section-collapse-btn { flex: none; padding: 4px 10px; font-size: var(--fs-xs); border-radius: 999px; min-height: 36px; }
+
+/* 同步状态：文字用深绿（约 5.9:1），圆点仍可用 --success；错误态走危险色 */
+.sync-status { color: var(--tint-green-text); }
+
+.sync-status.is-error { color: var(--danger); }
+
+/* 详情区：项目状态可点即改（三选一），不用再展开表单、滚到状态下拉、再保存 */
+.status-quick { display: inline-flex; flex-wrap: wrap; gap: 4px; background: var(--btn-fill); padding: 2px; border-radius: 10px; }
+
+.status-chip {
+  border: 0; background: transparent; color: var(--text); font: inherit;
+  font-size: var(--fs-sm); font-weight: 600; padding: 5px 10px;
+  border-radius: 8px; cursor: pointer; min-height: 32px; white-space: nowrap;
+}
+
+.status-chip.active { background: var(--surface); color: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14); }
+
+.status-chip:active { transform: scale(0.96); }
+
+/* 必填标记与字段级错误 */
+.req-dot { color: var(--danger); margin-left: 3px; font-weight: 700; }
+
+.field-error { color: var(--danger); font-size: var(--fs-xs); line-height: 1.4; }
+
+/* 中标率徽标 */
+.win-rate {
+  font-size: var(--fs-sm); font-weight: 700; color: var(--tint-green-text);
+  background: var(--tint-green-bg); border-radius: 999px; padding: 4px 10px;
+}
+
+/* 三出口确认框：竖排，三个选择一样大，不给任何一项更重的暗示 */
+.confirm-actions.three { flex-direction: column; }
+
+.confirm-actions.three .btn { width: 100%; }
+
+/* 设置：备份“包含招标全文”开关 */
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--muted); cursor: pointer; }
+
+.switch input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* 统计卡：手机端的短标签默认不显示（桌面隐藏写在 min-width:681px 块里） */
+/* 手机端浮动新增：桌面不显示（写在 min-width:681px 块里） */
+/** 桌面端不显示手机顶栏的版本徽标（桌面那条版本在页头的 user-menu 行尾） */
+.app-version-badge { display: none; }
+
+.menu-toggle { background: var(--btn-fill); color: var(--text); }
+
+.menu-toggle:hover { background: var(--seg-track); filter: none; }
+
+/* ---------- 4. 按钮：扁平、圆角 12，按压只用轻微缩放 ---------- */
+.btn { border-radius: 12px; font-weight: 600; letter-spacing: -0.005em; }
+
+.btn:hover { transform: none; filter: brightness(1.03); }
+
+.btn:active { transform: scale(0.98); }
+
+.btn.secondary { background: var(--btn-fill); color: var(--text); }
+
+.btn.secondary:hover { background: var(--seg-track); filter: none; }
+
+.btn.primary { background: var(--accent); color: #fff; }
+
+.btn.primary:hover { filter: brightness(1.05); }
+
+.btn-text { font-weight: 500; }
+
+.row-btn { font-weight: 500; }
+
+/* ---------- 5. 分段控件：iOS 浅灰轨道 + 白滑块（视图切换 / 状态三选一 / 登录注册） ---------- */
+.seg-control,
+.status-quick,
+.auth-tabs {
+  background: var(--seg-track);
+  border-radius: 9px;
+  padding: 2px;
+  gap: 2px;
+}
+
+.seg-btn {
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 13px;
+  color: var(--text);
+}
+
+.seg-btn.active,
+.status-chip.active {
+  background: var(--seg-knob);
+  color: var(--text);
+  box-shadow: var(--seg-shadow);
+}
+
+.seg-btn:active,
+.status-chip:active { transform: none; opacity: 0.72; }
+
+.status-chip { border-radius: 7px; font-size: 13px; font-weight: 600; padding: 5px 11px; }
+
+.status-chip.active { color: var(--accent); }
+
+/* ---------- 6. 搜索框与输入控件：iOS 填充灰 + 聚焦柔光环 ---------- */
+.search-box input {
+  background: var(--field-fill);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 10px var(--sp-3) 10px 36px;
+  box-shadow: none;
+}
+
+.search-box input::placeholder { color: var(--muted); }
+
+.search-box input:focus {
+  background: var(--surface);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  outline: none;
+}
+
+.field label { font-weight: 500; }
+
+.field input,
+.field select,
+.field textarea {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.cd-pill { font-weight: 600; font-size: 12px; padding: 5px 10px; }
+
+.cd-normal,
+.cd-done { color: var(--muted); background: var(--btn-fill); }
+
+.badge { font-weight: 600; }
+
+.toast {
+  background: color-mix(in srgb, var(--surface-raised) 86%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14);
+  font-weight: 500;
+}
+
+/* ---------- 10. 浮动按钮 / 空状态 / 表单角标 ---------- */
+.float-btn {
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- v0.36.1：语义分辨感 + 滑动分段控件 + 卡片与跳转动效 ---------- */
+.seg-control { position: relative; }
+
+.seg-thumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 0;
+  border-radius: 9px;
+  background: var(--seg-knob);
+  box-shadow: var(--seg-shadow);
+  transition: transform 0.28s var(--ease-spring), width 0.28s var(--ease-spring);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.seg-control.has-thumb .seg-btn,
+.seg-control.has-thumb .seg-btn.active {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+  box-shadow: none;
+}
+
+.seg-btn {
+  transition: color 0.18s ease, transform 0.16s var(--ease-spring);
+}
+
+.collapse {
+  transition: grid-template-rows 0.30s var(--ease-spring), opacity 0.22s ease;
+}
+
+.collapse > .collapse-inner {
+  transition: opacity 0.20s ease;
+  opacity: 0;
+}
+
+.collapse.expanded > .collapse-inner {
+  opacity: 1;
+}
+
+.row-btn, .btn, .upcoming-item {
+  transition: transform 0.16s var(--ease-spring), background-color 0.18s ease, box-shadow 0.20s ease, border-color 0.18s ease;
+}
+
+.row-btn:active, .btn:active, .upcoming-item:active {
+  transform: scale(0.97);
+}
+
+.collapse {
+  transition: grid-template-rows 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.collapse-inner {
+  transition: opacity 0.28s ease, transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* 按钮抛光 */
+.btn {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn:active { transform: scale(0.97); }
+
+.btn.primary {
+  background: #2563EB;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.22);
+}
+
+.btn.primary:hover {
+  background: #1D4ED8;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+  transform: translateY(-1px);
+}
+
+.drawer-close-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+}
+
+.status-quick-inline {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 9px;
+}
+
+.status-quick-inline .status-chip[data-status="报名中"].active {
+  color: #0369A1;
+  background: rgba(14, 165, 233, 0.16);
+}
+
+.status-quick-inline .status-chip[data-status="制作中"].active {
+  color: #B45309;
+  background: rgba(245, 158, 11, 0.18);
+}
+
+.status-quick-inline .status-chip[data-status="已开标"].active {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.18);
+}
+
+/* 去掉状态未选中按钮的灰色底框，仅保留选中项清晰语义色 */
+.status-quick-inline {
+  background: transparent !important;
+  border: 1px solid var(--hairline);
+}
+
+.status-quick-inline .status-chip:not(.active) {
+  background: transparent !important;
+  color: var(--muted);
+}
+
+/* 编辑/新增抽屉底部按钮不挤压 */
+#formSheet .form-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+#formSheet .form-actions .btn-block {
+  width: auto;
+  min-width: 104px;
+  flex: 1 1 0;
+}
+
+/* ---------- v0.51.0：投标工作台 · BidDesk 版本徽标紧跟 BidDesk · 状态条去灰框 ---------- */
+.app-version-badge {
+  display: inline-flex !important;
+  align-items: center;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.status-quick-inline {
+  border: 0 !important;
+  background: transparent !important;
+  gap: 4px;
+  padding: 0 !important;
+}
+
+.status-quick-inline .status-chip:not(.active) {
+  border-color: transparent !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ---------- v0.51.1：版本号字号与 BidDesk 统一 ---------- */
+.app-version-badge {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+}
+
+.ico {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  flex: none;
+  opacity: 0.9;
+}
+
+.tip-ico { width: 15px; height: 15px; margin-right: 6px; vertical-align: -2.5px; flex: none; opacity: 0.85; }
+
+/* ---------- 图标在各容器里的尺寸 ---------- */
+.menu-toggle .menu-ico { width: 18px; height: 18px; display: block; }
+
+.fab-add .ico { width: 22px; height: 22px; margin: 0; }
+
+.form-badge .ico { width: 20px; height: 20px; margin: 0; vertical-align: 0; }
+
+.float-btn .float-ico { width: 18px; height: 18px; display: block; margin: 0; }
+
+#addProjectBtn .ico { margin-right: 0; }
+
+#addProjectBtn .btn-label-long { margin-left: 7px; }
+
+/* 主题按钮：图标随 body.dark 在月亮 / 太阳之间切换（文字由 ui.applyTheme 改） */
+.theme-sun { display: none; }
+
+body.dark .theme-sun { display: inline-block; }
+
+body.dark .theme-moon { display: none; }
+
+/* ---------- 键盘焦点：统一品牌色细环（原来落到 UA 的黑色 1px 自动环） ---------- */
+.btn:focus-visible,
+.row-btn:focus-visible,
+.btn-text:focus-visible,
+.seg-btn:focus-visible,
+.evidence-del:focus-visible,
+.upcoming-item:focus-visible,
+.cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

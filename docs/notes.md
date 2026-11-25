@@ -66,7 +66,7 @@
 - 清单 / 金额 / 截止 / PDF 的局部更新走 `projects.js` 的 `updateProjectFields`（白名单字段 + `.eq("user_id", ...)`）。
 - 开标提醒天数：本机 `localStorage` 键 `bid-assistant-reminder-days`（1–30，默认 7）。
 - 提醒机制：浏览器通知仅在页面打开时触发，多截止项（报名 / 质疑 / 澄清 / 保证金 / 开标）days=0/1 时通知，文案带截止类型；错过提醒只看开标时间。关页提醒走 v0.33.0 的 `.ics` 日历订阅（`api/calendar.js` + `js/ics.js` + 系统日历），邮件提醒的 `supabase/functions/send-bid-reminders/` 仍未部署，详见 `docs/reminders.md`。
-- 日历订阅（v0.33.0）：表 `calendar_tokens`（`user_id` + `token`，RLS 本人可见），只读函数 `get_calendar_projects(p_token)` 为 SECURITY DEFINER，只返回未删除且开标日不早于今天的行；第 10 节 SQL 须执行一次，否则抽屉只提示、生成不出链接。订阅链接带令牌，等同只读凭证，别外传到公开地方。
+- 日历订阅（v0.33.0；第 3 批加有效期/限流/最近读取）：表 `calendar_tokens`（`user_id` + `token`，RLS 本人可见），只读函数 `get_calendar_projects(p_token)` 为 SECURITY DEFINER，只返回未删除且开标日不早于今天的行；第 10 节 SQL 须执行一次，否则抽屉只提示、生成不出链接。订阅链接带令牌，等同只读凭证，别外传到公开地方。令牌有效期 **180 天**（`expires_at`，第 13 节：先加可空列按 `created_at` 回填再收 NOT NULL + 默认值，存量老令牌不续期；`get_calendar_projects` 加过期过滤，过期令牌只返回空 ICS；抽屉显示“有效期至 X · 最近读取 Y”，过期显示“订阅链接已过期，请重新生成”）。`/api/calendar` 限流 **60 次/小时**（第 13 节 `calendar_token_reads` + `record_calendar_token_read`，超限返回 429 + `Retry-After: 3600`，无效令牌仍走空 ICS 不暴露存在性；record 函数不存在或调用失败时降级放行）。最近读取时间 `last_read_at` 由 record 函数顺手更新，旧令牌初始为 NULL 时前端显示“从未读取”。第 13 节 SQL 须在 Supabase SQL Editor 手动执行（幂等，执行两次应零报错零变化），执行前先备份；前置年龄查询（2026-11-25）：`calendar_tokens` 共 1 条、已过期 0 条、创建于 2026-11-07，迁移时无令牌会立即失效。
 
 ---
 

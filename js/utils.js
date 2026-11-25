@@ -14,6 +14,31 @@ export const formatDateDisplay = (value) => {
   return year ? `${year}年${Number(month)}月${Number(day)}日` : value;
 };
 
+/* ================= 第 3 批：日历订阅令牌 ================= */
+
+/** 日历订阅令牌有效期（天），与 supabase.sql 第 13 节的 180 天一致。 */
+export const CALENDAR_TOKEN_TTL_DAYS = 180;
+
+/** 令牌是否已过期。expiresAt 为空（第 13 节还没执行）时按未过期处理，不提前断掉旧订阅。 */
+export function isCalendarTokenExpired(expiresAt, now = new Date()) {
+  if (!expiresAt) return false;
+  const expiry = new Date(expiresAt);
+  if (Number.isNaN(expiry.getTime())) return false;
+  return expiry <= now;
+}
+
+/** timestamptz → “2027年5月6日 09:13”；非法或空返回 ""。 */
+export function formatDateTimeDisplay(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n) => String(n).padStart(2, "0");
+  return (
+    `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 ` +
+    `${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
 export const getDaysUntilBid = (value) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);

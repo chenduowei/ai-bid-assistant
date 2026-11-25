@@ -19,12 +19,12 @@
 
 ### 2. CSS 校验（`npm run check:css`）
 
-`scripts/check-css.mjs` 检查 `styles.css`：
+`scripts/check-css.mjs` 检查 `css/` 下的样式 bundle（按 `index.html` 的 `<link>` 顺序拼接，见 `tests/css-bundle.mjs`）：
 
 - 声明不能丢分号（`padding` / `margin` / `gap` 类声明漏分号会吞掉后面一条声明）。
 - 同一断点的媒体查询不超过 2 处（按完整条件计），新样式并进已有块里，不要另起一块。
 - 跨断点顺序覆盖：`max-width` 块里写过的属性，不能在文件更靠后的位置被无条件规则或更宽的断点重写，否则那条断点样式永远不生效。
-- 所有 `max-width` 断点块一律放 `styles.css` 文件末尾。
+- 所有 `max-width` 断点块一律放 `css/breakpoints.css`（它是 5 个样式文件里最后加载的）。
 
 ## 测试
 

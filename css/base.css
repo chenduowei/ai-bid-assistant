@@ -1,0 +1,234 @@
+/* ============================================================
+   BidDesk CSS — base.css（v0.51.4 batch3：由 styles.css 拆分）
+   内容：变量 / reset / 基础排版 / 全局动效定义
+   加载顺序：第 1 个（共 5 个：base → layout → components → views → breakpoints）
+   注意：不要单独调整加载顺序；级联结果以 index.html 的 <link> 顺序为准。
+   ============================================================ */
+
+/* ============================================================
+   AI Bid Assistant v0.5.0 — iOS 设计语言
+   配色：systemGroupedBackground 体系 · 字阶：32/20/15/13
+   圆角：卡片 16px / 按钮 12px · 动效：--ease-spring
+   v0.21.0 呼吸感：只动间距 —— 行内操作、标题栏、定义列表、
+   分区标题、搜索与工具栏、窄屏页边距各放宽一档，不动布局与颜色。
+   v0.22.0 手机端：行高与间距再放一档，输入框纵向内边距统一 12px，
+   窄屏工具栏贴边对齐；回收站底部加清空按钮的通栏间距。
+   v0.23.0 八项打磨：备注回定义列表、列表行去空白、清空按钮置顶、
+   窄屏名称不再被挤、桌面回顶部、移动端菜单修复 + 回到底部、
+   统计卡片各自成卡、品牌角标随文字高度自适应。
+   v0.24.0 浮钮根因修复（page-in 动画收尾改 none）、角标改正方形、
+   版本号移到页眉、README 加少量表情点缀。
+   v0.25.0 定位高亮改单次淡出、手机端名称改回两行 + 操作按钮铺满。
+   v0.26.0 浮钮真根因：删掉 .page 的 page-in 入场动画（v0.24.0 的“收尾改 none”实测无效——fill 模式仍把 fixed 按钮钉在 .page 上，v0.25.0 线上已证实）；手机端行内解析去 📄、间距再收紧、倒计时 pill 垂直居中。
+   v0.27.0 定位高亮按 iOS 风格：先淡入后淡出，延迟 300ms 再挂类。
+   v0.28.0 数据安全三件套：重置前先自动备份、恢复失败可撤销、导入去重。
+   v0.29.0 P1 四件套：AI 终稿上限 4000→8000 与截断/网络中文提示、表单草稿保护、定位残留闪修复、企业资质库对照。
+   ============================================================ */
+:root {
+  /* v0.35.9：按 Apple HIG 收拢色板 —— macOS / iOS 分组底色 + 纯白卡片 +
+     极轻 hairline；全站只留一支系统蓝，强调色不再有第二支。 */
+  --bg: #F5F5F7;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-soft: #F2F2F7;
+  --text: #1D1D1F;
+  --muted: #6E6E73;
+  --border: rgba(60, 60, 67, 0.13);
+  /* 卡片 / 列表 / 抽屉的细描边：比 --border 还轻一档（rgba(0,0,0,0.06)） */
+  --hairline: rgba(0, 0, 0, 0.06);
+  /* iOS 分段控件的轨道与滑块、控件填充灰 */
+  --seg-track: rgba(118, 118, 128, 0.12);
+  --seg-knob: #FFFFFF;
+  --seg-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  --field-fill: rgba(118, 118, 128, 0.10);
+  --hover: rgba(0, 0, 0, 0.035);
+  --accent: #007AFF;
+  --accent-soft: rgba(0, 122, 255, 0.10);
+  --danger: #D70015;
+  --success: #34C759;
+  --warning: #FF9500;
+  --btn-fill: rgba(118, 118, 128, 0.12);
+  /* 低饱和柔色底：状态 / 倒计时 / 提示条都用这一档，不堆高饱和色块 */
+  --tint-blue-bg: rgba(0, 122, 255, 0.09);
+  --tint-blue-text: #0A6EDB;
+  --tint-red-bg: rgba(255, 59, 48, 0.10);
+  --tint-red-text: #D70015;
+  --tint-orange-bg: rgba(255, 149, 0, 0.12);
+  --tint-orange-text: #8A4F00;
+  --tint-green-bg: rgba(52, 199, 89, 0.12);
+  --tint-green-text: #1E7A34;
+  --sd-info: #007AFF;
+  --sd-info-glow: rgba(0, 122, 255, 0.18);
+  --sd-warn: #FF9500;
+  --sd-warn-glow: rgba(255, 149, 0, 0.20);
+  --sd-done: #AEAEB2;
+  --sd-done-glow: rgba(174, 174, 178, 0.25);
+  /* v0.36.1：克制语义色阶（保留呼吸感与分辨感） */
+  --sem-emerald: #059669;
+  --sem-amber: #D97706;
+  --sem-coral: #DC2626;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  /* 页面左右内边距：页头的毛玻璃应用栏靠它做通栏出血，各断点只改这一个值 */
+  --page-x: 24px;
+  /* 吸顶应用栏高度：列表工具栏 / 定位滚动都让开它 */
+  --appbar-h: 80px;
+  /* v0.36.0：Apple 4 主档 + 1 数字档字阶，全站严格对齐 8pt 网格 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-10: 40px;
+  --fs-xs: 13px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-base: 15px;
+  --fs-lg: 15px;
+  --fs-xl: 17px;
+  --fs-2xl: 17px;
+  --fs-3xl: 24px;
+  --fs-4xl: 22px;
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 0.18s;
+  --dur-med: 0.35s;
+}
+
+/* ===== 蓝图指挥舱主题变量 (v0.36.2 新增，可整体删除回退) ===== */
+:root {
+  --bp-paper: #F7F3EA;
+  --bp-on-ink: #FFFFFF;
+  --bp-on-ink-sub: #A9BFD8;
+  --bp-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+body.dark {
+  /* iOS / macOS 深色原生层次：纯黑画布 → #1C1C1E 卡面 → #2C2C2E 抬升面 */
+  --bg: #000000;
+  --surface: #1C1C1E;
+  --surface-raised: #2C2C2E;
+  --surface-soft: #2C2C2E;
+  --text: #F5F5F7;
+  --muted: #98989F;
+  --border: rgba(84, 84, 88, 0.60);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --seg-track: rgba(118, 118, 128, 0.24);
+  --seg-knob: #636366;
+  --seg-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --field-fill: rgba(118, 118, 128, 0.20);
+  --hover: rgba(255, 255, 255, 0.05);
+  --accent: #0A84FF;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --danger: #FF453A;
+  --success: #30D158;
+  --sem-emerald: #30D158;
+  --sem-amber: #FF9F0A;
+  --sem-coral: #FF453A;
+  --warning: #FF9F0A;
+  --btn-fill: rgba(118, 118, 128, 0.22);
+  --tint-blue-bg: rgba(10, 132, 255, 0.16);
+  --tint-blue-text: #64B5FF;
+  --tint-red-bg: rgba(255, 69, 58, 0.16);
+  --tint-red-text: #FF8A80;
+  --tint-orange-bg: rgba(255, 159, 10, 0.16);
+  --tint-orange-text: #FFC061;
+  --tint-green-bg: rgba(48, 209, 88, 0.16);
+  --tint-green-text: #5CE07C;
+  --sd-info: #0A84FF;
+  --sd-info-glow: rgba(10, 132, 255, 0.25);
+  --sd-warn: #FF9F0A;
+  --sd-warn-glow: rgba(255, 159, 10, 0.25);
+  --sd-done: #636366;
+  --sd-done-glow: rgba(99, 99, 102, 0.35);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.40);
+  --shadow-raised: 0 12px 32px rgba(0, 0, 0, 0.60), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+.hidden { display: none !important; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  /* v0.35.9：字族按 Apple 平台优先排 —— 先系统 SF Pro，再苹方，最后才是 Windows 回退 */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "PingFang SC", "Hiragino Sans GB", "Segoe UI", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+
+html { scroll-behavior: smooth; }
+
+/* ---------- 动效 ---------- */
+@keyframes item-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* v0.7.0：视图切换过渡（dashboard ↔ parser），淡入 + 轻微上滑 */
+@keyframes view-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@keyframes view-switch-in { from { opacity: 0; transform: translateY(6px) scale(0.994); } to { opacity: 1; transform: none; } }
+
+@keyframes toast-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+
+@keyframes toast-out { to { opacity: 0; transform: translateY(10px) scale(0.98); } }
+
+@keyframes save-glow {
+  0% { background-color: transparent; box-shadow: 0 0 0 1px transparent; }
+  24% { background-color: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent), 0 8px 24px rgba(0, 122, 255, 0.14); }
+  62% { background-color: var(--accent-soft); box-shadow: 0 0 0 1.5px var(--accent), 0 4px 16px rgba(0, 122, 255, 0.08); }
+  100% { background-color: transparent; box-shadow: 0 0 0 1px transparent; }
+}
+
+@keyframes form-pulse { 0%, 100% { box-shadow: 0 0 0 3px var(--accent); } 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
+
+/* ========== v0.9.0 ========== */
+/* —— 登录注册：入场 + 滑块 + 输入框/按钮微交互 —— */
+@keyframes auth-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+
+/* —— 回收站抽屉：移动端底部上滑，桌面端居中弹窗 —— */
+body.sheet-open { overflow: hidden; }
+
+@keyframes sheet-up {
+  from { transform: translateY(28px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes sheet-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* ========== v0.35.0：UI/UX 全面审查后的收尾 ========== */
+/* 深色模式下原生控件（日期选择器弹层 / 下拉 / 滚动条）也跟着变深 */
+body.dark { color-scheme: dark; }
+
+/* ---------- v0.36.3：精工指挥舱（暖纸画布 + 午夜石板渐变英雄区 + 统一主色交互） ---------- */
+body:not(.dark) {
+  background-color: var(--bp-paper);
+}
+
+/* ---------- v0.38.0：克制高级全宽指令台（去花哨色条 · 顶栏重塑 · 抽屉表单与临期 · 单行标题 · 丝滑展开） ---------- */
+body:not(.dark) {
+  background-color: #F6F7F9;
+  background-image: none;
+}
+
+body.dark {
+  background-color: #0B0F17;
+  background-image: none;
+}

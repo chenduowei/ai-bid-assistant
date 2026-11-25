@@ -9,7 +9,12 @@ const CACHE_NAME = "bid-assistant-v0.51.4";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css",
+  // v0.51.4 batch3：styles.css 已拆成 css/ 下 5 个文件（按 index.html 引用顺序进壳）
+  "./css/base.css",
+  "./css/layout.css",
+  "./css/components.css",
+  "./css/views.css",
+  "./css/breakpoints.css",
   "./app.js",
   "./js/utils.js",
   "./js/fields.js",
@@ -19,6 +24,8 @@ const APP_SHELL = [
   "./js/data-io.js",
   // v0.35.0：四个抽屉的交互模块（app.js 直接 import，漏在壳外离线会断）
   "./js/drawers.js",
+  // v0.51.5：设置弹窗交互模块（同上）
+  "./js/settings.js",
   // v0.34.0：js/ics.js 之前漏在壳外（目前只被 api/calendar.js 引入，浏览器侧暂未 import，
   // 但补上后 APP_SHELL 与 js/ 目录一一对应；将来客户端直接 import 也不会离线断）。
   "./js/ics.js",

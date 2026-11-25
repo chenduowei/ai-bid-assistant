@@ -398,3 +398,91 @@ do $$ begin
   alter table public.notification_log add constraint notification_log_project_id_fkey
     foreign key (project_id) references public.projects(id) on delete cascade;
 exception when duplicate_object then null; end $$;
+
+-- 13) 第 3 批日历令牌：过期 180 天 + 限流 60 次/小时 + 最近读取
+-- 幂等、可重复执行；执行前先备份；顺序 A → B → C。
+-- A：令牌有效期 180 天。先加列（可空）、按 created_at 回填，再收 NOT NULL + 默认值。
+--    注意：不能直接加带 now()+180d 默认值的 NOT NULL 列——存量老令牌会被错误地续期。
+alter table public.calendar_tokens add column if not exists expires_at timestamptz;
+update public.calendar_tokens set expires_at = created_at + interval '180 days' where expires_at is null;
+alter table public.calendar_tokens alter column expires_at set not null;
+alter table public.calendar_tokens alter column expires_at set default (now() + interval '180 days');
+
+-- 订阅函数重建：加过期过滤（保留第 11 节的 bid_time 返回列）。
+-- is null 分支是防御性写法：若本节只执行了一半，旧令牌不断掉；完整执行后该分支恒假。
+drop function if exists public.get_calendar_projects(text);
+create or replace function public.get_calendar_projects(p_token text)
+returns table (
+  id uuid,
+  name text,
+  bid_date date,
+  bid_time time,
+  project_type text,
+  bidding_company text,
+  tenderer text,
+  contact text,
+  notes text
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select p.id, p.name, p.bid_date, p.bid_time, p.project_type, p.bidding_company,
+         p.tenderer, p.contact, p.notes
+  from public.projects p
+  join public.calendar_tokens t on t.user_id = p.user_id
+  where t.token = p_token
+    and (t.expires_at is null or t.expires_at > now())
+    and p.deleted_at is null
+    and p.bid_date >= current_date
+  order by p.bid_date asc;
+$$;
+grant execute on function public.get_calendar_projects(text) to anon, authenticated;
+
+-- B：限流 60 次/小时。读记录表只由 SECURITY DEFINER 函数写，不给 anon/authenticated 直接权限；
+--    RLS 开启但不建策略（无策略 = 直接访问全拒绝），函数以属主身份绕过 RLS。
+create table if not exists public.calendar_token_reads (
+  id bigint generated always as identity primary key,
+  token text not null,
+  read_at timestamptz not null default now()
+);
+alter table public.calendar_token_reads enable row level security;
+create index if not exists calendar_token_reads_token_read_at_idx
+  on public.calendar_token_reads (token, read_at);
+
+create or replace function public.record_calendar_token_read(p_token text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count int;
+  v_valid boolean;
+begin
+  -- 顺手清掉 1 小时前的旧记录，表不膨胀。
+  delete from public.calendar_token_reads where read_at <= now() - interval '1 hour';
+  select exists (
+    select 1 from public.calendar_tokens t
+    where t.token = p_token and (t.expires_at is null or t.expires_at > now())
+  ) into v_valid;
+  if not v_valid then
+    return 'invalid';
+  end if;
+  select count(*) into v_count from public.calendar_token_reads
+    where token = p_token and read_at > now() - interval '1 hour';
+  if v_count >= 60 then
+    return 'rate_limited';
+  end if;
+  insert into public.calendar_token_reads (token) values (p_token);
+  -- C 的写入点：最近读取时间由本函数顺手更新（get_calendar_projects 是 STABLE，不能写）。
+  update public.calendar_tokens set last_read_at = now() where token = p_token;
+  return 'ok';
+end;
+$$;
+-- 注意：不要 grant execute 给 anon 以外的角色；api/calendar.js 用 ANON_KEY 调 RPC，需要：
+grant execute on function public.record_calendar_token_read(text) to anon, authenticated;
+
+-- C：最近读取时间（由 B 的 record 函数更新；旧令牌初始为 NULL，前端显示“从未读取”）。
+alter table public.calendar_tokens add column if not exists last_read_at timestamptz;
