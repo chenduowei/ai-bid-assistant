@@ -377,23 +377,23 @@ test("v0.54.0：v0.39 收尾复查 —— 390px 英雄区收版、两行截断�
   ui.stopHeroTimer();
 });
 
-test("v0.55.1：版本号 0.55.1（与 check:version 同一事实来源）", () => {
-  assert.equal(pkg.version, "0.55.1");
+test("v1.0.0：版本号 1.0.0（与 check:version 同一事实来源）", () => {
+  assert.equal(pkg.version, "1.0.0");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
-  assert.match(utils, /APP_VERSION = "0\.55\.1"/);
+  assert.match(utils, /APP_VERSION = "1\.0\.0"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /bid-assistant-v0\.55\.1/);
+  assert.match(sw, /bid-assistant-v1\.0\.0/);
   const changelog = readFileSync(
     new URL("../docs/changelog.md", import.meta.url),
     "utf8"
   );
-  assert.match(changelog, /## \[0\.55\.1\]/);
+  assert.match(changelog, /## \[1\.0\.0\]/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /v0\.55\.1/);
+  assert.match(readme, /v1\.0\.0/);
   const notes = readFileSync(
     new URL("../docs/notes.md", import.meta.url),
     "utf8"
   );
-  assert.match(notes, /v0\.55\.1/);
-  assert.match(html, /v0\.55\.1/);
+  assert.match(notes, /v1\.0\.0/);
+  assert.match(html, /v1\.0\.0/);
 });

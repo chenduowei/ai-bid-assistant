@@ -235,7 +235,7 @@ test("v0.55.1 接线：点开临期抽屉的两个入口都调 markUpcomingSeen"
 
 test("v0.55.1 README 简洁版：普通用户向，无技术细节，关键信息齐全", () => {
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.ok(readme.includes("v0.55.1"), "README 应含当前版本号（check-version 要求）");
+  assert.ok(readme.includes("v1.0.0"), "README 应含当前版本号（check-version 要求）");
   assert.ok(readme.includes("https://chenduowei.vercel.app/"), "在线地址");
   assert.ok(readme.includes("docs/screenshots/auth-desktop.png"), "登录页截图引用");
   assert.ok(readme.includes("docs/screenshots/mobile-list.png"), "主界面手机截图引用");
