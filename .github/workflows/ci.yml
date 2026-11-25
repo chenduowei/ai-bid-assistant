@@ -1,6 +1,6 @@
 # CI — 每次推送自动跑测试与校验
 #
-# 仓库无 package-lock.json，故用 npm install（非 npm ci）。
+# 仓库已有 package-lock.json，故用 npm ci。
 # 测试为 node --test，无外部依赖。
 name: CI
 
@@ -17,8 +17,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-      - run: npm install
+          node-version: "22"
+          cache: 'npm'
+      - run: npm ci
       - run: npm test
       - run: npm run check:version
       - run: npm run check:css
