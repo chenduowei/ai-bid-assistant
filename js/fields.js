@@ -13,11 +13,12 @@
  * - listVisible：是否进列表查询；pdf_text 不进（全文按需拉，见 loadProjectPdfText）。
  * - extra：v0.35.0 新增列，旧库未迁移时由 ensureExtraColumns 探测，
  *   探测失败则退回旧列清单（见 stripUnavailableColumns）。
- * - 第 4 批第 1 步：AI 遗留列 risk_summary / risk_points / qualification /
+ * - 第 4 批：AI 遗留列 risk_summary / risk_points / qualification /
  *   invalid_bid_clauses / extracted_meta 已从注册表移除 —— 不再进列表查询、
  *   不再映射进 UI 对象、不再经 updateProjectFields 回写、不再进 CSV 导出；
- *   库里的列待第 4 批第 2 步（先全量备份再删列）删除。checklist 与
- *   pdf_text / pdf_filename / pdf_parsed_at 是活数据，不受影响。
+ *   supabase.sql 建表段与第 3、4 节已不再含这 5 列，旧库删列走第 14 节
+ *   （执行前先全量导出备份）。checklist 与 pdf_text / pdf_filename /
+ *   pdf_parsed_at 是活数据，不受影响。
  * - enumValues：合法枚举；toUi 用它做回退，toDb 用它做守卫。
  * - toUi：DB 行 → UI 值的逐字段回退（枚举、金额、文件名清洗都在这里，
  *   不得被循环简化掉——循环只负责按注册表逐字段调用）。
