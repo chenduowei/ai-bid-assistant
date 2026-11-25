@@ -1579,3 +1579,30 @@ body.dark .kv-row {
 .bp-hero:focus-visible { outline: 2px solid var(--bp-on-ink); outline-offset: 2px; }
 
 .bp-hero-name:focus-visible { outline: 2px solid var(--bp-on-ink); outline-offset: 2px; border-radius: 4px; }
+
+/* ---------- v1.0.1：深色模式统计选中态与操作按钮对比度提升 ---------- */
+body.dark .stat-card.active {
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.28);
+}
+body.dark .project-head-actions .act-summary {
+  color: #C4B5FD;
+  background: rgba(167, 139, 250, 0.16);
+  border-color: rgba(167, 139, 250, 0.34);
+}
+body.dark .project-head-actions .act-edit {
+  color: #93C5FD;
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.34);
+}
+body.dark .project-head-actions .act-copy {
+  color: #6EE7B7;
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.34);
+}
+body.dark .project-head-actions .act-delete {
+  color: #FCA5A5;
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.34);
+}

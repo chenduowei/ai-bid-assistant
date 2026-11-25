@@ -594,47 +594,50 @@ export function getGuaranteeRefundReminders(projects, now = new Date()) {
 /* ---------------- CSV 导入 ---------------- */
 
 export const IMPORT_CSV_HEADERS = [
-  "项目名称",
+  "开标时间",
+  "开标时刻",
   "项目类型",
   "投标公司",
-  "招标单位",
   "联系人",
-  "开标时间",
-  "保证金要求原文",
-  "项目金额原文",
+  "项目名称",
+  "项目状态",
+  "中标结果",
+  "招标单位",
   "项目金额（数值）",
   "项目金额单位",
   "保证金金额",
   "保证金单位",
   "保证金状态",
-  "项目状态",
-  "备注",
   "报名截止",
   "质疑截止",
   "澄清截止",
-  "保证金缴纳截止",
+  "保证金截止",
+  "备注",
 ];
 
 const IMPORT_HEADER_MAP = {
-  项目名称: "name",
+  开标时间: "bid_date",
+  开标时刻: "bid_time",
   项目类型: "project_type",
   投标公司: "bidding_company",
-  招标单位: "tenderer",
   联系人: "contact",
-  开标时间: "bid_date",
-  保证金要求原文: "guarantee",
-  项目金额原文: "amount",
+  项目名称: "name",
+  项目状态: "status",
+  中标结果: "result",
+  招标单位: "tenderer",
   "项目金额（数值）": "amount_value",
   项目金额单位: "amount_unit",
   保证金金额: "guarantee_amount",
   保证金单位: "guarantee_unit",
   保证金状态: "guarantee_status",
-  项目状态: "status",
-  备注: "notes",
   报名截止: "registration_deadline",
   质疑截止: "inquiry_deadline",
   澄清截止: "clarification_deadline",
+  保证金截止: "guarantee_deadline",
   保证金缴纳截止: "guarantee_deadline",
+  保证金要求原文: "guarantee",
+  项目金额原文: "amount",
+  备注: "notes",
 };
 
 const IMPORT_STATUSES = new Set(["报名中", "制作中", "已开标"]);
@@ -846,25 +849,25 @@ export function sheetRowsToCsv(rows) {
 /** 导入模板 CSV（含 BOM 表头 + 1 行示例） */
 export function buildImportCsvTemplate() {
   const example = [
-    "示例项目",
+    "2026-12-01",
+    "09:30",
     "房建工程",
     "示例投标公司",
-    "示例招标单位",
     "张三",
-    "2026-12-01",
-    "保证金 10 万元，开标后退还",
+    "示例项目",
+    "报名中",
     "",
+    "示例招标单位",
     "500",
     "万元",
     "10",
     "万元",
     "未缴纳",
-    "报名中",
-    "示例备注",
     "2026-11-01",
     "2026-11-10",
     "2026-11-15",
     "2026-11-20",
+    "示例备注",
   ];
   return (
     "\uFEFF" +
@@ -1143,7 +1146,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.0.1";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {
