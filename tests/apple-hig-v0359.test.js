@@ -97,11 +97,11 @@ test("排版：SF Pro → 苹方字族、标题字重降一档、数字等宽", 
 });
 
 test("页头吸顶后的让位：工具栏 / 定位滚动都让开 --appbar-h，三个断点同值", () => {
-  assert.ok(hasBlock(".list-tools", /top: var\(--appbar-h\);/), "吸顶工具栏应让开应用栏");
+  assert.ok(hasBlock(".list-tools", /position: static;/), "v1.0.2 工具栏取消吸顶，避免与顶栏之间出现缝隙");
   assert.match(css, /--appbar-h: 80px;/);
   // 根、桌面、手机、平板四处都按 80px（实测页头 80.19px）
   assert.ok((css.match(/--appbar-h: 80px/g) || []).length >= 3, "--appbar-h 应在各断点都是 80px");
-  assert.match(css, /scroll-margin-top: calc\(var\(--appbar-h\) \+ 52px\);/);
+  assert.match(css, /scroll-margin-top: calc\(var\(--appbar-h\) \+ 12px\);/);
   assert.match(css, /scroll-margin-top: calc\(var\(--appbar-h\) \+ 12px\);/);
 });
 

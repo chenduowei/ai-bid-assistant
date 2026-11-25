@@ -184,7 +184,7 @@
 @media (max-width: 680px) {
   .back-to-top { display: none; }
 
-  body.dark .header { background: transparent !important; border-bottom-color: transparent !important; }
+  body.dark .header { background: rgba(11, 15, 23, 0.82) !important; -webkit-backdrop-filter: saturate(180%) blur(20px) !important; backdrop-filter: saturate(180%) blur(20px) !important; border-bottom-color: transparent !important; }
 
   /* 底部留白由本块末尾那条按「有底部 Tab」写的 padding-bottom 决定 */
   /* v0.55.0 mobile-polish B11：横屏左右留刘海安全边距 —— 竖屏 / 无刘海时
@@ -961,7 +961,7 @@
   .search-input-wrap .search-icon { left: 11px; }
 
   /* 定位到卡片时不被吸顶的应用栏 + 工具栏盖住头一行 */
-  .project-item { scroll-margin-top: calc(var(--appbar-h) + 52px); }
+  .project-item { scroll-margin-top: calc(var(--appbar-h) + 12px); }
 
   /* 触屏点击不要那层灰色闪烁（原生 tab / 列表 cell 都是按下即高亮） */
   .project-head,
