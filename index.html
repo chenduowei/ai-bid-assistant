@@ -14,7 +14,12 @@
   <meta name="apple-mobile-web-app-title" content="投标工作台" />
   <!-- v0.35.0：主题色跟随应用内深浅色开关（由 ui.applyTheme 改写），安卓地址栏 / iOS PWA 状态栏不再一条浅灰 -->
   <meta name="theme-color" content="#F2F2F7" />
-  <link rel="stylesheet" href="./styles.css" />
+  <!-- v0.51.4 batch3：styles.css 拆成 css/ 下 5 个文件，按级联顺序引用（base → layout → components → views → breakpoints）；顺序不要动 -->
+  <link rel="stylesheet" href="./css/base.css" />
+  <link rel="stylesheet" href="./css/layout.css" />
+  <link rel="stylesheet" href="./css/components.css" />
+  <link rel="stylesheet" href="./css/views.css" />
+  <link rel="stylesheet" href="./css/breakpoints.css" />
 </head>
 <body>
   <div id="scrollProgress" class="scroll-progress"></div>

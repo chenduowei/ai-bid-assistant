@@ -5,10 +5,14 @@
 // v0.35.3：跨断点顺序覆盖 —— 同一选择器在某个 max-width 块里写过的属性，若在文件更靠后的位置
 //   又以无条件（或更宽的 max-width）规则写了一遍，后出现者胜，那块断点样式永远不生效。
 //   v0.35.2 手机端「底部导航 / 浮动新增 / 统计卡标签 / 3 列网格」四条优化失效，全是这一类。
+// v0.51.4 batch3：styles.css 已拆成 css/ 下 5 个文件；默认不带参数时按 index.html 的
+//   <link> 顺序把 5 个文件拼成 bundle 再校验（与 tests/css-bundle.mjs 同一份拼接逻辑，
+//   行号按文件映射回原文件显示）。也可对单个文件跑：node scripts/check-css.mjs <path>。
 // 用法：npm run check:css（发版前必跑）；也可对单个文件跑：node scripts/check-css.mjs <path>。
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { listCssBundleFiles, readCssBundle } from "../tests/css-bundle.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -211,23 +215,37 @@ export function analyzeCss(raw) {
   return { bad, spread, bracesOk, overrides: findCascadeOverrides(raw) };
 }
 
-function main() {
-  const target = process.argv[2] || join(root, "styles.css");
-  const raw = readFileSync(target, "utf8");
-  const { bad, spread, bracesOk, overrides } = analyzeCss(raw);
+/** 把 bundle 行号映射回「文件:行」；单文件模式直接返回原行号。 */
+function lineMapperFor(files) {
+  if (!files) return (line) => `第 ${line} 行`;
+  const starts = [];
+  let line = 1;
+  for (const f of files) {
+    starts.push({ file: f, start: line });
+    // readCssBundle 用 "\n" 拼接：上一文件行数 + 1 个拼接换行 = 下一文件起始行
+    line += f.text.split("\n").length - 1 + 1;
+  }
+  return (bundleLine) => {
+    let cur = starts[0];
+    for (const s of starts) if (s.start <= bundleLine) cur = s;
+    return `${cur.file} 第 ${bundleLine - cur.start + 1} 行`;
+  };
+}
+
+function reportProblems(label, { bad, spread, bracesOk, overrides }, where) {
   if (!bracesOk) {
-    console.error(`CSS 大括号不平衡：${target}`);
-    process.exit(1);
+    console.error(`CSS 大括号不平衡：${label}`);
+    return false;
   }
   if (spread.length) {
     console.error(`同一断点的媒体查询超过 2 处（请合并到已有块里）：`);
     for (const [cond, n] of spread) console.error(`  @media ${cond} × ${n}`);
-    process.exit(1);
+    return false;
   }
   if (bad.length) {
     console.error(`CSS 声明丢分号 ${bad.length} 处（示例）：`);
     for (const b of bad.slice(0, 5)) console.error(`  ${b.trim().slice(0, 90)}`);
-    process.exit(1);
+    return false;
   }
   if (overrides.length) {
     console.error(
@@ -235,13 +253,40 @@ function main() {
     );
     for (const o of overrides.slice(0, 10)) {
       console.error(
-        `  ${o.selector} { ${o.prop} }：@media (${o.mediaCond}) 第 ${o.mediaLine} 行，` +
-          `被第 ${o.laterLine} 行的 @media (${o.laterCond}) 覆盖`
+        `  ${o.selector} { ${o.prop} }：@media (${o.mediaCond}) ${where(o.mediaLine)}，` +
+          `被 ${where(o.laterLine)} 的 @media (${o.laterCond}) 覆盖`
       );
     }
-    process.exit(1);
+    return false;
   }
-  console.log(`CSS 校验通过：${target}`);
+  return true;
+}
+
+function main() {
+  const single = process.argv[2];
+  if (single) {
+    const raw = readFileSync(single, "utf8");
+    const ok = reportProblems(single, analyzeCss(raw), (line) => `第 ${line} 行`);
+    if (!ok) process.exit(1);
+    console.log(`CSS 校验通过：${single}`);
+    return;
+  }
+  // 默认：按 index.html 的 <link> 顺序拼接整个 bundle 再校验
+  const files = listCssBundleFiles().map((f) => ({
+    name: f,
+    text: readFileSync(join(root, f), "utf8"),
+  }));
+  const raw = files.map((f) => f.text).join("\n");
+  if (raw !== readCssBundle()) throw new Error("bundle 拼接与 tests/css-bundle.mjs 不一致");
+  const ok = reportProblems(
+    `CSS bundle（${files.map((f) => f.name).join(" + ")}）`,
+    analyzeCss(raw),
+    lineMapperFor(files)
+  );
+  if (!ok) process.exit(1);
+  console.log(
+    `CSS 校验通过：bundle（${files.map((f) => f.name).join(" + ")}）`
+  );
 }
 
 const invokedPath = process.argv[1] ? fileURLToPath(import.meta.url) === process.argv[1] : false;
