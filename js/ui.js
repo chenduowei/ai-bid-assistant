@@ -2,8 +2,6 @@
 
 import {
   escapeHtml,
-  qualMatchBadge,
-  qualMatchSummary,
   formatDateDisplay,
   formatBidMoment,
   getCountdownInfo,
@@ -23,15 +21,12 @@ import {
   emptyStateKind,
   paginateItems,
   expandLimitForIndex,
-  getEvidenceState,
 } from "./utils.js";
 
 // v0.35.8：内联 SVG 图标（与 index.html 里菜单/设置同一套 1.7 线宽、24 栅格）
 const ICON = {
   clock:
     '<circle cx="12" cy="12" r="8.2"/><path d="M12 7.6v4.8l3.1 1.9"/>',
-  warning:
-    '<path d="M12 4.6 3.4 19.2h17.2L12 4.6Z"/><path d="M12 9.9v4.2"/><path d="M12 17h.01"/>',
   clipboard:
     '<rect x="5.3" y="4.5" width="13.4" height="16.1" rx="2.4"/><path d="M9.1 4.5a1.6 1.6 0 0 1 1.6-1.6h2.6a1.6 1.6 0 0 1 1.6 1.6"/><path d="m8.7 11.3 1.3 1.3 2.3-2.4M8.7 16.3l1.3 1.3 2.3-2.4"/>',
   search:
@@ -272,87 +267,13 @@ export function createUi(elements, getState) {
       .join("");
   };
 
-  // v0.15.0：证据行（页码 + 原文 + 核对状态）与核对开关；旧字符串数据兼容显示。
-  const evidenceMeta = (raw, project, kind, index) => {
-    const item =
-      raw && typeof raw === "object"
-        ? raw
-        : { text: raw, page: null, quote: "", verified: false };
-    const state = getEvidenceState(item);
-    const page = item.page
-      ? `<span class="evidence-page">第 ${escapeHtml(item.page)} 页</span>`
-      : "";
-    const quote = item.quote
-      ? `<span class="evidence-quote" title="${escapeHtml(item.quote)}">“${escapeHtml(item.quote)}”</span>`
-      : "";
-    const toggle = project
-      ? `<button class="btn verify-btn ${item.verified ? "verified" : ""}" type="button" data-action="verify-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" aria-pressed="${item.verified ? "true" : "false"}" title="${item.verified ? "取消核对" : "标记为已核对"}">${item.verified ? "✓ 已核对" : "核对"}</button>`
-      : "";
-    // v0.16.0：结论单条删除（卡片上才有；AI 面板是只读预览，不放删除）。
-    const del = project
-      ? `<button class="evidence-del" type="button" data-action="delete-evidence" data-id="${escapeHtml(project.id)}" data-kind="${kind}" data-index="${index}" title="删除这条结论" aria-label="删除这条结论">×</button>`
-      : "";
-    // v0.29.0：资质对照徽标（只在资格要求条目上）。
-    const matchBadge = kind === "qualification" ? qualMatchBadge(item) : "";
-    // v0.35.8：两个操作包成一组 —— 窄屏折行时整组一起走，不再让「×」自己掉到下一行当第二个勾选框
-    const actions = toggle || del ? `<span class="evidence-actions">${toggle}${del}</span>` : "";
-    return `<div class="evidence-meta">${page}${quote}<span class="evidence-state ${state.cls}">${state.label}</span>${matchBadge}${actions}</div>`;
-  };
-
-  const renderStructList = (title, items, project, kind) => {
-    if (!Array.isArray(items) || !items.length) return "";
-    const lis = items
-      .map(
-        (item, i) =>
-          `<li><div>${escapeHtml(typeof item === "string" ? item : item.text || "")}</div>${evidenceMeta(item, project, kind, i)}</li>`
-      )
-      .join("");
-    // v0.29.0：资格要求标题后附对照汇总（满足 / 缺失 / 待确认）。
-    const summary = kind === "qualification" ? qualMatchSummary(items) : "";
-    return `<div class="struct-block"><div class="struct-title">${escapeHtml(title)}${summary ? `<span class="struct-summary">${escapeHtml(summary)}</span>` : ""}</div><ul class="struct-list">${lis}</ul></div>`;
-  };
-
-  const sanitizeLevel = (level) =>
-    ["high", "medium", "low"].includes(level) ? level : "medium";
-  // v0.35.8：界面上不出现 high / medium / low（模型返回的枚举），换成中文等级
-  const LEVEL_LABEL = { high: "高", medium: "中", low: "低" };
-
-  const renderRiskCard = (p) => {
-    const hasRisk =
-      p.riskSummary || (p.riskPoints && p.riskPoints.length);
-    const hasStruct =
-      (p.qualification && p.qualification.length) ||
-      (p.invalidBidClauses && p.invalidBidClauses.length);
-    if (!hasRisk && !hasStruct) return "";
-    const riskOpen = isSectionOpen(getState(), p.id, "risk");
-    const points = Array.isArray(p.riskPoints) ? p.riskPoints : [];
-    const pointsHtml = points.length
-      ? `<ul class="risk-points">${points
-          .map(
-            (pt, i) =>
-              `<li><span class="risk-level ${sanitizeLevel(pt.level)}" title="风险等级">${LEVEL_LABEL[sanitizeLevel(pt.level)] || "注意"}</span><div class="risk-point-body"><div>${escapeHtml(pt.text || pt)}</div>${evidenceMeta(pt, p, "risk", i)}</div></li>`
-          )
-          .join("")}</ul>`
-      : "";
-    return `<div class="risk-report${riskOpen ? " expanded" : " collapsed"}"><div class="risk-head"><div class="risk-title">${svgIcon(ICON.warning)}风险与条款</div><span class="head-actions"><button class="btn secondary section-collapse-btn" type="button" data-action="clear-risk" data-id="${escapeHtml(p.id)}">清空</button><button class="btn secondary section-collapse-btn" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="risk" aria-expanded="${riskOpen ? "true" : "false"}">${riskOpen ? "收起" : "展开"}</button></span></div><div class="risk-body">${
-      p.riskSummary
-        ? `<p class="risk-summary">${escapeHtml(p.riskSummary)}</p>`
-        : ""
-    }${renderStructList("资格要求", p.qualification, p, "qualification")}${renderStructList("废标条款", p.invalidBidClauses, p, "invalid")}${pointsHtml}</div></div>`;
-  };
+  // 第 4 批第 1 步：AI 展示已下线 —— 风险与条款卡片（renderRiskCard）、
+  // 结论结构列表（renderStructList）、证据行（evidenceMeta）及配套的
+  // 核对 / 单条删除 / 一键清空入口一并删除；库里的 5 个 AI 列待第 2 步
+  // （先全量备份再删列）删除。检查清单（活数据）不受影响。
 
   const matchesKeyword = (p, keyword) => {
     if (!keyword) return true;
-    const qualText = Array.isArray(p.qualification)
-      ? p.qualification
-          .map((item) => (typeof item === "string" ? item : item.text || ""))
-          .join(" ")
-      : "";
-    const invalidText = Array.isArray(p.invalidBidClauses)
-      ? p.invalidBidClauses
-          .map((item) => (typeof item === "string" ? item : item.text || ""))
-          .join(" ")
-      : "";
     const checklistText = Array.isArray(p.checklist)
       ? p.checklist.map((item) => item?.text || "").join(" ")
       : "";
@@ -370,8 +291,6 @@ export function createUi(elements, getState) {
       p.status,
       p.result,
       p.bidTime,
-      qualText,
-      invalidText,
       checklistText,
       p.pdfFilename || "",
     ]
@@ -435,7 +354,7 @@ export function createUi(elements, getState) {
               `<div class="checklist-item"><label class="checklist-main"><input type="checkbox" data-action="checklist-toggle" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" ${item.done ? "checked" : ""} /><span class="checklist-text ${item.done ? "done" : ""}">${escapeHtml(item.text)}</span></label><span class="checklist-source">${escapeHtml(checklistSourceLabel(item.source))}</span><button class="btn secondary checklist-del" type="button" data-action="checklist-delete" data-id="${escapeHtml(p.id)}" data-item-id="${escapeHtml(item.id)}" title="删除该项">×</button></div>`
           )
           .join("")
-      : `<div class="checklist-empty">暂无检查项，可从 AI 结果生成或手动添加。</div>`;
+      : `<div class="checklist-empty">暂无检查项，可手动添加。</div>`;
     const toggleBtn =
       `<button class="checklist-toggle" type="button" data-action="toggle-section" data-id="${escapeHtml(p.id)}" data-section="checklist" aria-expanded="${open ? "true" : "false"}" aria-controls="${escapeHtml(bodyId)}" title="${open ? "收起清单" : "展开清单"}">` +
       `<span class="checklist-title">废标检查清单</span>` +
@@ -449,7 +368,7 @@ export function createUi(elements, getState) {
       `<div class="checklist-head">${toggleBtn}${headActions}</div>` +
       `<div class="checklist-body" id="${escapeHtml(bodyId)}"><div class="checklist-body-inner">` +
       `<div class="checklist-items">${itemsHtml}</div>` +
-      `<div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button><button class="btn secondary" type="button" data-action="checklist-generate" data-id="${escapeHtml(p.id)}">从 AI 结果生成清单</button></div>` +
+      `<div class="checklist-add"><input class="checklist-new-input" type="text" maxlength="500" placeholder="手动添加检查项" /><button class="btn secondary" type="button" data-action="checklist-add" data-id="${escapeHtml(p.id)}">添加</button></div>` +
       `</div></div></div>`
     );
   };

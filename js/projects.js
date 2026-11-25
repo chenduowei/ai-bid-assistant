@@ -8,6 +8,7 @@ import {
   stripPdfFilenameSuffix,
   parseBackupPayload,
   splitRestoreRows,
+  stripAiColumns,
   dedupeImportRows,
   saveProjectsSnapshot,
   loadProjectsSnapshot,
@@ -511,8 +512,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     if (!current) return false;
     const patchObj = typeof patch === "function" ? patch(current) : patch;
     const dbPatch = {};
-    // UI 键 → DB 列派生自注册表（patchable 标记）；AI 列仍走此通道整列回写
-    //（v0.15.0 结论证据项 / v0.17.0 一键清空风险摘要回写 null），
+    // UI 键 → DB 列派生自注册表（patchable 标记）；
+    // 第 4 批第 1 步：5 个 AI 列已从注册表移除，不再经此通道回写。
     // 开标时刻 / 中标结果 / 状态一键切换见 v0.35.0。
     const fieldMap = patchFieldMap();
     let needsMigration = false;
@@ -926,6 +927,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         if (data.length < PAGE_SIZE) break;
         from += PAGE_SIZE;
       }
+      // 第 4 批第 1 步：新备份不再带 5 个 AI 列（含全文备份的 select "*" 路径）。
+      const exportRows = allRows.map(stripAiColumns);
       const now = new Date();
       const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const payload = {
@@ -933,8 +936,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         version: APP_VERSION,
         exportedAt: now.toISOString(),
         includesPdfText: Boolean(includePdfText),
-        count: allRows.length,
-        projects: allRows,
+        count: exportRows.length,
+        projects: exportRows,
       };
       const url = URL.createObjectURL(
         new Blob([JSON.stringify(payload, null, 2)], {
@@ -955,7 +958,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         // 隐私模式等写失败不影响备份本身
       }
       ui.showToast(
-        `备份已下载，共 ${allRows.length} 条（含回收站，不含招标全文）。仅含项目，不含我的资质。`
+        `备份已下载，共 ${exportRows.length} 条（含回收站，不含招标全文）。仅含项目，不含我的资质。`
       );
       return true;
     } catch (err) {
@@ -1026,7 +1029,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       // 旧库没有 bid_time / result 列时，备份里带的这两列要去掉，否则整批 upsert 报错。
       await ensureExtraColumns();
       // 第 12 节 D：旧备份里的 bidding_company 可能缺失或为空白，数据库 CHECK 要求 trim() > 0，统一归一化为 '未填写'。
-      const writeRows = rows.map(stripUnavailableColumns).map((row) => ({
+      // 第 4 批第 1 步：旧备份里的 5 个 AI 列恢复时剥离，不再写回库。
+      const writeRows = rows.map(stripUnavailableColumns).map(stripAiColumns).map((row) => ({
         ...row,
         bidding_company: String(row.bidding_company || "").trim() || "未填写",
       }));

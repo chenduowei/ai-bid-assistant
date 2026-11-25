@@ -1,6 +1,7 @@
 /** 项目字段注册表：projects 表字段的唯一事实来源（第 2 批字段一化）。
  *
- * 来源：supabase.sql CREATE TABLE public.projects，共 35 列。注册表顺序
+ * 来源：supabase.sql CREATE TABLE public.projects，共 30 列（第 4 批第 1 步
+ * 已下线 5 个 AI 遗留列的 UI 映射，库列待第 2 步删除；见下）。注册表顺序
  * 与旧 BASE_LIST_COLUMNS 一致（bid_time / result 例外，见 extra），
  * 因此按注册表派生的 toUiProject 键序与旧手写版完全相同。
  *
@@ -12,9 +13,11 @@
  * - listVisible：是否进列表查询；pdf_text 不进（全文按需拉，见 loadProjectPdfText）。
  * - extra：v0.35.0 新增列，旧库未迁移时由 ensureExtraColumns 探测，
  *   探测失败则退回旧列清单（见 stripUnavailableColumns）。
- * - deprecated：AI 遗留列（第 4 批删列前置：先拆 UI 再动库）。只标记、不删除、
- *   不改读写行为；checklist 与 pdf_text / pdf_filename / pdf_parsed_at
- *   是活数据，不标。
+ * - 第 4 批第 1 步：AI 遗留列 risk_summary / risk_points / qualification /
+ *   invalid_bid_clauses / extracted_meta 已从注册表移除 —— 不再进列表查询、
+ *   不再映射进 UI 对象、不再经 updateProjectFields 回写、不再进 CSV 导出；
+ *   库里的列待第 4 批第 2 步（先全量备份再删列）删除。checklist 与
+ *   pdf_text / pdf_filename / pdf_parsed_at 是活数据，不受影响。
  * - enumValues：合法枚举；toUi 用它做回退，toDb 用它做守卫。
  * - toUi：DB 行 → UI 值的逐字段回退（枚举、金额、文件名清洗都在这里，
  *   不得被循环简化掉——循环只负责按注册表逐字段调用）。
@@ -64,11 +67,6 @@ export const PROJECT_FIELDS = [
   { key: "contact", db: "contact", type: "text", required: true, listVisible: true, label: "联系人", localPatch: true, csvOrder: 7, csv: [{ label: "联系人" }] },
   { key: "status", db: "status", type: "text", required: false, listVisible: true, label: "项目状态", enumValues: PROJECT_STATUSES, localPatch: true, patchable: true, csvOrder: 10, csv: [{ label: "项目状态" }] },
   { key: "notes", db: "notes", type: "text", required: false, listVisible: true, label: "备注", toUi: orEmpty, toDb: orNull, localPatch: true, csvOrder: 12, csv: [{ label: "备注" }] },
-  { key: "riskSummary", db: "risk_summary", type: "text", required: false, listVisible: true, label: "风险摘要", deprecated: true, toUi: orEmpty, toDb: orNull, localPatch: true, patchable: true, csvOrder: 13, csv: [{ label: "风险摘要" }] },
-  { key: "riskPoints", db: "risk_points", type: "jsonb", required: false, listVisible: true, label: "风险点", deprecated: true, toUi: orNull, toDb: nonEmptyArrayOrNull, localPatch: true, patchable: true },
-  { key: "qualification", db: "qualification", type: "jsonb", required: false, listVisible: true, label: "资格要求", deprecated: true, toUi: orNull, toDb: nonEmptyArrayOrNull, localPatch: true, patchable: true },
-  { key: "invalidBidClauses", db: "invalid_bid_clauses", type: "jsonb", required: false, listVisible: true, label: "废标条款", deprecated: true, toUi: orNull, toDb: nonEmptyArrayOrNull, localPatch: true, patchable: true },
-  { key: "extractedMeta", db: "extracted_meta", type: "jsonb", required: false, listVisible: true, label: "提取元数据", deprecated: true, toUi: orNull },
   { key: "deletedAt", db: "deleted_at", type: "timestamptz", required: false, listVisible: true, label: "删除时间", toUi: orNull },
   {
     key: "checklist", db: "checklist", type: "jsonb", required: false, listVisible: true, label: "检查清单",

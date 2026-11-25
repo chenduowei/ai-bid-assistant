@@ -247,40 +247,6 @@ const checklistItemText = (item) => {
   return "";
 };
 
-/**
- * 从 AI 结果生成检查清单：废标条款全转（source=ai-invalid）；
- * 风险点仅 level=high/medium 转（source=ai-risk），低风险不转。
- * 按文本去重、去空，最多 50 项。
- */
-export function buildChecklistFromAi(invalidBidClauses, riskPoints) {
-  const seen = new Set();
-  const out = [];
-  const push = (text, source, prefix) => {
-    const clean = String(text ?? "").trim().slice(0, 500);
-    if (!clean || seen.has(clean)) return;
-    seen.add(clean);
-    out.push({
-      id: `${prefix}-${out.length + 1}`,
-      text: clean,
-      done: false,
-      source,
-    });
-  };
-  for (const clause of Array.isArray(invalidBidClauses)
-    ? invalidBidClauses
-    : []) {
-    push(checklistItemText(clause), "ai-invalid", "ai-invalid");
-    if (out.length >= 50) return out;
-  }
-  for (const point of Array.isArray(riskPoints) ? riskPoints : []) {
-    if (!point || typeof point !== "object") continue;
-    if (point.level !== "high" && point.level !== "medium") continue;
-    push(checklistItemText(point), "ai-risk", "ai-risk");
-    if (out.length >= 50) return out;
-  }
-  return out;
-}
-
 /** 检查清单进度：{done, total} */
 export function getChecklistProgress(checklist) {
   const list = Array.isArray(checklist) ? checklist : [];
@@ -290,11 +256,12 @@ export function getChecklistProgress(checklist) {
 /* ================= v0.35.7：卡片内分区的默认展开态 ================= */
 
 /**
- * 卡片内分区的默认状态。风险与条款默认展开；废标检查清单默认收起——
+ * 卡片内分区的默认状态。废标检查清单默认收起——
  * 清单是逐项对照用的长列表（一项两三行），展开详情时先给一行进度，想看再点开。
  * 「谁默认收起」集中在这张表里，渲染与点击两处都读它，免得两边各记一套。
+ * （第 4 批：风险与条款分区已随 AI 展示下线，risk 键一并移除。）
  */
-export const SECTION_OPEN_BY_DEFAULT = { risk: true, checklist: false };
+export const SECTION_OPEN_BY_DEFAULT = { checklist: false };
 
 const sectionKey = (id, section) => `${id}:${section}`;
 
@@ -317,59 +284,6 @@ export function toggleSectionOpen(state, id, section) {
   if (open === openByDefault) set.delete(key);
   else set.add(key);
   return open;
-}
-
-/* ================= v0.15.0：AI 结论证据项 ================= */
-
-/**
- * 页码归一化：数字、"12"、"第12页"、"12-14" 均取首个正整数；取不到返回 null。
- * 绝不编造页码 —— 模型没给或给不出时就是 null，界面标"未给出来源"。
- */
-export function normalizeEvidencePage(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const m = String(value).match(/\d+/);
-  if (!m) return null;
-  const n = Number(m[0]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-/**
- * 单条 AI 结论归一化为 {text, page, quote, verified}（风险点另带合法的 level）。
- * 字符串与旧数据兼容进对象形态；正文超 500 字、原文摘录超 200 字截断。
- */
-export function normalizeEvidenceItem(raw) {
-  if (typeof raw === "string") {
-    const text = raw.trim().slice(0, 500);
-    if (!text) return null;
-    return { text, page: null, quote: "", verified: false };
-  }
-  if (!raw || typeof raw !== "object") return null;
-  const text = String(raw.text ?? "").trim().slice(0, 500);
-  if (!text) return null;
-  const item = {
-    text,
-    page: normalizeEvidencePage(raw.page),
-    quote: String(raw.quote ?? "").trim().slice(0, 200),
-    verified: Boolean(raw.verified),
-  };
-  if (
-    typeof raw.level === "string" &&
-    ["high", "medium", "low"].includes(raw.level)
-  ) {
-    item.level = raw.level;
-  }
-  // v0.29.0：资质对照结果 —— match（matched=满足 / missing=缺失 / unclear=待确认）
-  // 与 match_note（依据一句话）随资格条目进出库；非法值丢弃。
-  if (
-    typeof raw.match === "string" &&
-    ["matched", "missing", "unclear"].includes(raw.match)
-  ) {
-    item.match = raw.match;
-  }
-  if (typeof raw.match_note === "string" && raw.match_note.trim()) {
-    item.match_note = raw.match_note.trim().slice(0, 100);
-  }
-  return item;
 }
 
 /* ================= v0.18.1：已保存文本的文件名与页数 ================= */
@@ -404,55 +318,6 @@ export function countPdfPagesFromText(text) {
     if (Number.isFinite(n) && n > max) max = n;
   }
   return max;
-}
-
-/** 数组归一化：非数组返回 []；过滤空项，最多保留 100 项。 */
-// v0.29.0：资质对照徽标与汇总（项目卡片与 AI 面板共用）。
-const QUAL_MATCH_LABEL = { matched: "✓ 满足", missing: "✗ 缺失", unclear: "? 待确认" };
-export function qualMatchBadge(item) {
-  if (!item || typeof item !== "object" || !QUAL_MATCH_LABEL[item.match]) return "";
-  const note =
-    typeof item.match_note === "string" && item.match_note.trim()
-      ? `<span class="qual-match-note">${escapeHtml(item.match_note.trim())}</span>`
-      : "";
-  return `<span class="qual-match ${escapeHtml(item.match)}" title="${escapeHtml(item.match_note || "")}">${QUAL_MATCH_LABEL[item.match]}</span>${note}`;
-}
-export function qualMatchSummary(items) {
-  if (!Array.isArray(items)) return "";
-  let m = 0;
-  let x = 0;
-  let u = 0;
-  for (const it of items) {
-    if (it?.match === "matched") m += 1;
-    else if (it?.match === "missing") x += 1;
-    else if (it?.match === "unclear") u += 1;
-  }
-  if (!m && !x && !u) return "";
-  return `（${m} 满足 · ${x} 缺失 · ${u} 待确认）`;
-}
-
-export function normalizeEvidenceItems(value) {
-  if (!Array.isArray(value)) return [];
-  const out = [];
-  for (const raw of value) {
-    const item = normalizeEvidenceItem(raw);
-    if (item) out.push(item);
-    if (out.length >= 100) break;
-  }
-  return out;
-}
-
-/**
- * 结论核对状态（三态）：人工已核对 > 未给出来源 > AI 已提取。
- * verified 为人工核对过；既无页码又无原文时标未给出来源。
- */
-export function getEvidenceState(item) {
-  const it = item && typeof item === "object" ? item : {};
-  if (it.verified) return { cls: "verified", label: "人工已核对" };
-  if (!normalizeEvidencePage(it.page) && !String(it.quote || "").trim()) {
-    return { cls: "unsourced", label: "未给出来源" };
-  }
-  return { cls: "ai", label: "AI 已提取" };
 }
 
 /* ================= v0.3.0：结构化金额 / 保证金 ================= */
@@ -1081,6 +946,24 @@ export function dedupeImportRows(rows, existing) {
     fresh.push(row);
   }
   return { fresh, duplicates };
+}
+
+/** 第 4 批：AI 遗留列（UI 已下线，库列待第 2 步删除）。
+ * 导出备份与恢复写入时剥离这 5 列：新备份不再带 AI 结论，旧备份恢复时
+ * 也不再把 AI 数据写回库。checklist 与 pdf_text / pdf_filename /
+ * pdf_parsed_at 是活数据，不在这里。 */
+export const AI_LEGACY_DB_COLUMNS = [
+  "risk_summary",
+  "risk_points",
+  "qualification",
+  "invalid_bid_clauses",
+  "extracted_meta",
+];
+export function stripAiColumns(row) {
+  if (!row || typeof row !== "object") return row;
+  const out = { ...row };
+  for (const col of AI_LEGACY_DB_COLUMNS) delete out[col];
+  return out;
 }
 
 // v0.8.1：备份恢复 —— 纯函数（可单测），不碰数据库。

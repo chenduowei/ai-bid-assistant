@@ -5,7 +5,7 @@
  * js/ai-extract.js 均已删除）；已入库的旧风险结论与检查清单
  * 仍在卡片里展示与管理，见 js/utils.js。
  */
-import { THEME_KEY, formatBidMoment, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, buildChecklistFromAi, normalizeEvidenceItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
+import { THEME_KEY, formatBidMoment, getReminderDays, setReminderDays, getMissedBidProjects, getDeadlineItems, escapeHtml, debounce, parseCsvProjects, buildImportCsvTemplate, sheetRowsToCsv, isFormDataEmpty, isFormDraftUsable, isFormDraftStale, pruneNotificationKeys, formDraftKey, readFormDrafts, writeFormDrafts, pickFormDraft, pruneFormDrafts, toggleSectionOpen } from "./js/utils.js";
 import { createUi } from "./js/ui.js";
 import { createProjectsApi } from "./js/projects.js";
 import { requiredFormFields } from "./js/fields.js";
@@ -1679,26 +1679,6 @@ import { createDrawers } from "./js/drawers.js";
       if (button.dataset.action === "clone") {
         await projectsApi.cloneProject(id);
       }
-      if (button.dataset.action === "checklist-generate") {
-        const p = state.projects.find((project) => project.id === id);
-        if (!p) return;
-        const generated = buildChecklistFromAi(
-          p.invalidBidClauses,
-          p.riskPoints
-        );
-        const existingTexts = new Set(
-          (p.checklist || []).map((item) => item.text)
-        );
-        const fresh = generated.filter((item) => !existingTexts.has(item.text));
-        if (!fresh.length) {
-          ui.showToast("清单已是最新。");
-          return;
-        }
-        const ok = await projectsApi.updateProjectFields(id, {
-          checklist: [...(p.checklist || []), ...fresh],
-        });
-        if (ok) ui.showToast(`已生成 ${fresh.length} 条检查项。`);
-      }
       if (button.dataset.action === "checklist-add") {
         const p = state.projects.find((project) => project.id === id);
         if (!p) return;
@@ -1720,82 +1700,19 @@ import { createDrawers } from "./js/drawers.js";
         });
         if (ok) ui.showToast("已添加检查项。");
       }
-      // v0.16.0：卡片内分区折叠（风险与条款 / 废标检查清单）——只动 DOM 与内存态，不重渲染。
-      // v0.35.7：默认态交给 utils.isSectionOpen / toggleSectionOpen（风险默认展开、清单默认收起），
+      // v0.16.0：卡片内分区折叠（废标检查清单）——只动 DOM 与内存态，不重渲染。
+      // v0.35.7：默认态交给 utils.isSectionOpen / toggleSectionOpen（清单默认收起），
       // 这里只负责把结果落到 DOM——清单的展开动画由 CSS 的 grid-template-rows 完成。
+      // 第 4 批第 1 步：风险与条款分区已随 AI 展示下线，这里只剩清单。
       if (button.dataset.action === "toggle-section") {
         const section = button.dataset.section;
-        if (section !== "risk" && section !== "checklist") return;
+        if (section !== "checklist") return;
         const open = toggleSectionOpen(state, id, section);
-        const container = button.closest(".risk-report, .checklist");
+        const container = button.closest(".checklist");
         container?.classList.toggle("collapsed", !open);
         container?.classList.toggle("expanded", open);
         button.setAttribute("aria-expanded", String(open));
-        if (section === "checklist") {
-          button.title = open ? "收起清单" : "展开清单";
-        } else {
-          button.textContent = open ? "收起" : "展开";
-        }
-      }
-      // v0.16.0：AI 结论单条删除 —— 先确认，再整列回写；原始 JSON 仍在 extractedMeta 里。
-      if (button.dataset.action === "delete-evidence") {
-        const p = state.projects.find((project) => project.id === id);
-        if (!p) return;
-        const fieldMap = {
-          qualification: "qualification",
-          invalid: "invalidBidClauses",
-          risk: "riskPoints",
-        };
-        const field = fieldMap[button.dataset.kind];
-        const index = Number(button.dataset.index);
-        if (!field || !Number.isInteger(index)) return;
-        const items = normalizeEvidenceItems(p[field]);
-        const item = items[index];
-        if (!item) return;
-        const okConfirm = await ui.confirmDialog({
-          title: "删除这条结论",
-          message: "确定删除这条结论吗？删除后不再显示，也无法直接恢复。",
-          confirmText: "删除",
-          danger: true,
-        });
-        if (!okConfirm) return;
-        // v0.35.0：函数式更新 —— 排队到本次写入时才读最新清单，不会拿旧数组覆盖刚勾的项。
-        const ok = await projectsApi.updateProjectFields(id, (fresh) => {
-          const latest = normalizeEvidenceItems(fresh[field]);
-          latest.splice(Number(button.dataset.index), 1);
-          return { [field]: latest };
-        });
-        if (ok) ui.showToast("已删除该条结论。");
-      }
-      // v0.17.0：风险与条款一键清空 —— 摘要 + 三列结论一起清（risk_summary
-      // 需进 updateProjectFields 白名单）；空内容时不弹确认，直接提示。
-      if (button.dataset.action === "clear-risk") {
-        const p = state.projects.find((project) => project.id === id);
-        if (!p) return;
-        const hasAny =
-          p.riskSummary ||
-          (p.riskPoints && p.riskPoints.length) ||
-          (p.qualification && p.qualification.length) ||
-          (p.invalidBidClauses && p.invalidBidClauses.length);
-        if (!hasAny) {
-          ui.showToast("风险与条款已经是空的。");
-          return;
-        }
-        const okConfirm = await ui.confirmDialog({
-          title: "清空风险与条款",
-          message:
-            "确定清空该项目的全部风险与条款吗？包括风险摘要、资格要求、废标条款与风险点，清空后无法直接恢复。",
-          confirmText: "清空",
-          danger: true,
-        });
-        if (!okConfirm) return;
-        const ok = await projectsApi.updateProjectFields(id, {
-          riskSummary: null,
-          riskPoints: [],
-          qualification: [],
-          invalidBidClauses: [],
-        });
-        if (ok) ui.showToast("已清空风险与条款。");
+        button.title = open ? "收起清单" : "展开清单";
       }
       // v0.17.0：废标检查清单一键清空 —— 整列回写为空数组。
       if (button.dataset.action === "clear-checklist") {
@@ -1826,34 +1743,6 @@ import { createDrawers } from "./js/drawers.js";
           ),
         });
         if (ok) ui.showToast("已删除检查项。");
-      }
-      // v0.15.0：AI 结论逐条核对 —— 点按切换 verified，整列回写；旧字符串先归一化。
-      if (button.dataset.action === "verify-evidence") {
-        const p = state.projects.find((project) => project.id === id);
-        if (!p) return;
-        const fieldMap = {
-          qualification: "qualification",
-          invalid: "invalidBidClauses",
-          risk: "riskPoints",
-        };
-        const field = fieldMap[button.dataset.kind];
-        const index = Number(button.dataset.index);
-        if (!field || !Number.isInteger(index)) return;
-        const items = normalizeEvidenceItems(p[field]);
-        const item = items[index];
-        if (!item) return;
-        // v0.35.0：函数式更新 + 串行队列（连续核对多条时不再互相覆盖）
-        const ok = await projectsApi.updateProjectFields(id, (fresh) => {
-          const latest = normalizeEvidenceItems(fresh[field]);
-          const target = latest[index];
-          if (!target) return {};
-          latest[index] = { ...target, verified: !target.verified };
-          return { [field]: latest };
-        });
-        if (ok) {
-          const now = state.projects.find((project) => project.id === id)?.[field]?.[index];
-          ui.showToast(now?.verified ? "已标记为人工已核对。" : "已取消核对。");
-        }
       }
             if (button.dataset.action === "copy-summary") {
         const p = state.projects.find((item) => item.id === button.dataset.id);
