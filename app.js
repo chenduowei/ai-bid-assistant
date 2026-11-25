@@ -1749,8 +1749,7 @@ import { createSettings } from "./js/settings.js";
         applyStatFilter(card.dataset.statFilter)
       );
     });
-    // v0.34.0：「即将开标」卡片——不是筛选，而是跳到下面的即将开标面板（闪一下指位置）。
-    // v0.35.5：手机端面板默认收起成一行摘要，跳过去时顺手展开。
+    // v0.34.0：手机端面板默认收起成一行摘要，点摘要展开 / 收起。
     const setUpcomingExpanded = (expanded) => {
       const panel = document.querySelector(".upcoming-panel");
       const btn = document.getElementById("upcomingSummaryBtn");
@@ -1762,13 +1761,11 @@ import { createSettings } from "./js/settings.js";
       const panel = document.querySelector(".upcoming-panel");
       setUpcomingExpanded(!panel?.classList.contains("expanded"));
     });
+    // v0.53.0：「临期事项」卡片 —— 直接打开「临期提醒」抽屉（与菜单里的
+    // 「临期提醒」同一动作），面板顺手展开、列表当场可见；不再滚动到页面下面板。
     elements.upcomingStatCard?.addEventListener("click", () => {
-      const panel = document.querySelector(".upcoming-panel");
-      if (!panel) return;
       setUpcomingExpanded(true);
-      panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      panel.classList.add("panel-flash");
-      setTimeout(() => panel.classList.remove("panel-flash"), 1600);
+      elements.upcomingSheet?.classList.remove("hidden");
     });
     // v0.14.0：品牌图标即首页——关浮层 + 回主界面列表 + 回顶；
     // 悬浮组已拿掉，返回靠各层自带关闭（菜单 / 抽屉 / 设置 / 底部 Tab），

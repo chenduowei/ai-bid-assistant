@@ -10,7 +10,7 @@
 
 1. `sw.js` 的 `CACHE_NAME`（如 `bid-assistant-v0.51.4`）
 2. `docs/changelog.md` 的版本标题（如 `## [0.51.4]`）
-3. `index.html` 页眉里的版本号（如 `v0.51.4`）
+3. `index.html` 里的版本号（如 `v0.53.0`）：两处都要改 —— 页眉徽标里的文字（v0.53.0 起徽标已隐藏，但文字仍随版 bump）与设置页底部的版本号行（`settings-version`，用户在设置页查看版本）；`check:version` 只认「index.html 里出现当前版本号」，不钉死位置。
 4. `README.md` 里的当前版本（如 `v0.51.4`）
 5. `docs/notes.md` 里的当前版本（如 `v0.51.4`）
 6. `js/utils.js` 的 `APP_VERSION`（如 `APP_VERSION = "0.51.4"`）
@@ -28,12 +28,13 @@
 
 ## 测试
 
-- `npm test`：Node.js 原生 `node:test`，共 24 个测试文件（以 `package.json` 的 `test` 脚本为准）：
+- `npm test`：Node.js 原生 `node:test`，共 33 个测试文件（以 `package.json` 的 `test` 脚本为准）：
   - 基础：`tests/utils.test.js`、`tests/pagination.test.js`、`tests/snapshot.test.js`、`tests/lazy-loading.test.js`、`tests/list-sync.test.js`、`tests/ics.test.js`、`tests/ui-state.test.js`、`tests/bid-time.test.js`
   - 渲染与定位：`tests/render.test.js`、`tests/form-locate.test.js`、`tests/css-cascade.test.js`、`tests/app-scope.test.js`
-  - 历次视觉 / 架构打磨：`tests/desktop-v0358.test.js`、`tests/apple-hig-v0359.test.js`、`tests/apple-arch-v0360.test.js`、`tests/blueprint-v0362.test.js`、`tests/refined-command-v0363.test.js`、`tests/aurora-v0370.test.js`、`tests/command-workspace-v0380.test.js`、`tests/polish-v0390.test.js`、`tests/v0400-polish.test.js`、`tests/v0410-polish.test.js`
-  - 减法重构后：`tests/v0500-biddesk.test.js`、`tests/v0510-biddesk.test.js`
-- 新增测试文件时，记得同步加进 `package.json` 的 `test` 脚本，否则 CI 不会跑它。
+  - 历次视觉 / 架构打磨：`tests/desktop-v0358.test.js`、`tests/apple-hig-v0359.test.js`、`tests/apple-arch-v0360.test.js`、`tests/blueprint-v0362.test.js`、`tests/refined-command-v0363.test.js`、`tests/aurora-v0370.test.js`、`tests/command-workspace-v0380.test.js`、`tests/polish-v0390.test.js`、`tests/v0400-polish.test.js`、`tests/v0410-polish.test.js`、`tests/ui-polish-v0520.test.js`、`tests/ui-phase2-v0530.test.js`
+  - 减法重构后：`tests/v0500-biddesk.test.js`、`tests/v0510-biddesk.test.js`、`tests/batch4-ai-ui-removal.test.js`、`tests/batch4-ai-drop-columns.test.js`
+  - 契约与配置：`tests/contracts.test.js`、`tests/csp.test.js`、`tests/generate-config.test.js`、`tests/calendar-token.test.js`、`tests/settings.test.js`
+- 新增测试文件放进 `tests/` 即可（`test` 脚本用 `tests/*.test.js` 通配，不用逐个登记）。
 - 改 UI / 渲染逻辑必须补或更新对应测试；只改文案、版本号、文档不用补测试。
 - 测试里不要写真实密钥、真实项目数据。
 

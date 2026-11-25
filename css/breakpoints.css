@@ -485,6 +485,14 @@
 
   .header-top-actions { gap: var(--sp-2); }
 
+  /* v0.53.0：窄屏标题不再被压扁 —— .header-title 是 flex: 1 + min-width: 0，
+     同步状态一长（「● 实时同步已连接 + 邮箱」约 220px），标题会被压到只剩 21px、
+     「投标工作台」几个字溢出来盖在同步文字上（390px 实测）。标题改 flex: none
+     保住自然宽，同步状态与按钮折到第二行；按钮组 margin-left: auto 贴右缘。 */
+  .header-title { flex: none; }
+
+  .header-top-actions { margin-left: auto; }
+
   .header-top-actions .btn.primary { padding: 0; width: 44px; min-height: 44px; border-radius: 50%; font-size: 24px; font-weight: 500; line-height: 1; }
 
   .header-top-actions .btn.primary .btn-label-long { display: none; }
@@ -500,6 +508,15 @@
   .user-menu { padding-top: 0; gap: 6px; font-size: 11px; line-height: 1.35; }
 
   #userEmail { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+  /* v0.53.0：英雄区手机版 —— 上下内边距收紧约四分之一（20px → 16px，左右不小于
+     16px），倒计时 48px → 36px，项目名 24px → 20px；倒计时一行放不下时整行换行
+     （.bp-hero-foot 可折行），项目名仍两行截断。 */
+  .bp-hero { padding: 16px; }
+
+  .bp-hero-name { font-size: 20px; }
+
+  .bp-hero-count { font-size: 36px; }
 
   /* ===================== v0.35.5：手机竖屏全面打磨 =====================
        依据审查报告（handoffs/🔍-手机竖屏ui深度打磨审查）逐条落地，全部收在本断点内，桌面零变化。 */
@@ -929,6 +946,15 @@
   /* v0.52.0：去掉顶 padding，同步状态纵向居中（原 5px 把文字顶低约 2.5px） */
   .user-menu { padding: 0 2px; font-size: 11.5px; gap: 10px; line-height: 1.35; }
 
+  /* v0.53.0：同步状态与邮箱同 BidDesk 字号（20px/400）—— 用户要求三处字体一致；
+     只在桌面端（≥1024px，副标题可见的宽度）放大，窄屏仍走 11/11.5px 紧凑字号；
+     邮箱过长时省略号截断，防止顶栏在 1024px 视口溢出。 */
+  .user-menu-inline { font-size: 20px; }
+
+  .user-menu-inline .sync-status { font-size: 20px; font-weight: 400; }
+
+  .user-menu-inline #userEmail { max-width: 240px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
   .header-top-actions { gap: 10px; }
 
   #addProjectBtn { padding: 9px 16px; }
@@ -963,6 +989,7 @@
       grid-template-columns: minmax(0, 1fr);
       grid-template-areas:
         "banner"
+        "hero"
         "stats"
         "list";
       row-gap: 0;

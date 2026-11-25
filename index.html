@@ -79,18 +79,12 @@
           <button id="brandHomeBtn" class="brand-mark" type="button" aria-label="回到首页" title="回到首页"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4.5" width="14" height="16.5" rx="2.5"/><path d="M9 4.5a2 2 0 0 1 6 0"/><path d="M8.8 12.6 11 14.8l4.2-4.6"/></svg></button>
           <div class="brand-text brand-text-inline">
             <h1 class="brand-main-title">投标工作台</h1>
-            <p class="brand-line"><span class="brand-en">BidDesk</span><span id="headerSubtitle" class="brand-sub">让每一次投标，都心里有数。</span><span class="app-version-badge" aria-label="应用版本">v0.52.0</span></p>
+            <p class="brand-line"><span class="brand-en">BidDesk</span><span id="headerSubtitle" class="brand-sub">让每一次投标，都心里有数。</span><span class="app-version-badge" aria-label="应用版本">v0.53.0</span></p>
           </div>
         </div>
         <div class="user-menu user-menu-inline"><span id="syncStatus" class="sync-status">● 云端同步中</span><span id="userEmail"></span></div>
         <div class="header-top-actions">
           <button id="addProjectBtn" class="btn primary" type="button" aria-label="新增项目" title="新增项目"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5.2v13.6M5.2 12h13.6"/></svg><span class="btn-label-long">新增项目</span></button>
-          <button id="upcomingDrawerBtn" class="btn secondary topbar-upcoming-btn" type="button" aria-label="临期提醒" title="查看即将到期事项">
-            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.6v4.8l3.1 1.9"/></svg>
-            <span class="btn-label-long">临期提醒</span>
-            <span id="upcomingBadgeCount" class="topbar-badge hidden">0</span>
-          </button>
-          <button id="themeBtn" class="btn secondary" type="button"><svg class="ico theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.3A8.2 8.2 0 0 1 9.7 4a8.3 8.3 0 1 0 10.3 10.3Z"/></svg><svg class="ico theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 3.4v2.2M12 18.4v2.2M4.9 12H2.7M21.3 12h-2.2M6.9 6.9 5.3 5.3M18.7 18.7l-1.6-1.6M6.9 17.1l-1.6 1.6M18.7 5.3l-1.6 1.6"/></svg><span class="btn-label">切换为深色</span></button>
           <button id="menuToggle" class="menu-toggle" type="button" aria-label="菜单" aria-expanded="false"><svg class="menu-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7.2h16M4 12h16M4 16.8h16"/></svg></button>
         </div>
       </div>
@@ -100,6 +94,15 @@
         <button id="importBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.6v10.1"/><path d="m7.9 9.9 4.1 4.1 4.1-4.1"/><path d="M4.8 16.4v2.1a1.8 1.8 0 0 0 1.8 1.8h10.8a1.8 1.8 0 0 0 1.8-1.8v-2.1"/></svg>导入</button>
         <button id="exportBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20.4V10.3"/><path d="m7.9 14.2 4.1-4.1 4.1 4.1"/><path d="M4.8 7.6V5.5a1.8 1.8 0 0 1 1.8-1.8h10.8a1.8 1.8 0 0 1 1.8 1.8v2.1"/></svg>导出</button>
         <button id="trashMenuBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 6.9h14.8"/><path d="M9.3 6.9V5.3a1.7 1.7 0 0 1 1.7-1.7h2a1.7 1.7 0 0 1 1.7 1.7v1.6"/><path d="M6.7 6.9 7.6 19a1.7 1.7 0 0 0 1.7 1.6h5.4a1.7 1.7 0 0 0 1.7-1.6l.9-12.1"/><path d="M10.5 10.7v6M13.5 10.7v6"/></svg>回收站</button>
+        <!-- v0.53.0：顶栏收尾 —— 「临期提醒」与「切换为深色」从顶栏移入菜单（行为不变，
+             id 不变，事件绑定与角标仍走原逻辑）；顶栏只留品牌、同步状态、「新增项目」、
+             汉堡菜单，保持呼吸感与元素对齐。 -->
+        <button id="upcomingDrawerBtn" class="btn secondary topbar-upcoming-btn" type="button" aria-label="临期提醒" title="查看即将到期事项">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.2"/><path d="M12 7.6v4.8l3.1 1.9"/></svg>
+          <span class="btn-label-long">临期提醒</span>
+          <span id="upcomingBadgeCount" class="topbar-badge hidden">0</span>
+        </button>
+        <button id="themeBtn" class="btn secondary" type="button"><svg class="ico theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.3A8.2 8.2 0 0 1 9.7 4a8.3 8.3 0 1 0 10.3 10.3Z"/></svg><svg class="ico theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.1"/><path d="M12 3.4v2.2M12 18.4v2.2M4.9 12H2.7M21.3 12h-2.2M6.9 6.9 5.3 5.3M18.7 18.7l-1.6-1.6M6.9 17.1l-1.6 1.6M18.7 5.3l-1.6 1.6"/></svg><span class="btn-label">切换为深色</span></button>
         <input id="importFileInput" type="file" accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" class="hidden" />
         <button id="aiSettingsBtn" class="btn secondary" type="button"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.4h8.4M17.6 8.4H20M4 15.6h4.4M13.6 15.6H20"/><circle cx="15" cy="8.4" r="2.2"/><circle cx="11" cy="15.6" r="2.2"/></svg>设置</button>
       </div>
@@ -110,6 +113,16 @@
     <!-- v0.12.0：离线快照横幅（仅快照模式下显示，见 ui.renderOfflineBanner） -->
     <div id="offlineBanner" class="offline-banner hidden" role="status"></div>
 
+    <!-- v0.53.0：蓝图指挥舱倒计时英雄区（设计稿第 3 节，分钟级刷新）——
+         最近一场开标 + 金色等宽倒计时；无待开标项目时整区隐藏（ui.renderHero），
+         不留空白卡；点整区（或项目名回车）进该项目详情，与点卡片一致。
+         秒级跳动留待后续单独一期，本期不启动 1 秒定时器。 -->
+    <section class="bp-hero" id="bpHero" hidden>
+      <div class="bp-hero-top"><span class="bp-hero-label" id="bpHeroLabel">最近一场开标</span><span class="bp-hero-badge" id="bpHeroBadge" hidden></span></div>
+      <h2 class="bp-hero-name bp-clamp-2" id="bpHeroName" tabindex="0" role="button"></h2>
+      <div class="bp-hero-time" id="bpHeroTime"></div>
+      <div class="bp-hero-foot"><div class="bp-hero-count" id="bpHeroCount" aria-live="off"></div><button class="bp-hero-action" id="bpHeroAction" type="button" hidden>查看项目 ›</button></div>
+    </section>
 
     <!-- v0.51.4：统计区收敛为 4 张核心概览卡 —— 去掉与下方分段控件重复的状态筛选卡，
          只留「项目总数 / 进行中 / 临期事项 / 在途保证金」。 -->
@@ -485,7 +498,7 @@
         <button id="resetAccountBtn" class="btn danger-text" type="button">重置账户</button>
       </div>
       <!-- v0.35.5：手机页头不再单占一行显示版本号（省 28px），版本挪到这里 -->
-      <p class="settings-version">投标工作台 · BidDesk v0.51.4</p>
+      <p class="settings-version">投标工作台 · BidDesk v0.53.0</p>
     </section>
   </div>
 
