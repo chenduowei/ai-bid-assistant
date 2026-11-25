@@ -377,8 +377,8 @@ test("v0.54.0：v0.39 收尾复查 —— 390px 英雄区收版、两行截断�
   ui.stopHeroTimer();
 });
 
-test("v1.0.1：版本号 1.0.1（与 check:version 同一事实来源）", () => {
-  assert.equal(pkg.version, "1.0.1");
+test("v1.0.2：版本号 1.0.2（与 check:version 同一事实来源）", () => {
+  assert.equal(pkg.version, "1.0.2");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
   assert.match(utils, /APP_VERSION = "1\.0\.1"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");

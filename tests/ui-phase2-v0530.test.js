@@ -262,8 +262,8 @@ test("v0.55.1：窄屏页头标题不被压扁 —— 标题列 basis 0 可伸�
   assert.equal(declOf(actions680[actions680.length - 1], "margin-left"), "auto");
 });
 
-test("v1.0.1：版本号 1.0.1（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
-  assert.equal(pkg.version, "1.0.1");
+test("v1.0.2：版本号 1.0.2（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "1.0.2");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
   assert.match(utils, /APP_VERSION = "1\.0\.1"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");

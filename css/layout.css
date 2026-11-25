@@ -235,14 +235,9 @@ button.brand-mark:focus-visible { outline: 2px solid var(--accent); outline-offs
 /* ---------- 工具栏 ---------- */
 .list-tools { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; margin-bottom: var(--sp-4); }
 
-/* v0.7.0：工具栏 sticky 毛玻璃，滚动时跟手；v0.35.9 让开吸顶应用栏，毛玻璃与顶栏同一档 */
+/* v1.0.2：工具栏取消吸顶（仅保留顶栏固定），随列表自然滚动，消除与顶栏间的缝隙 */
 .list-tools {
-  position: sticky;
-  top: var(--appbar-h);
-  z-index: 15;
-  background: color-mix(in srgb, var(--surface) 96%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
+  position: static;
   padding: 12px 0;
   margin: 0 0 var(--sp-4);
   border-bottom: 1px solid var(--hairline);
@@ -727,10 +722,10 @@ body:not(.dark) .drawer-bar-title { color: var(--bp-ink); }
 
 .sheet-head .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* ---------- v1.0.1：深色模式顶栏透明底，融入画布 ---------- */
+/* ---------- v1.0.2：深色模式顶栏改为同色半透毛玻璃（#0B0F17），顶部无缝融入画布、滚动时不透字 ---------- */
 body.dark .header {
-  background: transparent !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+  background: rgba(11, 15, 23, 0.82) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
   border-bottom-color: transparent !important;
 }
