@@ -973,10 +973,10 @@ export function dedupeImportRows(rows, existing) {
   return { fresh, duplicates };
 }
 
-/** 第 4 批：AI 遗留列（UI 已下线，库列待第 2 步删除）。
- * 导出备份与恢复写入时剥离这 5 列：新备份不再带 AI 结论，旧备份恢复时
- * 也不再把 AI 数据写回库。checklist 与 pdf_text / pdf_filename /
- * pdf_parsed_at 是活数据，不在这里。 */
+/** 第 4 批：AI 遗留列（UI 已下线，库列由 supabase.sql 第 14 节删除）。
+ * 导出备份与恢复写入时剥离这 5 列：新备份不再带 AI 结论；旧备份恢复时
+ * 也不再把 AI 数据写回库（删列后写回会报错，剥离必须保留）。
+ * checklist 与 pdf_text / pdf_filename / pdf_parsed_at 是活数据，不在这里。 */
 export const AI_LEGACY_DB_COLUMNS = [
   "risk_summary",
   "risk_points",

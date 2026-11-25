@@ -20,12 +20,6 @@ create table if not exists public.projects (
   guarantee text,
   status text not null default '报名中' check (status in ('报名中', '制作中', '已开标')),
   notes text,
-  -- AI 分析结果（可选）
-  risk_summary text,
-  risk_points jsonb,
-  qualification jsonb,
-  invalid_bid_clauses jsonb,
-  extracted_meta jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   -- v0.2.7 软删除：删除 = 移入回收站，deleted_at 为空表示正常
@@ -158,16 +152,13 @@ begin
 end;
 $$;
 
--- 3) AI 分析字段（若尚未添加）
-alter table public.projects add column if not exists risk_summary text;
-alter table public.projects add column if not exists risk_points jsonb;
-alter table public.projects add column if not exists extracted_meta jsonb;
+-- 3) AI 分析字段已删除（第 4 批）：risk_summary / risk_points /
+--    extracted_meta 曾在此添加；第 14 节删列后，建表段也不再含这 5 列。
+--    本节保留编号，仅作说明，不执行任何语句。
 
--- 4) v0.2.4 P0：招标单位、项目金额、结构化资格/废标条款
+-- 4) v0.2.4 P0：招标单位、项目金额（结构化资格 / 废标条款两列已删除，见第 14 节）
 alter table public.projects add column if not exists tenderer text;
 alter table public.projects add column if not exists amount text;
-alter table public.projects add column if not exists qualification jsonb;
-alter table public.projects add column if not exists invalid_bid_clauses jsonb;
 
 -- 5) 投标公司非空约束（仅在确认无空值后可执行；默认先不强制旧数据）
 -- update public.projects set bidding_company = '未填写' where bidding_company is null or trim(bidding_company) = '';
@@ -486,3 +477,15 @@ grant execute on function public.record_calendar_token_read(text) to anon, authe
 
 -- C：最近读取时间（由 B 的 record 函数更新；旧令牌初始为 NULL，前端显示“从未读取”）。
 alter table public.calendar_tokens add column if not exists last_read_at timestamptz;
+
+-- 14) 第 4 批第 2 步：删除 AI 分析五列（用户决定不再用 AI 相关功能）
+-- 执行前必须先在应用里全量导出备份并保存好：删列不可逆，存量 AI 结论
+-- 执行后无法恢复。checklist 与 pdf_text / pdf_filename / pdf_parsed_at
+-- 是活数据，不受影响，不在本节删除。
+-- 幂等、可重复执行（DROP COLUMN IF EXISTS）；二次执行零报错零变化。
+-- 新建库不受影响：建表段与第 3、4 节已不再含这 5 列，本节仅清理旧库。
+alter table public.projects drop column if exists risk_summary;
+alter table public.projects drop column if exists risk_points;
+alter table public.projects drop column if exists qualification;
+alter table public.projects drop column if exists invalid_bid_clauses;
+alter table public.projects drop column if exists extracted_meta;

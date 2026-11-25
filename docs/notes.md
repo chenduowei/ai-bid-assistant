@@ -57,7 +57,7 @@
 ## 数据与提醒
 
 - 表 `projects`：`user_id` + RLS；状态仅 `报名中 | 制作中 | 已开标`；`deleted_at` 为空表示正常，非空表示在回收站（保留 30 天，过期自动彻底删除）。
-- AI 相关列（第 4 批第 1 步已下线 UI）：`risk_summary`、`risk_points`、`qualification`、`invalid_bid_clauses`、`extracted_meta` 不再进列表查询、UI 展示、回写、CSV 导出与备份；库里的列待第 4 批第 2 步（先全量备份再删列）删除。检查清单与 PDF 全文是活数据，不受影响。
+- AI 相关列已删除（第 4 批）：`risk_summary`、`risk_points`、`qualification`、`invalid_bid_clauses`、`extracted_meta` 不进列表查询、UI 展示、回写、CSV 导出与备份；`supabase.sql` 建表段与第 3、4 节已不再含这 5 列，旧库删列走第 14 节（执行前先全量导出备份）。检查清单与 PDF 全文是活数据，不受影响。
 - v0.3.0 新增列：`checklist`（jsonb，每项 `{id, text, done, source}`，source ∈ ai-invalid / ai-risk / manual）；`amount_value`（numeric）+ `amount_unit`（元/万元，默认万元）；`guarantee_amount`（numeric）+ `guarantee_unit`（元/万元，默认万元）+ `guarantee_status`（未缴纳/已缴纳/已退回/已没收，默认未缴纳）；`registration_deadline` / `inquiry_deadline` / `clarification_deadline` / `guarantee_deadline`（date，均可为空）；`pdf_text`（text，保存时截断到 200000 字符）+ `pdf_filename` + `pdf_parsed_at`。v0.18.1：`pdf_filename` 入库与读出时去掉末尾连拼的"（N 字）"后缀（半角括号也认），已污染的文件名下次保存即洗回；查看已保存文本的总页数从文本的"【第 N 页】"标记取最大值，无标记显示"未知"。旧 `amount` / `guarantee` 文本列保留，新字段为空时列表显示旧文本。
 - v0.4.0 无新列，但保证金改为选填：`guarantee` 列已改为可为空并去掉长度校验（`supabase.sql` 第 8 节，旧库需执行一次，幂等）。列表查询为显式列清单（排除 `pdf_text`，全文按需拉）；搜索框 input 防抖 200ms；必填为开标时间、项目类型、项目名称、投标公司、联系人（保证金/金额均选填）。
 - v0.4.2 无新列、无约束变更，旧库无需执行任何 SQL。登录页为左右分栏（海报底图（内联于 styles.css 的 WebP data URI，因推送通道不支持二进制） 海报 + `.auth-split` 布局），移动端 <900px 海报变顶部横幅；列表头部默认显示项目类型，保证金（金额+状态）在详情区与项目金额同行。
