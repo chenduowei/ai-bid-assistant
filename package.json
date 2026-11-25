@@ -9,7 +9,7 @@
     "check:version": "node scripts/check-version.mjs",
     "check:css": "node scripts/check-css.mjs",
     "generate-config": "node scripts/generate-config.mjs",
-    "test": "node --test \"tests/**/*.test.js\""
+    "test": "node --test tests/*.test.js"
   },
   "type": "module",
   "devDependencies": {
