@@ -31,6 +31,16 @@ export default async function handler(req, res) {
   if (!SUPABASE_URL || !ANON_KEY) {
     return res.status(500).send("server not configured");
   }
+  // 第 3 批：限流 60 次/小时 —— 先调 record_calendar_token_read 记一次读取。
+  // 'rate_limited' → 429（带 Retry-After: 3600；日历 App 轮询低频，429 不会伤正常使用）；
+  // 'invalid' → 按旧行为继续调 RPC（无效令牌只返回空 ICS，不向外暴露令牌是否存在）；
+  // record 调用本身失败（函数不存在 = 第 13 节还没执行，或网络错）→ 降级放行继续调 RPC：
+  // 限流是增强，不是单点故障。
+  const rateStatus = await checkCalendarTokenRate(token);
+  if (rateStatus === "rate_limited") {
+    res.setHeader("Retry-After", "3600");
+    return res.status(429).send("rate limited");
+  }
   let rpc;
   try {
     rpc = await fetch(`${SUPABASE_URL}/rest/v1/rpc/get_calendar_projects`, {
@@ -56,4 +66,28 @@ export default async function handler(req, res) {
   // 只能 private：令牌就在 URL 里，交给共享缓存等于把别人的开标日程留在边缘节点。
   res.setHeader("Cache-Control", "private, max-age=300");
   return res.status(200).send(ics);
+}
+
+// 第 3 批：调 record_calendar_token_read 记一次读取并做限流判定。
+// 返回 'ok' / 'invalid' / 'rate_limited'；函数不存在或调用失败时返回 null（降级放行）。
+async function checkCalendarTokenRate(token) {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/rpc/record_calendar_token_read`,
+      {
+        method: "POST",
+        headers: {
+          apikey: ANON_KEY,
+          Authorization: `Bearer ${ANON_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ p_token: token }),
+      }
+    );
+    if (!res.ok) return null;
+    const status = await res.json();
+    return typeof status === "string" ? status : null;
+  } catch {
+    return null;
+  }
 }

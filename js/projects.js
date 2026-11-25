@@ -16,6 +16,8 @@ import {
   APP_VERSION,
   upsertById,
   removeByIds,
+  CALENDAR_TOKEN_TTL_DAYS,
+  isCalendarTokenExpired,
 } from "./utils.js";
 import {
   PROJECT_FIELDS,
@@ -1260,22 +1262,38 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     }
     return true;
   };
+  // 第 3 批：返回对象 { token, expired, expiresAt, lastReadAt }。
+  // 最新一条已过期时返回 { token: null, expired: true, ... }，不要自动删旧令牌
+  // （留给用户点“重新生成”）；第 13 节还没执行时新列不存在，降级只读旧列。
   async function getCalendarToken() {
     const state = getState();
     const uid = state.user?.id;
     if (!uid) return null;
-    const { data, error } = await getClient()
-      .from("calendar_tokens")
-      .select("token, created_at")
-      .eq("user_id", uid)
-      .order("created_at", { ascending: false })
-      .limit(1);
+    const query = (columns) =>
+      getClient()
+        .from("calendar_tokens")
+        .select(columns)
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(1);
+    let { data, error } = await query("token, created_at, expires_at, last_read_at");
+    if (error && /expires_at|last_read_at/.test(error.message || "")) {
+      ({ data, error } = await query("token, created_at"));
+    }
     if (error) {
       if (calendarTableMissing(error)) return null;
       ui.showToast(`订阅链接读取失败：${error.message}`);
       return null;
     }
-    return data?.[0]?.token || null;
+    const row = data?.[0];
+    if (!row) return { token: null, expired: false, expiresAt: null, lastReadAt: null };
+    const expired = isCalendarTokenExpired(row.expires_at);
+    return {
+      token: expired ? null : row.token || null,
+      expired,
+      expiresAt: row.expires_at || null,
+      lastReadAt: row.last_read_at || null,
+    };
   }
   async function createCalendarToken() {
     const state = getState();
@@ -1288,9 +1306,19 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const token =
       globalThis.crypto?.randomUUID?.() ||
       `cal-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    const { error } = await getClient()
+    // 第 3 批：显式写 expires_at（与 DB 默认值一致，双保险）；第 13 节还没执行时
+    // 该列不存在，降级为不带 expires_at 的插入（DB 默认值在执行后才生效）。
+    const expiresAt = new Date(
+      Date.now() + CALENDAR_TOKEN_TTL_DAYS * 24 * 3600 * 1000
+    ).toISOString();
+    let { error } = await getClient()
       .from("calendar_tokens")
-      .insert({ user_id: uid, token });
+      .insert({ user_id: uid, token, expires_at: expiresAt });
+    if (error && /expires_at/.test(error.message || "")) {
+      ({ error } = await getClient()
+        .from("calendar_tokens")
+        .insert({ user_id: uid, token }));
+    }
     if (error) {
       if (calendarTableMissing(error)) return null;
       ui.showToast(`订阅链接生成失败：${error.message}`);
