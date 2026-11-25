@@ -13,6 +13,10 @@ import {
   getGuaranteeTotals,
   getNextDeadline,
   getUpcomingDeadlines,
+  upcomingItemSignature,
+  readSeenUpcomingSignatures,
+  markUpcomingItemsSeen,
+  countUnseenUpcoming,
   getChecklistProgress,
   isSectionOpen,
   getGuaranteeRefundReminders,
@@ -198,19 +202,23 @@ export function createUi(elements, getState) {
   const renderDeadlineTip = (projects) => {
     const reminderDays = getReminderDays();
     const upcoming = getUpcomingDeadlines(projects, reminderDays);
-    // v0.55.0 JS 批 A-D：角标同步不依赖横幅元素 —— 横幅已在 v0.36.0 移除
-    // （apple-arch-v0360 断言它不在），但原来的 early return 在横幅缺失时
-    // 把角标更新一起跳过，导致 #upcomingBadgeCount 永远是 0；先同步两个角标，
-    // 再看横幅在不在。汉堡角标与菜单里的角标同一次更新、同一数字；0 时隐藏。
+    // v0.55.1：临期角标改通知语义 —— 只亮未看事项数；点开抽屉一次即记为已看
+    // （markUpcomingSeen），列表不变时刷新也不再亮；新增/改期才重新出现。
+    // 已看签名存 localStorage（UPCOMING_SEEN_KEY，替换式存储当前这批）；
+    // 无临期事项时两个角标都不显示。
+    const seen = readSeenUpcomingSignatures(
+      typeof localStorage !== "undefined" ? localStorage : null
+    );
+    const unseen = countUnseenUpcoming(upcoming, seen);
     const badgeEl = document.getElementById("upcomingBadgeCount");
     if (badgeEl) {
-      badgeEl.textContent = String(upcoming.length);
-      badgeEl.classList.toggle("hidden", upcoming.length === 0);
+      badgeEl.textContent = String(unseen);
+      badgeEl.classList.toggle("hidden", unseen === 0);
     }
     const menuBadgeEl = document.getElementById("menuToggleBadge");
     if (menuBadgeEl) {
-      menuBadgeEl.textContent = String(upcoming.length);
-      menuBadgeEl.classList.toggle("hidden", upcoming.length === 0);
+      menuBadgeEl.textContent = String(unseen);
+      menuBadgeEl.classList.toggle("hidden", unseen === 0);
     }
     if (!elements.deadlineTip) return;
     elements.deadlineTip.hidden = !upcoming.length;
@@ -225,6 +233,18 @@ export function createUi(elements, getState) {
         first.days === 0 ? "今天" : first.days === 1 ? "明天" : `${formatDateDisplay(first.date)}，${left}`;
       elements.deadlineTip.innerHTML = `${svgIcon(ICON.clock, "ico tip-ico")}未来 ${reminderDays} 天有 ${upcoming.length} 个截止事项，最近的是「${escapeHtml(first.project.name)}」· ${escapeHtml(first.label)}（${when}）。`;
     }
+  };
+
+  // v0.55.1：点开临期抽屉即把当前这批记为已看，两个角标当场消失；再跑一次
+  // renderDeadlineTip 让角标按已看集合重算（未看数归零即隐藏）。
+  const markUpcomingSeen = () => {
+    const state = getState();
+    const items = getUpcomingDeadlines(state.projects, getReminderDays());
+    markUpcomingItemsSeen(
+      typeof localStorage !== "undefined" ? localStorage : null,
+      items
+    );
+    renderDeadlineTip(state.projects);
   };
 
   /** v0.4.0：保证金退还提醒横幅（deadlineTip 下方），最多列 3 个项目 + 标记已退回 */
@@ -714,10 +734,6 @@ export function createUi(elements, getState) {
       return;
     }
     countEl.textContent = formatHeroCountdown(diff);
-    // v0.55.0 JS 批 A：顶栏芯片与英雄区同一秒 tick，只写芯片倒计时节点，
-    // 不另起定时器；芯片名与显隐由 renderHero 管，这里不动。
-    if (elements.heroChipCount)
-      elements.heroChipCount.textContent = formatHeroCountdown(diff);
   };
 
   const startHeroTimer = () => {
@@ -741,8 +757,6 @@ export function createUi(elements, getState) {
       hero.classList.add("is-empty");
       hero.classList.remove("is-urgent");
       hero.hidden = true;
-      // v0.55.0 JS 批 A：无下一场时顶栏芯片也隐藏（与英雄区同进退）。
-      if (elements.heroChip) elements.heroChip.hidden = true;
       return;
     }
     hero.classList.remove("is-empty");
@@ -767,19 +781,6 @@ export function createUi(elements, getState) {
     if (elements.bpHeroCount) {
       elements.bpHeroCount.textContent = formatHeroCountdown(heroTargetMs - Date.now());
     }
-    // v0.55.0 JS 批 A：顶栏倒计时芯片 —— 数据源与英雄区同一处（getNextHeroBid），
-    // 文案复用 formatHeroCountdown；点芯片跳项目详情（app.js 里与点英雄区项目名
-    // 同一行为）；项目名过长单行省略（CSS 侧 .hero-chip-name 省略）。只在窄屏显示。
-    if (elements.heroChip) {
-      elements.heroChip.hidden = false;
-      elements.heroChip.dataset.projectId = String(next.project.id);
-    }
-    if (elements.heroChipCount)
-      elements.heroChipCount.textContent = formatHeroCountdown(
-        heroTargetMs - Date.now()
-      );
-    if (elements.heroChipName)
-      elements.heroChipName.textContent = next.project.name || "未命名项目";
     // v0.54.0：秒级跳动启用（设计稿 v0.39）—— startHeroTimer 先清旧定时器再建
     // 1 秒间隔，只写 #bpHeroCount 的 textContent；切日历视图、切后台或仪表盘
     // 隐藏时 isHeroVisibleContext 拦住不启动，见 startHeroTimer。
@@ -1426,6 +1427,7 @@ export function createUi(elements, getState) {
     confirmDialog,
     renderHero,
     stopHeroTimer,
+    markUpcomingSeen,
     syncSegThumbs,
     showListSkeleton,
     showTrashSkeleton,

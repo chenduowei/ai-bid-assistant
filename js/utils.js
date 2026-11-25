@@ -211,6 +211,53 @@ export const TRASH_RETENTION_DAYS = 30;
 export const THEME_KEY = "bid-assistant-theme";
 export const LEGACY_STORAGE_KEY = "bid-assistant-projects";
 export const REMINDER_DAYS_KEY = "bid-assistant-reminder-days";
+export const UPCOMING_SEEN_KEY = "bid-assistant-upcoming-seen";
+
+/**
+ * v0.55.1：临期角标改通知语义 —— 只亮未看事项。事项签名 = 项目 id + 截止类型
+ * + 截止日期；日期一改（改期）即视为新事项，角标重新出现；项目改名不算事项变化。
+ */
+export function upcomingItemSignature(item) {
+  const pid = item?.project?.id ?? item?.projectId ?? "";
+  return `${pid}|${item?.key ?? ""}|${item?.date ?? ""}`;
+}
+
+/** 读出已看签名集合（坏数据当空；storage 传 localStorage，测试传 Map 替身）。 */
+export function readSeenUpcomingSignatures(storage) {
+  try {
+    const raw = storage?.getItem?.(UPCOMING_SEEN_KEY);
+    if (!raw) return new Set();
+    const arr = JSON.parse(raw);
+    return new Set(
+      Array.isArray(arr) ? arr.filter((s) => typeof s === "string") : []
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * 把当前这批临期事项记为已看。替换式存储（只留当前这批签名），不无限攒旧签名；
+ * 存储失败不影响主流程。
+ */
+export function markUpcomingItemsSeen(storage, items) {
+  try {
+    const sigs = (Array.isArray(items) ? items : []).map(
+      upcomingItemSignature
+    );
+    storage?.setItem?.(UPCOMING_SEEN_KEY, JSON.stringify(sigs));
+  } catch {
+    // 忽略
+  }
+}
+
+/** 未看事项数 = 当前列表里签名不在已看集合中的条数。 */
+export function countUnseenUpcoming(items, seen) {
+  const set = seen instanceof Set ? seen : new Set();
+  return (Array.isArray(items) ? items : []).filter(
+    (item) => !set.has(upcomingItemSignature(item))
+  ).length;
+}
 export const DEFAULT_REMINDER_DAYS = 7;
 export const MIN_REMINDER_DAYS = 1;
 export const MAX_REMINDER_DAYS = 30;
@@ -1096,7 +1143,7 @@ export function expandLimitForIndex(limit, index, pageSize = PAGE_SIZE) {
 export const SNAPSHOT_KEY = "bid-assistant-projects-snapshot";
 /** v0.30.0：运行时版本号 —— 备份文件里的 version 就取它；package.json 是事实来源，
  * scripts/check-version.mjs 强制两者同步，别只改一处。 */
-export const APP_VERSION = "0.55.0";
+export const APP_VERSION = "0.55.1";
 // v0.30.0：离线快照有效期 7 天 —— 更旧的快照不再当 live 数据用（会显示过期内容还不自知）。
 export const SNAPSHOT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export function saveProjectsSnapshot(storage, projects) {

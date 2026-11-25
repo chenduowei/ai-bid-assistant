@@ -213,15 +213,15 @@ test("v0.53.0：页眉版本号隐藏，版本改在设置页底部显示", () =
   assert.ok(withDisplay.length > 0);
   assert.equal(declOf(withDisplay[withDisplay.length - 1], "display"), "none");
   // 元素与文字保留在 HTML 里（check:version 的 index.html 载体之一）。
-  // 徽标与设置页两处文字永远跟当前版（本期 0.55.0），与版本号测试同口径。
+  // 徽标与设置页两处文字永远跟当前版（本期 0.55.1），与版本号测试同口径。
   assert.ok(document.querySelector(".app-version-badge"));
   assert.match(
     document.querySelector(".app-version-badge").textContent,
-    /v0\.55\.0/
+    /v0\.55\.1/
   );
   assert.match(
     document.querySelector(".settings-version").textContent,
-    /投标工作台 · BidDesk v0\.55\.0/
+    /投标工作台 · BidDesk v0\.55\.1/
   );
 });
 
@@ -248,32 +248,35 @@ test("v0.53.0：汉堡菜单不透明 —— 94% 毛玻璃在深蓝英雄区上�
   assert.equal(declOf(withBg[withBg.length - 1], "-webkit-backdrop-filter"), undefined);
 });
 
-test("v0.53.0：窄屏页头标题不被压扁 —— 同步状态一长，标题曾被压到 21px 溢出", () => {
+test("v0.55.1：窄屏页头标题不被压扁 —— 标题列可伸缩 + min-width: 0，标语过长单行省略", () => {
+  // v0.55.1：v0.53.0 的 flex: none 已改回可伸缩 —— 同步状态 v0.55.0 起已折到
+  // 第二行，第一行只剩品牌 + 动作，标题不再被同步状态压扁；标语过长时省略。
   const title680 = rulesFor(".header-title", "max-width: 680px");
   assert.ok(title680.length > 0, "须在 680px 断点里钉住 .header-title");
-  assert.equal(declOf(title680[title680.length - 1], "flex"), "none");
+  assert.equal(declOf(title680[title680.length - 1], "flex"), "1 1 auto");
+  assert.equal(declOf(title680[title680.length - 1], "min-width"), "0");
   const actions680 = rulesFor(".header-top-actions", "max-width: 680px");
   assert.ok(actions680.length > 0, "须在 680px 断点里钉住 .header-top-actions");
   assert.equal(declOf(actions680[actions680.length - 1], "margin-left"), "auto");
 });
 
-test("v0.55.0：版本号 0.55.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
-  assert.equal(pkg.version, "0.55.0");
+test("v0.55.1：版本号 0.55.1（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "0.55.1");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
-  assert.match(utils, /APP_VERSION = "0\.55\.0"/);
+  assert.match(utils, /APP_VERSION = "0\.55\.1"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /bid-assistant-v0\.55\.0/);
+  assert.match(sw, /bid-assistant-v0\.55\.1/);
   const changelog = readFileSync(
     new URL("../docs/changelog.md", import.meta.url),
     "utf8"
   );
-  assert.match(changelog, /## \[0\.55\.0\]/);
+  assert.match(changelog, /## \[0\.55\.1\]/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /v0\.55\.0/);
+  assert.match(readme, /v0\.55\.1/);
   const notes = readFileSync(
     new URL("../docs/notes.md", import.meta.url),
     "utf8"
   );
-  assert.match(notes, /v0\.55\.0/);
-  assert.match(html, /v0\.55\.0/);
+  assert.match(notes, /v0\.55\.1/);
+  assert.match(html, /v0\.55\.1/);
 });

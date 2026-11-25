@@ -87,10 +87,10 @@ test("v0.52.0：浅色工作区底是暖纸，统计行收紧，减动效时全�
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?transition-duration: 0\.01ms !important/);
 });
 
-test("v0.55.0：版本号 0.55.0（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
-  assert.equal(pkg.version, "0.55.0");
-  // v0.55.0：版本号随发版 bump，断言同步到 v0.55.0。
-  assert.match(html, /v0\.55\.0/);
+test("v0.55.1：版本号 0.55.1（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "0.55.1");
+  // v0.55.1：版本号随发版 bump，断言同步到 v0.55.1。
+  assert.match(html, /v0\.55\.1/);
 });
 
 test("v0.52.0：登录页结构未动 —— 元素 id 与表单行为一律不动", () => {
@@ -106,11 +106,22 @@ test("v0.52.0：登录页结构未动 —— 元素 id 与表单行为一律不�
   }
 });
 
-test("v0.52.0：窄屏页眉不重叠 —— 副标题行在 ≤680px 必须真隐藏", () => {
-  // 回归：v0.51.2 的 .brand-text-inline .brand-line { display: flex } 特异度
-  // 高于移动端 .brand-text p { display: none }，副标题在 390px 冒出来和
-  // 「云端同步中」重叠。断点块里必须有一条同等特异度的隐藏规则兜底。
-  assert.match(css, /\.brand-text-inline \.brand-line \{ display: none; \}/);
+test("v0.55.1：窄屏页眉标语回来 —— 副标题行在 ≤680px 以 12px 小字显示，不再隐藏", () => {
+  // v0.55.1 改动：v0.52.0 的「副标题行在 ≤680px 必须真隐藏」已废止，标语以小字
+  // 形式回手机顶栏（标题下方、单行省略）。680 块里不再有 display: none 的兜底；
+  // 平板 681–1023 那条 display: none 不在 680 块里，不算数。
+  const declOf = (rule, prop) =>
+    rule.decls.find((d) => d.prop === prop)?.normValue;
+  const line680 = parseCssRules(css)
+    .filter((r) => r.media.some((m) => m.includes("max-width: 680px")))
+    .filter((r) => r.selector === ".brand-text-inline .brand-line");
+  assert.ok(line680.length > 0, "680 块里应有 .brand-text-inline .brand-line");
+  assert.equal(declOf(line680[line680.length - 1], "display"), "flex");
+  assert.equal(declOf(line680[line680.length - 1], "font-size"), "12px");
+  assert.ok(
+    !line680.some((r) => declOf(r, "display") === "none"),
+    "680 块里不应再有隐藏副标题行的规则"
+  );
   // 桌面端品牌行仍是 flex 不换行（只改窄屏）。
   assert.match(css, /\.brand-text-inline \.brand-line \{[\s\S]*?display: flex;/);
 });

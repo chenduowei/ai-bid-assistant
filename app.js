@@ -64,9 +64,6 @@ import { createSettings } from "./js/settings.js";
     settingsAccountEmail: document.getElementById("settingsAccountEmail"),
     syncStatus: document.getElementById("syncStatus"),
     headerDate: document.getElementById("headerDate"),
-    heroChip: document.getElementById("heroChip"),
-    heroChipCount: document.getElementById("heroChipCount"),
-    heroChipName: document.getElementById("heroChipName"),
     menuToggleBadge: document.getElementById("menuToggleBadge"),
     menuActionSheet: document.getElementById("menuActionSheet"),
     ptrIndicator: document.getElementById("ptrIndicator"),
@@ -1299,8 +1296,6 @@ import { createSettings } from "./js/settings.js";
         openHeroProject();
       }
     });
-    // v0.55.0 JS 批 A：点顶栏倒计时芯片跳到对应项目详情，与点英雄区项目名同一行为。
-    elements.heroChip?.addEventListener("click", openHeroProject);
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) ui.stopHeroTimer?.();
       else ui.renderHero?.();
@@ -1309,6 +1304,8 @@ import { createSettings } from "./js/settings.js";
     const closeUpcomingSheet = () => elements.upcomingSheet?.classList.add("hidden");
     elements.upcomingDrawerBtn?.addEventListener("click", () => {
       elements.upcomingSheet?.classList.remove("hidden");
+      // v0.55.1：点开临期抽屉即记为已看，汉堡与菜单里的角标当场消失。
+      ui.markUpcomingSeen?.();
     });
     elements.upcomingCloseBtn?.addEventListener("click", closeUpcomingSheet);
     elements.upcomingSheet?.addEventListener("click", (e) => {
@@ -1843,6 +1840,8 @@ import { createSettings } from "./js/settings.js";
     elements.upcomingStatCard?.addEventListener("click", () => {
       setUpcomingExpanded(true);
       elements.upcomingSheet?.classList.remove("hidden");
+      // v0.55.1：点统计卡打开也算看过，同上记为已看。
+      ui.markUpcomingSeen?.();
     });
     // v0.14.0：品牌图标即首页——关浮层 + 回主界面列表 + 回顶；
     // 悬浮组已拿掉，返回靠各层自带关闭（菜单 / 抽屉 / 设置 / 底部 Tab），
