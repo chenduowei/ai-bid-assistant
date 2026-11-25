@@ -210,15 +210,17 @@ test("v0.35.6 手机端：工具栏第二行（选择 / 全部折叠 / 中标率
   assert.equal(declOf(sort, "border-radius"), "10px");
 });
 
-test("v0.35.6 手机端：版本徽标回到标题旁，桌面隐藏", () => {
+test("v0.55.1 手机端：版本徽标不再回标题旁（只在设置页底部），桌面隐藏", () => {
   const desk = parseCssRules(realCss).find(
     (r) => r.selector === ".app-version-badge" && r.media.length === 0
   );
   assert.ok(desk, "基础样式里应有 .app-version-badge");
   assert.equal(declOf(desk, "display"), "none");
+  // v0.55.1：标语回手机顶栏，但版本号徽标不跟回来（版本只在设置页底部）；
+  // 680 块里徽标改成 display: none，v0.35.6 的 inline-block 已废止。
   const badge = ruleIn680(".app-version-badge");
   assert.ok(badge, "@media (max-width: 680px) 里必须有 .app-version-badge");
-  assert.equal(declOf(badge, "display"), "inline-block");
+  assert.equal(declOf(badge, "display"), "none");
 });
 
 test("v0.35.7 手机端：项目名称完整回到详情区（折行不截），项目类型仍隐去，备注块状", () => {

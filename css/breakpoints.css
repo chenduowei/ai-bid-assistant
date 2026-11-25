@@ -176,8 +176,9 @@
 
 /* v0.55.0 JS 批：窄屏专属顶栏/抽屉元素 —— 默认（桌面端）全部隐藏，
    只在 ≤680px 块里放出来。无条件规则写在媒体块之前，级联顺序安全
-   （check-css 禁的是“断点里写过、后面又无条件重写”，反过来没问题）。 */
-.hero-chip, .header-date, .menu-toggle-badge, .sheet-handle { display: none; }
+   （check-css 禁的是“断点里写过、后面又无条件重写”，反过来没问题）。
+   v0.55.1：倒计时芯片已删，不再列 .hero-chip。 */
+.header-date, .menu-toggle-badge, .sheet-handle { display: none; }
 
 /* v0.35.0：同一断点的规则已合并（之前 680px 出现 7 次，改窄屏样式容易只改到一处） */
 @media (max-width: 680px) {
@@ -217,11 +218,19 @@
     .project-head-main,
     .project-head-top { display: contents; }
 
-  .project-head .status-dot { grid-column: 1; grid-row: 1; margin-top: 8px; }
+  /* v0.55.1 列表对齐：行 1 高 44px 由 44px 箭头按钮定死，标题（21/42px）
+       顶对齐导致一行标题下方留 25px 空洞、两行只剩 4px，副行看着参差；
+       箭头字形居中在 44px 按钮里，比标题首行中心低 11.5px、看着下沉，
+       圆点（margin-top 8px）又比箭头高 9px，三者不在同一基线。
+       改：行 1 三项全部 align-self: center——标题块、圆点、箭头字形共用行中心线
+       （一行标题与副行间距 25 → 13.5px，两行仍约 4px；卡高与 chips/按钮行不动，
+       它们本来就是对齐的）。 */
+  .project-head .status-dot { grid-column: 1; grid-row: 1; align-self: center; margin-top: 0; }
 
   .project-head .project-name {
       grid-column: 2 / span 2;
       grid-row: 1;
+      align-self: center;
       display: -webkit-box;
       -webkit-box-orient: vertical;
       -webkit-line-clamp: 2;
@@ -236,7 +245,7 @@
       max-height: 2.8em;
     }
 
-  .project-chevron-btn { grid-column: 4; grid-row: 1; align-self: start; }
+  .project-chevron-btn { grid-column: 4; grid-row: 1; align-self: center; }
 
   .project-head .project-sub { grid-column: 2; grid-row: 2; margin: 0; align-self: center; font-size: 12px; line-height: 1.4; }
 
@@ -250,7 +259,7 @@
        而且这时候选的是「哪几条」，不是「什么状态」），省下的位置给项目名 */
   .project-list.selecting .project-head { grid-template-columns: auto minmax(0, 1fr) auto 44px; }
 
-  .project-list.selecting .project-head .select-check { grid-column: 1; grid-row: 1; align-self: start; margin-top: 4px; }
+  .project-list.selecting .project-head .select-check { grid-column: 1; grid-row: 1; align-self: center; margin-top: 0; }
 
   .project-list.selecting .project-head .status-dot { display: none; }
 
@@ -487,25 +496,32 @@
        注意 !important 不可少：layout.css 里 v0.40.0/v0.41.0/v0.50.0 三层顶栏规则钉了
        padding: 12px 0 !important，普通声明会被它盖掉（实测算得 padding-top 仍是 12px）；
        这里只提 padding-top 一条长属性，不碰左右 / 底部（横向仍是 0，内容左缘仍对齐统计卡）。 */
-  .header { padding: 6px var(--page-x) 7px; margin: 0 0 10px; padding-top: max(6px, env(safe-area-inset-top)) !important; background: var(--bg); }
+  .header { padding: 6px var(--page-x) 7px; margin: 0 0 10px; padding-top: max(6px, env(safe-area-inset-top)) !important; padding-bottom: 8px !important; background: var(--bg); }
 
-  .header-top { flex-wrap: wrap; gap: 10px; align-items: center; }
+  .header-top { flex-wrap: wrap; gap: 8px; align-items: center; }
 
-  .header-title { gap: 10px; }
+  .header-title { gap: 8px; }
 
   .header-title h1 { font-size: 19px; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 0; }
 
   .brand-text p { display: none; }
 
-  /* v0.52.0：上面这条在 v0.51.2/51.3 之后失效了 —— layout.css 的
-     .brand-text-inline .brand-line { display: flex } 特异度 (0,2,0) 高于
-     .brand-text p (0,1,1)，副标题在窄屏又冒出来，white-space: nowrap
-     把它顶出页头、和「云端同步中」重叠（390px 实测）。同等特异度补一条，
-     断点文件在最后、同特异度后胜出，恢复 v0.35.3「窄屏去掉副标题」的决定。 */
-  .brand-text-inline .brand-line { display: none; }
+  /* v0.55.1：标语回手机顶栏 —— v0.35.3 起窄屏去掉的副标题以 12px 小字形式回来，
+       放在「投标工作台」标题下方（brand-text-inline 改纵向排布）、次文字色、
+       单行省略。display: flex 的特异度 (0,2,0) 高于上面 .brand-text p 的
+       display: none (0,1,1)，以这条为准；v0.52.0 那条防冒出的补丁不再需要，
+       因为这次就是要让它显示。 */
+  .brand-text-inline .brand-line { display: flex; align-items: baseline; gap: 2px; margin: 0; min-width: 0; max-width: 100%; overflow: hidden; font-size: 12px !important; font-weight: 400 !important; color: var(--muted) !important; white-space: nowrap; text-overflow: ellipsis; }
 
+  /* v0.55.1：标题与标语纵向排布（标题在上、标语在下），只改窄屏，桌面仍横向。 */
+  .brand-text-inline { flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+
+  /* v0.55.1：标语里的 BidDesk 与中文同字号（12px/400）、同次文字色。 */
+  .brand-text-inline .brand-en, .brand-text-inline .brand-sub { font-size: 12px !important; font-weight: 400 !important; color: var(--muted) !important; }
+
+  /* v0.55.1：标语回来也不带版本号徽标（版本只在设置页底部）。 */
   .app-version-badge {
-      display: inline-block;
+      display: none;
       margin-left: 6px;
       padding: 1px 6px;
       border-radius: 6px;
@@ -521,13 +537,18 @@
 
   .brand-mark { width: 44px; height: 44px; border-radius: 11px; }
 
-  .header-top-actions { gap: var(--sp-2); }
+  .header-top-actions { gap: 6px; }
 
-  /* v0.53.0：窄屏标题不再被压扁 —— .header-title 是 flex: 1 + min-width: 0，
-     同步状态一长（「● 实时同步已连接 + 邮箱」约 220px），标题会被压到只剩 21px、
-     「投标工作台」几个字溢出来盖在同步文字上（390px 实测）。标题改 flex: none
-     保住自然宽，同步状态与按钮折到第二行；按钮组 margin-left: auto 贴右缘。 */
-  .header-title { flex: none; }
+  /* v0.53.0：窄屏标题不再被压扁 —— 当时同步状态与标题同行，标题会被压到只剩 21px，
+       故改 flex: none 保住自然宽。v0.55.0 起同步状态已折到第二行（.user-menu order: 2），
+       第一行只剩品牌 + 动作；v0.55.1 标语回来后标题列改回可伸缩 + min-width: 0，
+       标语过长时单行省略，不再把动作组挤到下一行。
+       v0.55.1 修空白带：basis 必须是 0 而不是 auto —— flex 换行先按 basis 分行、
+       行内再收缩，basis auto 取标语宽（约 203px）时标题 + 动作共 363px 超出 358px
+       内容盒，动作组先被换到第二行、再收缩也回不来，顶栏就成了三行、中间空一带。
+       basis 0 让标题先以 0 宽分行、再 grow 吃掉剩余宽度，标语在剩余宽度内省略，
+       动作组稳稳留在第一行与标题对齐。 */
+  .header-title { flex: 1 1 0; min-width: 0; }
 
   .header-top-actions { margin-left: auto; order: 1; }
 
@@ -550,34 +571,17 @@
   .user-menu { padding-top: 0; gap: 6px; font-size: 11px; line-height: 1.35; }
 
   /* v0.55.0 JS 批 A-E：窄屏顶栏邮箱收起来 —— 邮箱只在设置页“账户”区展示
-     （#settingsAccountEmail），顶栏第二行腾给同步状态 + 日期 + 倒计时芯片。 */
+     （#settingsAccountEmail），顶栏第二行只留同步状态 + 日期。 */
   #userEmail { display: none; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
   /* v0.55.0 JS 批 A-C：顶栏第二行日期（同步状态旁），纯展示，随 ui.render 更新。 */
   .header-date { display: inline; flex: none; white-space: nowrap; color: var(--muted); }
 
-  /* v0.55.0 JS 批 A：顶栏倒计时小芯片 —— 可点（跳对应项目详情），只在窄屏显示；
-     占第二行剩余宽度，项目名过长单行省略（等效于 .bp-clamp-2 的截断意图，
-     芯片一行高只能放单行省略）。flex-basis 0：不在第二行按内容宽占位，
-     而是在同步 + 日期之后剩下的宽度里截断。hidden 属性由 [hidden] 的 !important 兜底。 */
-  .hero-chip { display: inline-flex; flex: 1 1 0; min-width: 0; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-
   /* v0.55.0 JS 批 A：窄屏顶栏改两行 —— 第一行品牌 + 动作（+ / 汉堡），
-     第二行同步状态 + 日期 + 倒计时芯片占满宽。没有这两条，芯片的内容宽
-     会把 .user-menu 撑到独自占一行，动作组被挤到第三行（390px 实测）。
-     只改窄屏，桌面端一行排布不动。order 已合进上面钉住 margin-left: auto 的
-     那条规则（v0.53.0 测试取最后一条 .header-top-actions 断言 margin-left）。 */
+       第二行同步状态 + 日期占满宽。v0.55.1：倒计时芯片已删，第二行只剩同步 + 日期。
+       order 已合进上面钉住 margin-left: auto 的那条规则
+       （v0.53.0 测试取最后一条 .header-top-actions 断言 margin-left）。 */
   .user-menu { order: 2; flex: 1 1 100%; }
-
-  .hero-chip:active { transform: scale(0.97); }
-
-  .hero-chip-label { flex: none; }
-
-  .hero-chip-count { flex: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
-
-  .hero-chip-sep { flex: none; }
-
-  .hero-chip-name { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: left; }
 
   /* v0.55.0 JS 批 A-D：汉堡角标 —— 复用 #upcomingBadgeCount 的计数，
      同一次更新、同一数字；0 时 hidden（.hidden 的 !important 兜底）。 */

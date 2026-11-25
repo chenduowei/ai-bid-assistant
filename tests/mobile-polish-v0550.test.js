@@ -3,6 +3,9 @@
  * 只改 CSS（C5 是 JS 模板里改日期文案的最小例外）+ 测试断言；不改 JS 逻辑、
  * 不改 HTML 结构、不改版本号、不动桌面端 1280px 布局。
  * 断言写法沿用 tests/ui-polish-v0520.test.js 的 CSS bundle 模式。
+ * v0.55.1：顶栏倒计时芯片删除、临期角标改已读语义、标语回顶栏 ——
+ * 本文件里断言芯片的用例随功能删除同步改写（见“JS 批 A”三处与末尾 CSS 测试），
+ * 角标新语义的用例见 tests/header-read-v0551.test.js。
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -330,7 +333,7 @@ test("v0.55.0：桌面端回归零变化 —— 顶栏仍走 layout.css 的 96% 
     bg.normValue,
     /color-mix\(in srgb, var\(--bg\) 96%, transparent\)/
   );
-  assert.equal(pkg.version, "0.55.0");
+  assert.equal(pkg.version, "0.55.1");
 });
 
 test("v0.55.0 B7：iOS 启动图 —— 8 档竖屏尺寸齐全，link 带 media、文件在位、进 sw 预缓存", () => {
@@ -370,76 +373,102 @@ test("v0.55.0 B7：iOS 启动图 —— 8 档竖屏尺寸齐全，link 带 media
   }
 });
 
-/* ================= v0.55.0 JS 批 ================= */
+/* ================= v0.55.1：芯片已删 ================= */
 
-test("v0.55.0 JS 批 A：顶栏倒计时芯片 —— 有下一场时渲染，与英雄区同一数据源同一文案", () => {
-  setFakeNow(FAKE_T0);
-  const { ui, elements } = makeUi([{ ...NEXT_BID }]);
-  ui.render();
-  assert.equal(elements.heroChip.hidden, false, "有下一场时芯片显示");
-  assert.equal(elements.heroChip.dataset.projectId, "hero-a");
-  assert.equal(elements.heroChipName.textContent, NEXT_BID.name);
-  assert.match(
-    elements.heroChipCount.textContent,
-    /^\d+天 \d{2}:\d{2}:\d{2}$/,
-    "倒计时文案复用 formatHeroCountdown"
+test("v0.55.1：顶栏倒计时芯片已删 —— HTML 里无元素，JS/CSS 无残留引用", () => {
+  assert.equal(document.getElementById("heroChip"), null, "HTML 里不应再有 #heroChip");
+  assert.equal(document.getElementById("heroChipCount"), null);
+  assert.equal(document.getElementById("heroChipName"), null);
+  assert.doesNotMatch(uiJs, /heroChip/, "js/ui.js 不应再引用芯片");
+  assert.doesNotMatch(appJs, /heroChip/, "app.js 不应再引用芯片");
+  // CSS 断言走解析后的规则（原始 bundle 里注释还会提到 .hero-chip，raw 文本断言会误报）
+  assert.ok(
+    !allRules.some((r) => r.selector.includes("hero-chip")),
+    "CSS bundle 不应再有 .hero-chip 规则"
   );
-  assert.equal(
-    elements.heroChipCount.textContent,
-    elements.bpHeroCount.textContent,
-    "芯片与英雄区同一数字"
-  );
-  // 点芯片跳项目详情：与点英雄区项目名同一行为（app.js 里绑同一个 openHeroProject）
-  assert.match(appJs, /elements\.heroChip\?\.\s*addEventListener\("click", openHeroProject\)/);
-  ui.stopHeroTimer();
+  assert.doesNotMatch(html, /hero-chip/, "index.html 不应再有 hero-chip");
 });
 
-test("v0.55.0 JS 批 A：芯片倒计时走同一秒 tick（不另起定时器）", () => {
+test("v0.55.1：芯片已删，但英雄区倒计时仍走同一秒 tick（只写 #bpHeroCount）", () => {
   setFakeNow(FAKE_T0);
   const { ui, elements } = makeUi([{ ...NEXT_BID }]);
   ui.render();
-  const before = countdownSecs(elements.heroChipCount.textContent);
+  const before = countdownSecs(elements.bpHeroCount.textContent);
   setFakeNow(FAKE_T0 + 5000);
   timers.tickAll();
-  const after = countdownSecs(elements.heroChipCount.textContent);
-  assert.equal(before - after, 5, "1 秒 tick 后芯片倒计时减 5 秒");
+  const after = countdownSecs(elements.bpHeroCount.textContent);
+  assert.equal(before - after, 5, "1 秒 tick 后英雄区倒计时减 5 秒");
   assert.equal(timers.activeCount(), 1, "只有一个 1 秒定时器（英雄区那个）");
   assert.deepEqual(timers.activeMs(), [1000]);
-  // tick 只写芯片与英雄区两个节点（不碰列表与临期栏）
+  // tick 只写英雄区一个节点（不碰列表与临期栏）
   const tickSrc = uiJs.slice(uiJs.indexOf("const tickHero"), uiJs.indexOf("const startHeroTimer"));
-  assert.match(tickSrc, /heroChipCount/);
   assert.match(tickSrc, /bpHeroCount/);
+  assert.doesNotMatch(tickSrc, /heroChip/);
   ui.stopHeroTimer();
 });
 
-test("v0.55.0 JS 批 A：无待开标项目时芯片隐藏（与英雄区同进退）", () => {
+test("v0.55.1：无待开标项目时英雄区隐藏（芯片已不存在，无需再断言芯片）", () => {
   setFakeNow(FAKE_T0);
   const { ui, elements } = makeUi([]);
   ui.render();
-  assert.equal(elements.heroChip.hidden, true);
   assert.equal(elements.bpHero.hidden, true);
   ui.stopHeroTimer();
 });
 
-test("v0.55.0 JS 批 A-D：汉堡角标与菜单角标同一次更新、同一数字；0 时隐藏", () => {
+test("v0.55.1：临期角标只亮未看事项数 —— 点开抽屉记已看后消失，列表不变刷新仍不显示", () => {
   // 回归：横幅 #deadlineTip 已在 v0.36.0 移除（本骨架里也没有），角标同步
   // 不能再依赖它存在 —— renderDeadlineTip 的 early return 曾把角标更新一起跳过。
   assert.equal(document.getElementById("deadlineTip"), null);
+  domStore.delete("bid-assistant-upcoming-seen");
   setFakeNow(FAKE_T0);
   const { ui, elements } = makeUi([{ ...NEXT_BID }]);
   ui.render();
+  // 首次渲染：1 条未看，两个角标同数、显示
   assert.equal(elements.upcomingBadgeCount.textContent, "1");
   assert.equal(elements.menuToggleBadge.textContent, "1");
   assert.equal(elements.menuToggleBadge.classList.contains("hidden"), false);
   assert.equal(elements.upcomingBadgeCount.classList.contains("hidden"), false);
+  // 点开抽屉即记为已看（ui.markUpcomingSeen 是 app.js 两个打开入口共用的动作）
+  ui.markUpcomingSeen();
+  assert.equal(elements.upcomingBadgeCount.textContent, "0");
+  assert.equal(elements.menuToggleBadge.textContent, "0");
+  assert.equal(elements.menuToggleBadge.classList.contains("hidden"), true);
+  assert.equal(elements.upcomingBadgeCount.classList.contains("hidden"), true);
+  // 列表不变时重新渲染（= 刷新后重进）：仍不显示
+  ui.render();
+  assert.equal(elements.menuToggleBadge.classList.contains("hidden"), true);
   ui.stopHeroTimer();
 
-  const second = makeUi([]);
+  // 全新 ui 实例 + 同一份 localStorage（模拟刷新页面）：仍不显示
+  const second = makeUi([{ ...NEXT_BID }]);
   second.ui.render();
-  assert.equal(second.elements.upcomingBadgeCount.textContent, "0");
-  assert.equal(second.elements.menuToggleBadge.textContent, "0");
   assert.equal(second.elements.menuToggleBadge.classList.contains("hidden"), true);
+  assert.equal(second.elements.menuToggleBadge.textContent, "0");
   second.ui.stopHeroTimer();
+
+  // 新增临期事项后重新出现，只亮新增的 1 条
+  const third = makeUi([
+    { ...NEXT_BID },
+    {
+      id: "new-1",
+      name: "新增项目",
+      date: "2026-11-26",
+      status: "报名中",
+      biddingCompany: "某公司",
+      contact: "李工",
+    },
+  ]);
+  third.ui.render();
+  assert.equal(third.elements.menuToggleBadge.textContent, "1");
+  assert.equal(third.elements.menuToggleBadge.classList.contains("hidden"), false);
+  third.ui.stopHeroTimer();
+
+  // 无临期事项时不显示
+  const fourth = makeUi([]);
+  fourth.ui.render();
+  assert.equal(fourth.elements.menuToggleBadge.classList.contains("hidden"), true);
+  fourth.ui.stopHeroTimer();
+  domStore.delete("bid-assistant-upcoming-seen");
 });
 
 test("v0.55.0 JS 批 A-C：顶栏日期随 render 更新（格式 11月25日 周三）", () => {
@@ -590,9 +619,10 @@ test("v0.55.0 JS 批 B2：抽屉改 iOS 风格底部 sheet（窄屏全宽贴边 
   assert.match(appJs, /bindSheetSwipeGesture\(elements\.upcomingSheet/);
   assert.match(appJs, /bindSheetSwipeGesture\(elements\.formSheet/);
   // 桌面端默认隐藏手柄（无条件规则在媒体块之前，级联安全）
+  // v0.55.1：倒计时芯片已删，该规则不再列 .hero-chip。
   assert.match(
     css,
-    /\.hero-chip, \.header-date, \.menu-toggle-badge, \.sheet-handle \{ display: none; \}/
+    /\.header-date, \.menu-toggle-badge, \.sheet-handle \{ display: none; \}/
   );
 });
 
@@ -666,14 +696,40 @@ test("v0.55.0 JS 批 B12：键盘弹出时表单抽屉收缩、提交按钮吸�
   );
 });
 
-test("v0.55.0 JS 批：窄屏顶栏/操作表 CSS —— 芯片、角标、日期、操作表", () => {
-  // 芯片：窄屏才显示，占第二行剩余宽，项目名单行省略
-  assert.equal(valueOf(MOBILE, ".hero-chip", "display"), "inline-flex");
-  assert.equal(valueOf(MOBILE, ".hero-chip-name", "white-space"), "nowrap");
-  assert.equal(valueOf(MOBILE, ".hero-chip-name", "text-overflow"), "ellipsis");
+test("v0.55.1：窄屏顶栏去芯片、标语回位 —— 标语 12px 小字在标题下方单行省略", () => {
+  // 芯片已删：窄屏不再有 .hero-chip 规则
+  assert.equal(valueOf(MOBILE, ".hero-chip", "display"), undefined);
+  // 标语回位：标题与标语纵向排布，标语 12px、单行省略
+  assert.equal(valueOf(MOBILE, ".brand-text-inline", "flex-direction"), "column");
+  assert.equal(valueOf(MOBILE, ".brand-text-inline .brand-line", "display"), "flex");
+  assert.equal(valueOf(MOBILE, ".brand-text-inline .brand-line", "font-size"), "12px");
+  assert.equal(valueOf(MOBILE, ".brand-text-inline .brand-line", "white-space"), "nowrap");
+  assert.equal(valueOf(MOBILE, ".brand-text-inline .brand-line", "text-overflow"), "ellipsis");
+  // 标语里 BidDesk 与中文同字号（组合选择器整串查，parseCssRules 不拆逗号）
+  assert.equal(
+    valueOf(
+      MOBILE,
+      ".brand-text-inline .brand-en, .brand-text-inline .brand-sub",
+      "font-size"
+    ),
+    "12px"
+  );
+  // 版本号徽标不跟回顶栏（版本只在设置页底部）
+  assert.equal(valueOf(MOBILE, ".app-version-badge", "display"), "none");
+  // 标题列 basis 0 + min-width: 0 —— flex 换行先按 basis 分行、行内再收缩，
+  // basis auto 取标语宽时标题 + 动作共 363px 超出 358px 内容盒，动作组会被换到
+  // 第二行、顶栏变三行中间空一带；basis 0 让标题先以 0 宽分行再 grow 吃剩余宽，
+  // 标语在剩余宽度内省略，动作组留在第一行与标题对齐。行间距收紧：顶栏两行 gap 8px、
+  // 标题内 gap 8px、动作组 gap 6px、顶栏底垫 8px，顶栏由 144px 收至约 84px。
+  assert.equal(valueOf(MOBILE, ".header-title", "flex"), "1 1 0");
+  assert.equal(valueOf(MOBILE, ".header-title", "min-width"), "0");
+  assert.equal(valueOf(MOBILE, ".header-top", "gap"), "8px");
+  assert.equal(valueOf(MOBILE, ".header-title", "gap"), "8px");
+  assert.equal(valueOf(MOBILE, ".header-top-actions", "gap"), "6px");
+  assert.equal(valueOf(MOBILE, ".header", "padding-bottom"), "8px");
   // 日期在 680 块里显式 display（无条件规则把它 display:none，漏了这条就一直隐藏）
   assert.equal(valueOf(MOBILE, ".header-date", "display"), "inline");
-  // 两行顶栏：第一行品牌 + 动作，第二行同步 + 日期 + 芯片占满宽
+  // 两行顶栏：第一行品牌 + 动作，第二行同步 + 日期占满宽
   assert.equal(valueOf(MOBILE, ".header-top-actions", "order"), "1");
   assert.match(valueOf(MOBILE, ".user-menu", "flex"), /1 1 100%/);
   // 角标：贴在汉堡右上角
@@ -684,4 +740,25 @@ test("v0.55.0 JS 批：窄屏顶栏/操作表 CSS —— 芯片、角标、日�
   assert.equal(valueOf(MOBILE, ".menu-action-cancel", "min-height"), "44px");
   // 下拉指示器顶部居中
   assert.equal(valueOf(MOBILE, ".ptr-indicator", "position"), "fixed");
+});
+
+test("v0.55.1：窄屏列表卡片行 1 三项共用中心线 —— 标题/圆点/箭头纵向对齐", () => {
+  // 诊断（390px 实测）：行 1 高 44px 由 44px 箭头按钮定死；标题顶对齐时，
+  // 一行标题下方留 25px 空洞、两行只剩约 4px，副行看着参差；箭头字形居中在
+  // 44px 按钮里，比标题首行中心低 11.5px、看着下沉；圆点 margin-top 8px 又比
+  // 箭头高 9px。改：行 1 三项全部 align-self: center，标题块、圆点、箭头字形
+  // 共用行中心线（一行标题与副行间距 25 → 13.5px；卡高 173.8px 与 chips/按钮行
+  // 不动，它们实测本来就是对齐的；副行相对卡顶 56px 全卡一致，未动）。
+  assert.equal(valueOf(MOBILE, ".project-head .project-name", "align-self"), "center");
+  assert.equal(valueOf(MOBILE, ".project-head .status-dot", "align-self"), "center");
+  assert.equal(valueOf(MOBILE, ".project-head .status-dot", "margin-top"), "0");
+  assert.equal(valueOf(MOBILE, ".project-chevron-btn", "align-self"), "center");
+  // 选择模式：行首复选框同样居中（圆点此时隐藏，复选框替它占第一列）
+  assert.equal(
+    valueOf(MOBILE, ".project-list.selecting .project-head .select-check", "align-self"),
+    "center"
+  );
+  // 底线：标题仍两行夹断、副行仍在行 2，不为整齐砍信息
+  assert.equal(valueOf(MOBILE, ".project-head .project-name", "line-clamp"), "2");
+  assert.equal(valueOf(MOBILE, ".project-head .project-sub", "grid-row"), "2");
 });
