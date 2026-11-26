@@ -109,3 +109,32 @@ test("batch3 抽屉：有效期/最近读取信息位与过期提示在位", () 
     /calendarExpiredHint: document\.getElementById\("calendarExpiredHint"\)/
   );
 });
+
+test("v1.0.3 supabase.sql 第 15 节：先 drop not null 再清空明文，函数 search_path 含 extensions", () => {
+  const sql = read("../supabase.sql");
+  const section15 = sql.slice(
+    sql.indexOf("-- 15) 日历订阅安全加固"),
+    sql.indexOf("-- 14) 第 4 批第 2 步")
+  );
+  assert.notEqual(section15.indexOf("-- 15) 日历订阅安全加固"), -1, "第 15 节不在位");
+  // 旧库的 token 列是 NOT NULL，calendar_token_reads 建表段也是 NOT NULL：
+  // drop not null 必须排在「哈希化并清空明文」的 update 之前，否则整段被约束拒绝。
+  for (const table of ["calendar_tokens", "calendar_token_reads"]) {
+    const dropAt = section15.indexOf(
+      `alter table public.${table} alter column token drop not null;`
+    );
+    const updateAt = section15.indexOf(
+      `update public.${table}\nset token_hash = encode(digest(token, 'sha256'), 'hex'),`
+    );
+    assert.ok(dropAt >= 0, `${table} 缺 drop not null`);
+    assert.ok(updateAt >= 0, `${table} 缺明文哈希化 update`);
+    assert.ok(dropAt < updateAt, `${table} 的 drop not null 必须早于清空明文`);
+  }
+  // pgcrypto 可能装在 extensions schema：两个用 digest() 的函数 search_path 都要带上 extensions。
+  const functions = section15.split(/^create or replace function /m).slice(1);
+  assert.equal(functions.length, 2, "第 15 节应只重建两个函数");
+  for (const fn of functions) {
+    const header = fn.split("as $$")[0];
+    assert.match(header, /set search_path = public, extensions/);
+  }
+});

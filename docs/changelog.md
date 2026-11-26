@@ -7,6 +7,7 @@
 - **日历订阅安全加固**：新令牌只把 SHA-256 哈希写入数据库，明文仅保存在生成设备的 `localStorage`；第 15 节迁移会把旧令牌和读取日志哈希化并清理明文，旧链接仍可继续使用。
 - **日历订阅限流加固**：`record_calendar_token_read` 使用事务级 advisory lock，在并发请求下仍严格执行每个令牌每小时 60 次的限制。
 - **ICS 数据最小化**：订阅日历只返回项目名称、开标日期/时间、项目类型和投标公司，不再暴露联系人、备注或招标单位。
+- **第 15 节迁移顺序修正**：`supabase.sql` 第 15 节改为先 `drop not null` 再「哈希化并清空明文」，旧库 `calendar_tokens.token` 与新库 `calendar_token_reads.token` 的非空约束不再拒绝 `set token = null`（此前整段会报错中断）；`get_calendar_projects` 与 `record_calendar_token_read` 的 `search_path` 补为 `public, extensions`，兼容 pgcrypto 装在 `extensions` schema 的 Supabase 项目。新增测试钉住顺序与 `search_path`。
 
 ## [1.0.2] - 2026-11-25
 

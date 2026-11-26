@@ -484,25 +484,29 @@ alter table public.calendar_tokens add column if not exists last_read_at timesta
 -- 新链接的明文只存在于生成设备的 localStorage；数据库仅保存 SHA-256 哈希。
 -- 旧库中的明文 token 在此迁移为 token_hash 后清空，旧链接仍可继续使用。
 -- 读取日志也同步哈希并清空明文，避免历史访问记录继续暴露令牌。
+-- 顺序：必须先 drop not null，再 set token = null；旧库的 token 列是 NOT NULL，
+-- 先清空会被约束拒绝（calendar_token_reads 建表段就是 not null，新库同样会报错）。
 alter table public.calendar_tokens add column if not exists token_hash text;
+alter table public.calendar_tokens alter column token drop not null;
 update public.calendar_tokens
 set token_hash = encode(digest(token, 'sha256'), 'hex'),
     token = null
 where token_hash is null and token is not null;
-alter table public.calendar_tokens alter column token drop not null;
 create unique index if not exists calendar_tokens_token_hash_idx
   on public.calendar_tokens (token_hash) where token_hash is not null;
 
 alter table public.calendar_token_reads add column if not exists token_hash text;
+alter table public.calendar_token_reads alter column token drop not null;
 update public.calendar_token_reads
 set token_hash = encode(digest(token, 'sha256'), 'hex'),
     token = null
 where token_hash is null and token is not null;
-alter table public.calendar_token_reads alter column token drop not null;
 create index if not exists calendar_token_reads_hash_read_at_idx
   on public.calendar_token_reads (token_hash, read_at);
 
 -- 返回字段只保留日历所需信息，不再把联系人、备注和招标单位暴露给订阅客户端。
+-- search_path 必须带上 extensions：Supabase 新项目的 pgcrypto 装在 extensions schema，
+-- 函数里的 digest() 才解析得到（security definer 函数的 set search_path 会覆盖会话默认值）。
 drop function if exists public.get_calendar_projects(text);
 create or replace function public.get_calendar_projects(p_token text)
 returns table (
@@ -516,7 +520,7 @@ returns table (
 language sql
 security definer
 stable
-set search_path = public
+set search_path = public, extensions
 as $$
   select p.id, p.name, p.bid_date, p.bid_time, p.project_type, p.bidding_company
   from public.projects p
@@ -533,12 +537,13 @@ revoke all on function public.get_calendar_projects(text) from public;
 grant execute on function public.get_calendar_projects(text) to anon, authenticated;
 
 -- 60 次/小时限流：同一令牌先拿事务级 advisory lock，再计数并写入，避免并发请求同时越过阈值。
+-- search_path 同 get_calendar_projects：digest() 来自 extensions schema 下的 pgcrypto。
 drop function if exists public.record_calendar_token_read(text);
 create or replace function public.record_calendar_token_read(p_token text)
 returns text
 language plpgsql
 security definer
-set search_path = public
+set search_path = public, extensions
 as $$
 declare
   v_count int;
