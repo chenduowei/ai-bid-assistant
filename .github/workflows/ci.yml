@@ -1,7 +1,7 @@
 # CI — 每次推送自动跑测试与校验
 #
 # 仓库已有 package-lock.json，故用 npm ci。
-# 测试为 node --test，无外部依赖。
+# 测试为 node --test，依赖由 npm ci 按 lockfile 安装。
 name: CI
 
 on:

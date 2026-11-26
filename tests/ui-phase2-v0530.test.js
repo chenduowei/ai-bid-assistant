@@ -217,11 +217,11 @@ test("v0.53.0：页眉版本号隐藏，版本改在设置页底部显示", () =
   assert.ok(document.querySelector(".app-version-badge"));
   assert.match(
     document.querySelector(".app-version-badge").textContent,
-    /v1\.0\.2/
+    /v1\.0\.3/
   );
   assert.match(
     document.querySelector(".settings-version").textContent,
-    /投标工作台 · BidDesk v1\.0\.2/
+    /投标工作台 · BidDesk v1\.0\.3/
   );
 });
 
@@ -262,23 +262,23 @@ test("v0.55.1：窄屏页头标题不被压扁 —— 标题列 basis 0 可伸�
   assert.equal(declOf(actions680[actions680.length - 1], "margin-left"), "auto");
 });
 
-test("v1.0.2：版本号 1.0.2（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
-  assert.equal(pkg.version, "1.0.2");
+test("v1.0.3：版本号 1.0.3（与 check:version 同一事实来源；本断言永远跟当前版）", () => {
+  assert.equal(pkg.version, "1.0.3");
   const utils = readFileSync(new URL("../js/utils.js", import.meta.url), "utf8");
-  assert.match(utils, /APP_VERSION = "1\.0\.2"/);
+  assert.match(utils, /APP_VERSION = "1\.0\.3"/);
   const sw = readFileSync(new URL("../sw.js", import.meta.url), "utf8");
-  assert.match(sw, /bid-assistant-v1\.0\.2/);
+  assert.match(sw, /bid-assistant-v1\.0\.3/);
   const changelog = readFileSync(
     new URL("../docs/changelog.md", import.meta.url),
     "utf8"
   );
-  assert.match(changelog, /## \[1\.0\.2\]/);
+  assert.match(changelog, /## \[1\.0\.3\]/);
   const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
-  assert.match(readme, /v1\.0\.2/);
+  assert.match(readme, /v1\.0\.3/);
   const notes = readFileSync(
     new URL("../docs/notes.md", import.meta.url),
     "utf8"
   );
-  assert.match(notes, /v1\.0\.2/);
-  assert.match(html, /v1\.0\.2/);
+  assert.match(notes, /v1\.0\.3/);
+  assert.match(html, /v1\.0\.3/);
 });

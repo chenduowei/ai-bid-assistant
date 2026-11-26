@@ -32,6 +32,7 @@ import {
   toDbProject,
   uiToDbInsert,
 } from "./fields.js";
+import { isValidCalendarToken } from "./ics.js";
 
 /** v0.3.0 新列缺失时的报错特征：提示先执行增量迁移，而非原样报错 */
 const MISSING_COLUMN_PATTERN =
@@ -1254,6 +1255,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
   }
 
   // v0.33.0：日历订阅令牌 —— 令牌即钥匙，凭令牌只读该用户的待开标项目。
+  // v1.0.3：新令牌只把 SHA-256 哈希写入数据库，明文仅保存在生成设备的 localStorage；
+  // 旧版明文 token 仍可读取，执行 supabase.sql 第 15 节后会迁移为哈希。
   // 表未建时（用户还没执行 supabase.sql 第 10 节）只提示一次，别每次打开都弹。
   let calendarMissingToastShown = false;
   const calendarTableMissing = (error) => {
@@ -1267,8 +1270,35 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     return true;
   };
   // 第 3 批：返回对象 { token, expired, expiresAt, lastReadAt }。
-  // 最新一条已过期时返回 { token: null, expired: true, ... }，不要自动删旧令牌
-  // （留给用户点“重新生成”）；第 13 节还没执行时新列不存在，降级只读旧列。
+  // 新版哈希令牌无法从数据库反解，明文只从当前设备 localStorage 恢复；
+  // 如果用户清空了本机存储，界面会提示重新生成链接。
+  const calendarLocalTokenKey = (uid) => `bid-desk-calendar-token:${uid}`;
+  const readLocalCalendarToken = (uid) => {
+    try {
+      const value = localStorage.getItem(calendarLocalTokenKey(uid));
+      return isValidCalendarToken(value) ? value : null;
+    } catch {
+      return null;
+    }
+  };
+  const saveLocalCalendarToken = (uid, token) => {
+    try {
+      localStorage.setItem(calendarLocalTokenKey(uid), token);
+    } catch {
+      // 无痕模式或存储已满时，链接仍会在当前界面显示。
+    }
+  };
+  const clearLocalCalendarToken = (uid) => {
+    try {
+      localStorage.removeItem(calendarLocalTokenKey(uid));
+    } catch {}
+  };
+  const sha256Hex = async (value) => {
+    if (!globalThis.crypto?.subtle || typeof TextEncoder === "undefined") return null;
+    const bytes = new TextEncoder().encode(value);
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
   async function getCalendarToken() {
     const state = getState();
     const uid = state.user?.id;
@@ -1280,8 +1310,8 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         .eq("user_id", uid)
         .order("created_at", { ascending: false })
         .limit(1);
-    let { data, error } = await query("token, created_at, expires_at, last_read_at");
-    if (error && /expires_at|last_read_at/.test(error.message || "")) {
+    let { data, error } = await query("token, token_hash, created_at, expires_at, last_read_at");
+    if (error && /token_hash|expires_at|last_read_at/.test(error.message || "")) {
       ({ data, error } = await query("token, created_at"));
     }
     if (error) {
@@ -1292,8 +1322,14 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const row = data?.[0];
     if (!row) return { token: null, expired: false, expiresAt: null, lastReadAt: null };
     const expired = isCalendarTokenExpired(row.expires_at);
+    const localToken = row.token
+      ? null
+      : readLocalCalendarToken(uid);
+    const localTokenMatches =
+      Boolean(localToken && row.token_hash) &&
+      (await sha256Hex(localToken)) === row.token_hash;
     return {
-      token: expired ? null : row.token || null,
+      token: expired ? null : row.token || (localTokenMatches ? localToken : null),
       expired,
       expiresAt: row.expires_at || null,
       lastReadAt: row.last_read_at || null,
@@ -1315,19 +1351,31 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     const expiresAt = new Date(
       Date.now() + CALENDAR_TOKEN_TTL_DAYS * 24 * 3600 * 1000
     ).toISOString();
+    const tokenHash = await sha256Hex(token);
+    if (!tokenHash) {
+      ui.showToast("当前浏览器不支持安全令牌生成，请使用最新版浏览器。");
+      return null;
+    }
     let { error } = await getClient()
       .from("calendar_tokens")
-      .insert({ user_id: uid, token, expires_at: expiresAt });
-    if (error && /expires_at/.test(error.message || "")) {
+      .insert({ user_id: uid, token: null, token_hash: tokenHash, expires_at: expiresAt });
+    if (error && /token_hash|expires_at/.test(error.message || "")) {
+      // 兼容尚未执行第 15 节迁移的旧库：暂时沿用旧明文字段，升级后新链接会改为哈希。
       ({ error } = await getClient()
         .from("calendar_tokens")
-        .insert({ user_id: uid, token }));
+        .insert({ user_id: uid, token, expires_at: expiresAt }));
+      if (error && /expires_at/.test(error.message || "")) {
+        ({ error } = await getClient()
+          .from("calendar_tokens")
+          .insert({ user_id: uid, token }));
+      }
     }
     if (error) {
       if (calendarTableMissing(error)) return null;
       ui.showToast(`订阅链接生成失败：${error.message}`);
       return null;
     }
+    saveLocalCalendarToken(uid, token);
     return token;
   }
   async function revokeCalendarTokens() {
@@ -1347,6 +1395,7 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       ui.showToast(`停用订阅失败：${error.message}`);
       return false;
     }
+    clearLocalCalendarToken(uid);
     return true;
   }
 

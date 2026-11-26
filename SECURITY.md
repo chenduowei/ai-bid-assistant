@@ -2,7 +2,7 @@
 
 ## 支持的版本
 
-仅支持最新版（当前 `v1.0.2`）。旧版本不再修安全问题，请升级到最新版再报告。
+仅支持最新版（当前 `v1.0.3`）。旧版本不再修安全问题，请升级到最新版再报告。
 
 ## 报告漏洞
 
@@ -22,7 +22,7 @@
 以下是在当前版本已知、尚未修复或有意保留的风险点，报告前请先看：
 
 - **CSP 已切强制**：`vercel.json` 里的 CSP 自 batch3 起是 `Content-Security-Policy`（强制拦截，不再是 Report-Only）；收窄口径与 HSTS 实测见 `docs/notes.md`「安全头与 CSP」一节。HSTS 由 Vercel 平台默认下发，本仓未重复加。
-- **日历订阅令牌长期有效且在 URL 里**：`.ics` 订阅链接形如 `/api/calendar?token=xxx`，令牌等同只读凭证，知道链接就能拉取该用户的待开标项目。不要把链接发到公开地方；不用时在应用内重新生成（旧链接失效）或停用订阅。令牌本身不设过期时间。
+- **日历订阅令牌位于 URL 中**：`.ics` 订阅链接形如 `/api/calendar?token=xxx`，令牌等同只读凭证，知道链接就能拉取该用户的待开标项目。不要把链接发到公开地方；不用时在应用内重新生成（旧链接失效）或停用订阅。令牌有效期为 180 天；新令牌的明文只保存在生成设备的 `localStorage`，数据库只保存 SHA-256 哈希。旧库需在 Supabase SQL Editor 执行 `supabase.sql` 第 15 节迁移。
 - **邮件提醒未部署**：`supabase/functions/send-bid-reminders/` 与 `docs/reminders.md` 仅作参考，未部署 Edge Function；关页提醒走 `.ics` 日历订阅，不要误以为邮件会提醒。
 - **离线缓存**：Service Worker 只缓存同源应用壳；跨域请求（Supabase / CDN）一律走网络，不进缓存。
 

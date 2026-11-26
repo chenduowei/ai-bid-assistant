@@ -109,8 +109,8 @@ export function foldIcsLine(line) {
   return parts.join("\r\n ");
 }
 
-// projects 行形状：{ id, name, bid_date, project_type, bidding_company,
-// tenderer, contact, notes }。缺 bid_date 或 name 的行跳过。
+// projects 行形状：{ id, name, bid_date, bid_time, project_type, bidding_company }。
+// 订阅默认不暴露联系人、备注或招标单位。缺 bid_date 或 name 的行跳过。
 export function buildCalendarIcs(projects, now = new Date()) {
   const dtstamp = formatUtcDateTime(now) || "20260101T000000Z";
   const lines = [
@@ -136,9 +136,7 @@ export function buildCalendarIcs(projects, now = new Date()) {
     if (time) descLines.push(`开标时刻：${time}`);
     if (p.project_type) descLines.push(`项目类型：${p.project_type}`);
     if (p.bidding_company) descLines.push(`投标公司：${p.bidding_company}`);
-    if (p.tenderer) descLines.push(`招标单位：${p.tenderer}`);
-    if (p.contact) descLines.push(`联系人：${p.contact}`);
-    if (p.notes) descLines.push(`备注：${p.notes}`);
+
     lines.push(
       "BEGIN:VEVENT",
       `UID:${p.id}@bid-assistant`,

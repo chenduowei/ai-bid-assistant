@@ -72,14 +72,13 @@ test("buildCalendarIcs：单项目全天事件 + 两次提醒", () => {
   assert.ok(ics.includes("SUMMARY:开标：测试大桥"));
   assert.ok(ics.includes("UID:11111111-1111-1111-1111-111111111111@bid-assistant"));
   assert.ok(ics.includes("DTSTAMP:20261106T100000Z"));
-  // 描述行超 75 字节会被折行：先展开（去掉 "\r\n "）再断言内容
+  // 先展开（去掉 "\r\n "）再断言描述字段内容
   const unfolded = ics.replace(/\r\n /g, "");
-  assert.ok(ics.includes("\r\n "), "长描述行应已折行");
   // 描述只写非空字段：招标单位为空，不应出现
   assert.ok(unfolded.includes("项目类型：施工"));
   assert.ok(unfolded.includes("投标公司：甲公司"));
-  assert.ok(unfolded.includes("联系人：张三 13800000000"));
-  assert.ok(unfolded.includes("备注：带齐原件"));
+  assert.ok(!unfolded.includes("联系人：张三 13800000000"));
+  assert.ok(!unfolded.includes("备注：带齐原件"));
   assert.ok(!unfolded.includes("招标单位："));
   // 两次提醒：前一天 9 点（UTC 01:00）与当天 8 点（UTC 00:00）
   assert.ok(ics.includes("TRIGGER;VALUE=DATE-TIME:20261107T010000Z"));

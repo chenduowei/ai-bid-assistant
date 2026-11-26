@@ -63,6 +63,8 @@ test("batch3 supabase.sql：第 13 节在位，过期 180 天 + 限流 60 次/�
   assert.match(sql, /calendar_token_reads/);
   assert.match(sql, /record_calendar_token_read/);
   assert.match(sql, /v_count >= 60/);
+  assert.match(sql, /pg_advisory_xact_lock/);
+  assert.match(sql, /token_hash/);
   assert.match(sql, /last_read_at/);
   // 第 13 节重建 get_calendar_projects 时不能丢了第 11 节的 bid_time 返回列。
   const section13 = sql.slice(sql.indexOf("-- 13) 第 3 批日历令牌"));
@@ -81,10 +83,11 @@ test("batch3 api/calendar.js：超限返回 429，函数不存在时降级放行
 
 test("batch3 前端：getCalendarToken 返回对象并读新列，create 写 expires_at", () => {
   const projects = read("../js/projects.js");
-  assert.match(projects, /query\("token, created_at, expires_at, last_read_at"\)/);
-  assert.match(projects, /token: expired \? null : row\.token/);
+  assert.match(projects, /query\("token, token_hash, created_at, expires_at, last_read_at"\)/);
+  assert.match(projects, /token: expired \? null : row\.token \|\| \(localTokenMatches \? localToken : null\)/);
   assert.match(projects, /expired: false, expiresAt: null, lastReadAt: null/);
-  assert.match(projects, /insert\(\{ user_id: uid, token, expires_at: expiresAt \}\)/);
+  assert.match(projects, /token: null, token_hash: tokenHash/);
+  assert.match(projects, /sha256Hex/);
   assert.match(projects, /CALENDAR_TOKEN_TTL_DAYS/);
 });
 

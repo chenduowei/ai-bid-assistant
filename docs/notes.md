@@ -1,9 +1,10 @@
 # 维护说明
 
-当前以 **v1.0.2 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
+当前以 **v1.0.3 稳定使用** 为主。本文仅保留运行与改代码时需要的要点。
 
 ---
 
+- v1.0.3：日历订阅安全加固。新令牌只把 SHA-256 哈希写入 `calendar_tokens`，明文只保存在生成设备的 `localStorage`；在 Supabase SQL Editor 执行 `supabase.sql` 第 15 节迁移，会把旧令牌及读取日志哈希化并清理明文，旧链接仍可继续使用。该段还重建最小字段版 `get_calendar_projects`，并用事务级 advisory lock 保证每个令牌每小时 60 次限流在并发下不被绕过。新 ICS 只包含项目名称、开标日期/时间、项目类型和投标公司。
 - v0.55.1：① 临期角标改通知语义（只亮未看事项数；点开临期抽屉一次即记为已看，两个角标当场消失；只有新增/改期才重新出现；已看签名存 localStorage（`bid-assistant-upcoming-seen`，替换式存储当前这批），刷新不重亮）。② 顶栏倒计时芯片删除（元素/样式/tick 接线全清，英雄区倒计时不动）。③ 标语以 12px 小字副标题形式回手机顶栏（仅 ≤680px，标题下方、单行省略；桌面不动）。④ README 重写为简洁版（普通用户向），登录页桌面截图重拍（去掉了缺配置的红色提示），主界面手机截图随新顶栏重拍。
 - v0.55.0：手机端打磨（审计报告 C 节 + B 节收尾）。① 卡片操作行拆两行（chips 一行、4 按钮一行四等分，删除不再独占行）；列表尾与日历底留 FAB 安全垫；分段按钮/菜单项/提交/保存按钮提到 44px；吸顶标题 100% 不透明（桌面顶栏仍 96% 毛玻璃）。② 顶栏：窄屏邮箱收起（只在设置页“账户”区展示），加倒计时芯片（与英雄区同一数据源同一秒 tick、无项目时隐藏）与日期，汉堡加临期角标（与菜单内角标同一数字，0 时隐藏）。③ 底部「菜单」改就地弹出的操作表（不再先回顶）；抽屉改窄屏全宽底部 sheet（手柄 + 下滑关闭，阈值是 `js/sheet-gestures.js` 纯函数）；下拉刷新复用 `refreshNow`；轻震只三处关键操作；顶栏留顶部安全区、状态栏样式随主题切；8 档 iOS 启动图（`icons/splash-*`，已进 sw 预缓存）。④ 顺手修：`#deadlineTip` 删除后角标同步被 early return 挡住的潜 bug。
 - v0.54.0：UI 打磨第三期（倒计时英雄区秒级定时器，设计稿 v0.39）。① 接线：`tickHero` / `startHeroTimer` / `isHeroVisibleContext` / `stopHeroTimer` 四个函数 v0.36.2 已写好休眠，本期只在 `renderHero` 末尾启动，不新写逻辑；1 秒间隔只写 `#bpHeroCount` 的 `textContent`。② 生命周期：重复进入先清后建不叠加、切后台即停、回来先重算再恢复、切日历视图与无项目时清理；`aria-live="off"`；过期显示「已开标」并切下一个项目。③ 测试用 `tests/hero-timer-fake.mjs` 桩定时器（真 interval 会钉住 node --test 进程不退出）。
@@ -71,7 +72,7 @@
 - 清单 / 金额 / 截止 / PDF 的局部更新走 `projects.js` 的 `updateProjectFields`（白名单字段 + `.eq("user_id", ...)`）。
 - 开标提醒天数：本机 `localStorage` 键 `bid-assistant-reminder-days`（1–30，默认 7）。
 - 提醒机制：浏览器通知仅在页面打开时触发，多截止项（报名 / 质疑 / 澄清 / 保证金 / 开标）days=0/1 时通知，文案带截止类型；错过提醒只看开标时间。关页提醒走 v0.33.0 的 `.ics` 日历订阅（`api/calendar.js` + `js/ics.js` + 系统日历），邮件提醒的 `supabase/functions/send-bid-reminders/` 仍未部署，详见 `docs/reminders.md`。
-- 日历订阅（v0.33.0；第 3 批加有效期/限流/最近读取）：表 `calendar_tokens`（`user_id` + `token`，RLS 本人可见），只读函数 `get_calendar_projects(p_token)` 为 SECURITY DEFINER，只返回未删除且开标日不早于今天的行；第 10 节 SQL 须执行一次，否则抽屉只提示、生成不出链接。订阅链接带令牌，等同只读凭证，别外传到公开地方。令牌有效期 **180 天**（`expires_at`，第 13 节：先加可空列按 `created_at` 回填再收 NOT NULL + 默认值，存量老令牌不续期；`get_calendar_projects` 加过期过滤，过期令牌只返回空 ICS；抽屉显示“有效期至 X · 最近读取 Y”，过期显示“订阅链接已过期，请重新生成”）。`/api/calendar` 限流 **60 次/小时**（第 13 节 `calendar_token_reads` + `record_calendar_token_read`，超限返回 429 + `Retry-After: 3600`，无效令牌仍走空 ICS 不暴露存在性；record 函数不存在或调用失败时降级放行）。最近读取时间 `last_read_at` 由 record 函数顺手更新，旧令牌初始为 NULL 时前端显示“从未读取”。第 13 节 SQL 须在 Supabase SQL Editor 手动执行（幂等，执行两次应零报错零变化），执行前先备份；前置年龄查询（2026-11-25）：`calendar_tokens` 共 1 条、已过期 0 条、创建于 2026-11-07，迁移时无令牌会立即失效。
+- 日历订阅（v0.33.0；第 3 批加有效期/限流/最近读取）：表 `calendar_tokens`（`user_id` + `token_hash`，旧 `token` 仅用于迁移兼容，RLS 本人可见），只读函数 `get_calendar_projects(p_token)` 为 SECURITY DEFINER，只返回未删除且开标日不早于今天的行；第 10 节 SQL 须执行一次，否则抽屉只提示、生成不出链接；旧库升级还须执行第 15 节安全迁移。订阅链接带令牌，等同只读凭证，别外传到公开地方。令牌有效期 **180 天**（`expires_at`，第 13 节：先加可空列按 `created_at` 回填再收 NOT NULL + 默认值，存量老令牌不续期；`get_calendar_projects` 加过期过滤，过期令牌只返回空 ICS；抽屉显示“有效期至 X · 最近读取 Y”，过期显示“订阅链接已过期，请重新生成”）。`/api/calendar` 限流 **60 次/小时**（第 13 节 `calendar_token_reads` + `record_calendar_token_read`，超限返回 429 + `Retry-After: 3600`，无效令牌仍走空 ICS 不暴露存在性；record 函数不存在或调用失败时降级放行）。最近读取时间 `last_read_at` 由 record 函数顺手更新，旧令牌初始为 NULL 时前端显示“从未读取”。第 13 节 SQL 须在 Supabase SQL Editor 手动执行（幂等，执行两次应零报错零变化），执行前先备份；前置年龄查询（2026-11-25）：`calendar_tokens` 共 1 条、已过期 0 条、创建于 2026-11-07，迁移时无令牌会立即失效。
 
 ---
 

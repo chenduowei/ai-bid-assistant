@@ -281,7 +281,9 @@ exception when duplicate_object then null; end $$;
 create table if not exists public.calendar_tokens (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  token text not null unique,
+  -- 新令牌只保存哈希；token 仅为旧版本令牌保留兼容读取。
+  token text unique,
+  token_hash text,
   created_at timestamptz not null default now()
 );
 alter table public.calendar_tokens enable row level security;
@@ -477,6 +479,100 @@ grant execute on function public.record_calendar_token_read(text) to anon, authe
 
 -- C：最近读取时间（由 B 的 record 函数更新；旧令牌初始为 NULL，前端显示“从未读取”）。
 alter table public.calendar_tokens add column if not exists last_read_at timestamptz;
+
+-- 15) 日历订阅安全加固：哈希令牌 + 原子限流 + 最小化 ICS 数据
+-- 新链接的明文只存在于生成设备的 localStorage；数据库仅保存 SHA-256 哈希。
+-- 旧库中的明文 token 在此迁移为 token_hash 后清空，旧链接仍可继续使用。
+-- 读取日志也同步哈希并清空明文，避免历史访问记录继续暴露令牌。
+alter table public.calendar_tokens add column if not exists token_hash text;
+update public.calendar_tokens
+set token_hash = encode(digest(token, 'sha256'), 'hex'),
+    token = null
+where token_hash is null and token is not null;
+alter table public.calendar_tokens alter column token drop not null;
+create unique index if not exists calendar_tokens_token_hash_idx
+  on public.calendar_tokens (token_hash) where token_hash is not null;
+
+alter table public.calendar_token_reads add column if not exists token_hash text;
+update public.calendar_token_reads
+set token_hash = encode(digest(token, 'sha256'), 'hex'),
+    token = null
+where token_hash is null and token is not null;
+alter table public.calendar_token_reads alter column token drop not null;
+create index if not exists calendar_token_reads_hash_read_at_idx
+  on public.calendar_token_reads (token_hash, read_at);
+
+-- 返回字段只保留日历所需信息，不再把联系人、备注和招标单位暴露给订阅客户端。
+drop function if exists public.get_calendar_projects(text);
+create or replace function public.get_calendar_projects(p_token text)
+returns table (
+  id uuid,
+  name text,
+  bid_date date,
+  bid_time time,
+  project_type text,
+  bidding_company text
+)
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select p.id, p.name, p.bid_date, p.bid_time, p.project_type, p.bidding_company
+  from public.projects p
+  join public.calendar_tokens t
+    on (t.token_hash = encode(digest(p_token, 'sha256'), 'hex')
+        or (t.token_hash is null and t.token = p_token))
+   and t.user_id = p.user_id
+  where (t.expires_at is null or t.expires_at > now())
+    and p.deleted_at is null
+    and p.bid_date >= current_date
+  order by p.bid_date asc;
+$$;
+revoke all on function public.get_calendar_projects(text) from public;
+grant execute on function public.get_calendar_projects(text) to anon, authenticated;
+
+-- 60 次/小时限流：同一令牌先拿事务级 advisory lock，再计数并写入，避免并发请求同时越过阈值。
+drop function if exists public.record_calendar_token_read(text);
+create or replace function public.record_calendar_token_read(p_token text)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_count int;
+  v_valid boolean;
+  v_token_hash text := encode(digest(p_token, 'sha256'), 'hex');
+begin
+  perform pg_advisory_xact_lock(hashtextextended(v_token_hash, 0));
+  delete from public.calendar_token_reads
+   where read_at <= now() - interval '1 hour';
+  select exists (
+    select 1 from public.calendar_tokens t
+    where (t.token_hash = v_token_hash
+       or (t.token_hash is null and t.token = p_token))
+      and (t.expires_at is null or t.expires_at > now())
+  ) into v_valid;
+  if not v_valid then
+    return 'invalid';
+  end if;
+  select count(*) into v_count
+    from public.calendar_token_reads
+   where (token_hash = v_token_hash or (token_hash is null and token = p_token))
+     and read_at > now() - interval '1 hour';
+  if v_count >= 60 then
+    return 'rate_limited';
+  end if;
+  insert into public.calendar_token_reads (token_hash) values (v_token_hash);
+  update public.calendar_tokens
+     set last_read_at = now()
+   where (token_hash = v_token_hash or (token_hash is null and token = p_token));
+  return 'ok';
+end;
+$$;
+revoke all on function public.record_calendar_token_read(text) from public;
+grant execute on function public.record_calendar_token_read(text) to anon, authenticated;
 
 -- 14) 第 4 批第 2 步：删除 AI 分析五列（用户决定不再用 AI 相关功能）
 -- 执行前必须先在应用里全量导出备份并保存好：删列不可逆，存量 AI 结论
