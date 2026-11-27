@@ -2,9 +2,9 @@
  * v1.0.6：项目卡片展开 / 收起的丝滑度回归测试。
  * 用户实测「点开项目时列表整体向下挪一点，不够丝滑，有掉帧感」的三处根因各钉一组：
  *   1. 第 0 帧的边距跳变：详情区的 margin / padding / border-top 只在 .expanded 上、
- *      且不参与 0fr 高度裁切，点开瞬间长出 34px 把下面的列表硬顶下去（css/views.css、css/breakpoints.css）；
- *      .project-item.expanded 的 6px 外边距同样在第 0 帧直接跳（views.css 里两条 .project-item
- *      各写一份 transition，后一条把 margin 盖掉了）。
+ *      且不参与 0fr 高度裁切，点开瞬间长出 34px 把下面的列表硬顶下去（css/views.css、css/breakpoints.css）。
+ *      v1.0.6 企图给 .project-item.expanded 的 6px 外边距加过渡来缓解，v1.0.7 直接去掉这段
+ *      外边距（行位置点开前后完全不动），过渡里也不再有 margin。
  *   2. 拼详情 HTML 与起跑 grid-template-rows 过渡挤在同一帧（app.js、js/ui.js）。
  *   3. .collapse 在本文件里写了三遍，最后一遍把弹簧曲线覆盖成 --ease-out、把内层过渡整条换掉
  *      （css/components.css）。
@@ -156,15 +156,17 @@ test("v1.0.6：留白与分隔线交给内层容器，随高度一起展开", ()
   assert.equal(declOf(inMedia(/min-width:\s*1024px/), "padding"), "4px 0 14px");
 });
 
-test("v1.0.6：卡片展开的 6px 外边距参与过渡，不再第 0 帧跳 12px", () => {
+test("v1.0.7：.project-item 的过渡清单合成一份，且里边距已退出过渡", () => {
   const withTransition = rules.filter((r) => r.media.length === 0 &&
     declOf(r, "transition") !== undefined &&
     r.selector.split(",").map((s) => s.trim()).includes(".project-item"));
   assert.equal(withTransition.length, 1, "本文件只能有一条 .project-item 的 transition（此前两条互相覆盖）");
   const t = declOf(withTransition[0], "transition");
-  for (const prop of ["margin", "border-radius", "background-color", "box-shadow", "transform"]) {
+  for (const prop of ["border-radius", "background-color", "box-shadow", "transform"]) {
     assert.match(t, new RegExp(prop), `.project-item 的过渡要包含 ${prop}`);
   }
+  // v1.0.7：展开态不再带 margin，过渡里也就不该再有 margin（详见 v107-no-expand-shift.test.js）
+  assert.equal(/\bmargin\b/.test(t), false, "margin 已不是可动属性");
 });
 
 /* ============ 3. .collapse 只剩一份，弹簧曲线不再被覆盖 ============ */
