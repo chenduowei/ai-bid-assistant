@@ -1,6 +1,16 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v1.0.3**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v1.0.4**，以长期使用为主。
+
+## [1.0.4] - 2026-11-27
+
+### 修复编辑保存后界面闪烁
+
+- **Realtime 回声去重**（`js/projects.js`）：自己刚保存（或刚乐观改字段）的那一行被 Realtime 原样推回来时，先逐字段比对 `toUiProject(row)` 与本地同 id 项目（跳过只在内存里按需拉的 `pdfText`，`checklist` 按序列化比较）。完全一致就直接返回，不再 upsert + 定向重绘一次——保存后同一张卡片原来会被连续重建 2~3 次，第一次省掉。
+- **定位不再整卡重建**（`js/ui.js`）：`focusProjectInList` 发现目标卡片已经在当前这一页的 DOM 里时，就地展开（加 `expanded`、补填详情、去掉 `inert`、更新箭头 aria）后滚动过去，不再 `renderAfterWrite({ changedIds: [id] })` 把整张卡片 `replaceWith` 掉；列表其余部分照旧对账。只有目标不在当前 DOM（换了筛选、在“加载更多”后面）时才走重建。
+- **不再“摘掉 no-enter 重播入场动画”**（`js/ui.js`）：定位时加上的 `no-enter`（抑制 `item-in` 淡入 + 上移）以前会在 600ms / 柔光结束后被摘掉。摘掉等于把 `animation` 从 `none` 换回 `item-in`，浏览器当场重播一次：保存后 1.66 秒卡片又淡入一次，看着就是又闪一下。现在这个类留在卡片上（下次重建自然是新节点）。
+- **移除 `content-visibility: auto`**（`css/views.css`）：`.project-item` 去掉 `content-visibility: auto` 与 `contain-intrinsic-size: auto 68px`——列表本来就有 50 条分页，不需要它；而 `replaceWith` / 定位滚动时，展开态卡片（远高于估算的 68px）会先按估算高度排一帧再测量撑开，正是那一下跳动的来源。
+- **回归测试**：新增 Realtime 回声不重绘、定位不替换 DOM 节点、`.project-item` 不含 `content-visibility` 三组断言。
 
 ## [1.0.3] - 2026-11-26
 

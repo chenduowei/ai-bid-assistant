@@ -65,8 +65,6 @@
   margin: 0;
   box-shadow: none;
   animation: item-in var(--dur-med) var(--ease-spring) backwards;
-  content-visibility: auto;
-  contain-intrinsic-size: auto 68px;
 }
 
 .project-item:last-child { border-bottom: 0; }

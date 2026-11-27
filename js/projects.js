@@ -174,6 +174,31 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     ui.renderAfterWrite({ changedIds });
   };
 
+  // v1.0.4：Realtime 回声去重 —— 自己刚保存（或刚乐观改字段）的那一行，几毫秒后会被
+  // Realtime 原样推回来。本地 state 里已经是同一份数据，这时再 upsert + 定向重绘一次
+  // 纯属白闪一下（用户反馈“每次编辑保存后闪”）。逐字段比对 toUiProject 的结果：
+  // - pdfText 只在内存里按需拉（列表查询与 DB 回声都不带全文），跳过；
+  // - user_id / created_at / updated_at 没有 UI 键，本来就不在比对范围；
+  // - checklist 是数组，按序列化比较。
+  const REALTIME_COMPARE_KEYS = PROJECT_FIELDS.filter(
+    (f) => f.key && f.key !== "pdfText"
+  ).map((f) => f.key);
+  const sameUiProject = (a, b) => {
+    for (const key of REALTIME_COMPARE_KEYS) {
+      const av = a?.[key] ?? null;
+      const bv = b?.[key] ?? null;
+      if (av === bv) continue;
+      if (av === null || bv === null) return false;
+      if (typeof av === "object" || typeof bv === "object") {
+        if (JSON.stringify(av) !== JSON.stringify(bv)) return false;
+        continue;
+      }
+      // 数字列在两条路径上可能一条是 number、一条是数字字符串，按字面比。
+      if (String(av) !== String(bv)) return false;
+    }
+    return true;
+  };
+
   // v0.31.0：Realtime 增量应用 —— 之前每次变更（包括自己刚保存的回声）都全量重拉；
   // 现在按事件类型只动受影响的行。收不到 payload 或解析失败时返回 false，调用方回落全量重拉。
   function applyRealtimeChange(payload) {
@@ -196,6 +221,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
         afterLocalChange();
         return true;
       }
+      // v1.0.4：回声与本地完全一致 → 什么都不做（快照在写成功时已刷新），
+      // 直接算应用成功，免得再整卡重绘一次。
+      const local = getState().projects.find((p) => p.id === row.id);
+      if (local && sameUiProject(local, toUiProject(row))) return true;
       upsertLocalProject(row);
       afterLocalChange([row.id]);
       return true;

@@ -499,6 +499,27 @@ export function createUi(elements, getState) {
     inner.innerHTML = buildDetailsHtml(project);
   };
 
+  /** v1.0.4：把一张已经在 DOM 里的卡片就地展开，不 replaceWith 整卡。
+   *  与 renderProjectItem 在展开态的产物保持一致：卡片加 expanded、详情区加 expanded、
+   *  补填详情、去掉 inert、箭头 aria 改成“收起”。定位时不再重建节点，卡片高度
+   *  自然撑开（没有“先按估算高度排一帧再变”的跳动）。 */
+  const expandProjectCard = (itemEl, project) => {
+    if (!itemEl || !project) return;
+    const details = itemEl.querySelector(".project-details");
+    const inner = details?.querySelector(".collapse-inner");
+    if (!details || !inner) return;
+    itemEl.classList.add("expanded");
+    details.classList.add("expanded");
+    fillProjectDetails(itemEl, project);
+    inner.removeAttribute("inert");
+    const chevron = itemEl.querySelector(".project-chevron-btn");
+    if (chevron) {
+      chevron.setAttribute("aria-expanded", "true");
+      chevron.setAttribute("aria-label", "收起详情");
+    }
+    syncDetailOpenState();
+  };
+
   const renderProjectItem = (p, i) => {
     const expandedIds = getState().expandedIds;
     const expanded = expandedIds && expandedIds.has(p.id);
@@ -869,7 +890,24 @@ export function createUi(elements, getState) {
       s.listLimit = expandLimitForIndex(s.listLimit, targetIndex);
     }
     // v0.31.0：定位也走定向渲染（只动目标卡片），不再全量重建整个列表。
-    renderAfterWrite({ changedIds: [projectId] });
+    // v1.0.4：目标卡片已经在这一屏的 DOM 里（只是要展开它、滚过去）时就别再整卡重建 ——
+    // 之前这里无条件 renderAfterWrite([projectId])，等于把同一张卡片 replaceWith 掉：
+    // 节点重建 + 详情从 0 撑开，高度先按估算排一帧再变，这就是保存后那一下闪的最后一环。
+    // 现在就地展开（expandProjectCard），列表其余部分照旧对账（changedIds 为空 → 不碰这张卡）。
+    const existing = locateNode(projectId);
+    const withinPage = targetIndex >= 0 && targetIndex < (s.listLimit || 50);
+    if (existing && withinPage) {
+      // 先按住入场动画再对账：syncListDom 会把卡片挪一次位（remove + insert），
+      // 浏览器会把 item-in 当成新动画重播一下（淡入 + 上移）。
+      existing.classList.add("no-enter");
+      renderAfterWrite({ changedIds: [] });
+      expandProjectCard(
+        locateNode(projectId),
+        s.projects.find((p) => p.id === projectId)
+      );
+    } else {
+      renderAfterWrite({ changedIds: [projectId] });
+    }
     const item = elements.list?.querySelector(
       `.project-item[data-id="${CSS.escape(String(projectId))}"]`
     );
@@ -894,14 +932,15 @@ export function createUi(elements, getState) {
           if (glowTarget && glowTarget.id === String(projectId)) glowTarget = null;
           const node = locateNode(projectId);
           node?.classList.remove("save-glow");
-          node?.classList.remove("no-enter");
           if (node) node.style.animationDelay = "";
+          // v1.0.4：no-enter 留着不摘 —— 摘掉等于把 animation 从 none 换回 item-in，
+          // 浏览器会当场重播一次“淡入 + 上移”，正好在保存后 1.66 秒又闪一下。
+          // 这张卡片已经在眼前了，本来就不需要入场动画；下次重建自然会换成新节点。
         }, LOCATE_GLOW_DELAY_MS + LOCATE_GLOW_DURATION_MS),
       ];
     } else {
-      locateTimers = [
-        setTimeout(() => locateNode(projectId)?.classList.remove("no-enter"), 600),
-      ];
+      // v1.0.4：同上，不再 600ms 后去摘 no-enter（摘掉会重播入场动画，看着像闪一下）。
+      locateTimers = [];
     }
   };
 
