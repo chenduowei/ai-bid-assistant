@@ -197,7 +197,10 @@ test("保存后定位带一次性柔光，随后自动摘掉", async () => {
 
   await sleep(1500);
   assert.equal(nodeOf("p2").classList.contains("save-glow"), false);
-  assert.equal(nodeOf("p2").classList.contains("no-enter"), false);
+  // v1.0.4：柔光摘掉后 no-enter 留着不摘 —— 摘掉等于把 animation 从 none 换回
+  // item-in，浏览器会当场重播一次淡入，正好在保存后又闪一下。卡片已在眼前，
+  // 本就不需要入场动画（旧断言是 false）。
+  assert.equal(nodeOf("p2").classList.contains("no-enter"), true);
 });
 
 test("柔光放到一半被 Realtime 回声重建：新卡片接着放，不从头再来", async () => {
