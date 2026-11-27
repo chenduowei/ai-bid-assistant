@@ -206,6 +206,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
     if (type === "DELETE") {
       const id = payload.old?.id;
       if (!id) return false;
+      // v1.0.5：本地已经没有这条（本端刚彻底删除、或本来就不在这张列表里）
+      // → 这是自己写操作的回声，别再 removeLocalProjects + afterLocalChange 重绘一次
+      // （回收站点一次「彻底删除」，主列表会跟着闪第二下）。
+      if (!getState().projects.some((p) => p.id === id)) return true;
       removeLocalProjects([id]);
       afterLocalChange();
       return true;
@@ -216,7 +220,10 @@ export function createProjectsApi({ getClient, getState, setState, ui }) {
       if (!row?.id || typeof row.name !== "string" || !row.bid_date)
         return false;
       if (row.deleted_at) {
-        // 软删除（另一端移入回收站）：从主列表移除
+        // 软删除（另一端移入回收站）：从主列表移除。
+        // v1.0.5：本地已经没有这条时就是本端 deleteProject 的回声（本地已经移除并渲染过），
+        // 直接当作应用成功返回，否则会再定向重绘一次 —— 删除时闪第二下的来源。
+        if (!getState().projects.some((p) => p.id === row.id)) return true;
         removeLocalProjects([row.id]);
         afterLocalChange();
         return true;

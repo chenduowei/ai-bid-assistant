@@ -1,6 +1,15 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v1.0.4**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v1.0.5**，以长期使用为主。
+
+## [1.0.5] - 2026-11-27
+
+### 修掉列表挪动与删除 / 恢复时的剩余闪烁
+
+- **位置没变的卡片不再被挪一遍**（`js/ui.js`）：`syncListDom` 对账时此前无条件对每张卡片调 `insertBefore` / `appendChild`，即便它已经在正确位置。对已在树里的节点重复插入会先摘再插，浏览器把这一次当作新的入场动画——整页卡片（包括没改动的旧卡片）当场重播一次 `item-in`（淡入 + 上移）。现在先看目标位置：`anchor` 存在时只有 `el.nextElementSibling !== anchor` 才插；`anchor` 为 `null`（应是最后一张，旧的末尾元素已在第 1 步摘掉）时只有 `el !== listEl.lastElementChild` 才 `appendChild`；`replaceWith` 之后同样先比对再决定要不要多插一次。
+- **删除 / 彻底删除的回声不再二次重绘**（`js/projects.js`）：`applyRealtimeChange` 的 `row.deleted_at` 分支与 `type === "DELETE"` 分支先看本地 `getState().projects` 里还有没有这个 `id`——本端刚 `deleteProject` / `deleteProjects` / `permanentlyDeleteProject` 已经移除并渲染过，几毫秒后原样推回来的回声直接 `return true`，不再 `removeLocalProjects` + `afterLocalChange()` 让列表再整一遍（这就是「删除项目闪两次」的第二下）。别的设备真删掉时本地还有这条，照旧移除并定向重绘。
+- **回收站刷新不再重播入场动画**（`js/ui.js`）：`renderTrashList` 的卡片加上 `no-enter`。回收站每次恢复 / 彻底删除 / 加载更多后都整块重建 `innerHTML`，其余条目原来会一起重播 `item-in`，看着像点一次闪两下；现在除被操作的那条走了以外，列表原地更新、不闪。
+- **回归测试**：新增 `tests/v105-no-flash.test.js`——无改动时零次挪动、只有换位的那张被挪、新建卡片照旧按序插入并带 `no-enter`、deleted_at / DELETE 回声不重绘、别的设备的删除照旧生效、恢复只提交一次且回声不重绘、回收站条目带 `no-enter` 且 CSS 里 `.project-item.no-enter { animation: none }` 生效。
 
 ## [1.0.4] - 2026-11-27
 

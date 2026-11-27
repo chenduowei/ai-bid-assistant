@@ -670,6 +670,9 @@ export function createUi(elements, getState) {
     }
     // 3. 倒序走一遍：存在则（变了就重建、位置不对就挪），缺失则新建插入。
     //    倒序 + insertBefore(anchor) 保证最终顺序与 desired 一致。
+    //    v1.0.5：位置已经正确的节点一律不碰 —— 对已存在的节点调 insertBefore / appendChild
+    //    会先把它从树里摘下来再插回去，浏览器把这一次“重新插入”当成一次新的入场，
+    //    整张卡片当场重播 item-in（淡入 + 上移），列表里没改动的旧卡片也跟着闪。
     let anchor = null;
     for (let i = visible.length - 1; i >= 0; i--) {
       const p = visible[i];
@@ -686,8 +689,13 @@ export function createUi(elements, getState) {
           // 否则背景从柔光一下子回到透明，看着又是一下闪。
           resumeLocateGlow(el, p.id);
         }
-        if (anchor) listEl.insertBefore(el, anchor);
-        else listEl.appendChild(el);
+        // 已在正确位置（下一个兄弟就是 anchor）就跳过；replaceWith 之后同样适用。
+        if (anchor) {
+          if (el.nextElementSibling !== anchor) listEl.insertBefore(el, anchor);
+        } else if (el !== listEl.lastElementChild) {
+          // anchor 为 null = 应是最后一张卡片；旧的末尾元素已在步骤 1 摘掉。
+          listEl.appendChild(el);
+        }
       } else {
         el = htmlToElement(renderProjectItem(p, i));
         el.classList.add("no-enter");
@@ -897,8 +905,8 @@ export function createUi(elements, getState) {
     const existing = locateNode(projectId);
     const withinPage = targetIndex >= 0 && targetIndex < (s.listLimit || 50);
     if (existing && withinPage) {
-      // 先按住入场动画再对账：syncListDom 会把卡片挪一次位（remove + insert），
-      // 浏览器会把 item-in 当成新动画重播一下（淡入 + 上移）。
+      // v1.0.5：syncListDom 现在只挪位置不对的节点，这里已经不用再靠 no-enter 抵住
+      // 位移重播；保留它是因为下面定位本来就要跳过这次的入场动画。
       existing.classList.add("no-enter");
       renderAfterWrite({ changedIds: [] });
       expandProjectCard(
@@ -994,7 +1002,9 @@ export function createUi(elements, getState) {
                 : left <= 0
                   ? `<span class="trash-expire urgent">今天将彻底删除</span>`
                   : `<span class="trash-expire${left <= 3 ? " urgent" : ""}">还剩 ${left} 天自动删除</span>`;
-            return `<div class="project-item"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}${leftText}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
+            // v1.0.5：回收站每次都整块重建 innerHTML（恢复 / 彻底删除 / 加载更多后刷新），
+            // 卡片带 no-enter 才不会让其余条目重播 item-in —— 点一次「恢复」闪两下的那一半。
+            return `<div class="project-item no-enter"><div class="trash-head"><div class="project-head-main"><div class="project-name">${escapeHtml(p.name)}</div><div class="project-sub">开标：${escapeHtml(formatDateDisplay(p.date))} · ${escapeHtml(p.biddingCompany || "-")} · 删除于${escapeHtml(deletedDate)}${leftText}</div></div><div class="trash-actions"><button class="btn tint-blue" type="button" data-action="restore" data-id="${escapeHtml(p.id)}">恢复</button><button class="btn tint-red" type="button" data-action="permanent-delete" data-id="${escapeHtml(p.id)}" data-name="${escapeHtml(p.name)}">彻底删除</button></div></div></div>`;
           }
         )
         .join("") +
