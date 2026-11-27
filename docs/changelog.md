@@ -1,6 +1,18 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v1.0.6**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v1.0.7**，以长期使用为主。
+
+## [1.0.7] - 2026-11-27
+
+### 点开卡片时列表不再往下动一下
+
+用户实测「展开项目卡片时，列表整体 / 当前这一行还要往下动一下」。v1.0.6 把这段位移做成了过渡，只是从瞬跳变成慢推，根子还在：
+
+- **展开态不再带纵向外边距**（`css/views.css`）：`.project-item.expanded` 删掉 `margin: 6px 0`。收起态 0 → 展开态 6px，被点击的这一行立刻往下 6px、下面整段列表再加 6px（列表整体 +12px）；这 12px 本身就是“动一下”的来源，跟动画快慢无关。现在上下外边距恒为 0，展开态只靠底色 `var(--surface)`、`border-radius: 14px`、`box-shadow` 与左侧 3px 状态色条区分。
+- **过渡里不再有 `margin`**（`css/views.css`）：`.project-item` 的 `transition` 去掉 `margin` 一项，保留 `background-color` / `border-color` / `border-radius` / `box-shadow` / `transform`。
+- **实测**（Playwright，390×844 与 1280×900，浅色与深色）：点开前后被点行 `getBoundingClientRect().top` 完全一致（手机 502.08 → 502.08，桌面 371.34 → 371.34），列表高度只增加详情区本身的高度（手机 +634.88、桌面 +283.82）；同一条件下 v1.0.6 是 +6px 行位移、+12px 列表高度。
+- **回归测试**：新增 `tests/v107-no-expand-shift.test.js`——`.project-item.expanded` 在任何断点下都不带 margin、展开态不用 `transform` / `position` 换写法继续位移、`.project-item` 的过渡清单里不再有 `margin`；并把 `tests/v106-smooth-expand.test.js` 里「6px 外边距参与过渡」的旧断言改成「过渡里不含 margin」。
+- **文档对齐**：`README.md`、`docs/notes.md`、`docs/todo.md`、`SECURITY.md` 与 `index.html` 两处版本号同步至 `v1.0.7`。
 
 ## [1.0.6] - 2026-11-27
 

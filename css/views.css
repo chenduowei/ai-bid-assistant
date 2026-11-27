@@ -1246,14 +1246,14 @@ body.dark .project-chevron { color: #636366; }
    animation-delay（12ms 步进，上限 96ms）承担，此处不另写 nth-child 延迟，
    避免内联样式与样式表规则打架。
    v1.0.6：过渡清单合并成一份（此前本文件有两条 .project-item 各自写 transition，
-   后一条把 margin / background-color / border-radius 全盖掉）：展开时卡片的 6px 外边距、
-   圆角与底色现在和高度一起过渡，不再在第 0 帧直接跳 12px。 */
+   后一条把 background-color / border-radius 全盖掉）。
+   v1.0.7：外边距整个退出过渡——展开态不再有独立 margin（见 .project-item.expanded），
+   纵向外边距恒为 0，所以这里也不再有 margin 一项要动画。 */
 .project-item {
   position: relative;
   transition: background-color var(--dur-quick) var(--ease-standard),
     border-color var(--dur-slow) var(--ease-standard),
     border-radius var(--dur-slow) var(--ease-spring),
-    margin var(--dur-slow) var(--ease-spring),
     box-shadow var(--dur-slow) var(--ease-spring),
     transform var(--dur-slow) var(--ease-out);
 }
@@ -1280,11 +1280,14 @@ body.dark .project-chevron { color: #636366; }
 .project-item[data-status="已开标"]:hover::before,
 .project-item[data-status="已开标"].expanded::before { background: var(--sem-emerald); opacity: 1; }
 
+/* v1.0.7：展开态不再加纵向外边距。v1.0.6 这里写过 margin: 6px 0，
+   哪怕它参与了过渡，点开的瞬间仍会把被点的那一行和整张列表往下顶 6px
+   （收起态 0 → 展开态 6px，列表高度整体 +12px）。现在上下外边距恒为 0，
+   展开态只靠底色、圆角、投影与左侧色条区分，点开前后行位置完全不动。 */
 .project-item.expanded {
   background: var(--surface);
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--hairline);
-  margin: 6px 0;
 }
 
 body.dark .project-item.expanded {
