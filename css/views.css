@@ -141,11 +141,21 @@
 .project-head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; order: 1; }
 
 /* ---------- 详情区：iOS 定义列表 ---------- */
-/* v0.5.1：收起时零空白带——分隔线/边距只在展开时应用，原值原样保留 */
-.project-details.collapse.expanded > .collapse-inner {
-  border-top: 1px solid var(--border);
-  margin: 2px var(--sp-4) 0;
+/* v1.0.6：留白与分隔线挪进内层，跟着 0fr → 1fr 的高度一起展开。
+   原来 margin / padding / border-top 只写在 .expanded 上、也不参与高度裁切，点开的第 0 帧
+   详情区会瞬间长出 34px，把下面的列表硬顶下去（用户实测的「列表整体向下挪一点」）。
+   现在 .collapse-inner 恒为「只有左右留白、上下 0」，收起态高度精确为 0px；
+   .project-details-body 的 padding / border 被 0fr 裁掉，随高度一起露出来。 */
+.project-details > .collapse-inner {
+  margin: 0 var(--sp-4);
+  padding: 0;
+  border: 0;
+}
+
+.project-details-body {
+  margin-top: 2px;
   padding: 12px 0 20px;
+  border-top: 1px solid var(--border);
 }
 
 .kv-row {
@@ -1160,7 +1170,7 @@ body.dark .settings-panel .danger-title { color: #FF453A; }
 
 .settings-row + .settings-row { border-top-color: var(--hairline); }
 
-.project-details.collapse.expanded > .collapse-inner { border-top: 1px solid var(--hairline); }
+.project-details-body { border-top-color: var(--hairline); }
 
 /* 行悬停 / 按压：iOS 列表式的浅色高亮，不做位移、不叠投影 */
 .project-head:hover { background: var(--hover); }
@@ -1234,10 +1244,18 @@ body.dark .project-chevron { color: #636366; }
 
 /* v0.52.0：列表项过渡统一 320ms 标准曲线；入场错峰由 ui.js 模板内联
    animation-delay（12ms 步进，上限 96ms）承担，此处不另写 nth-child 延迟，
-   避免内联样式与样式表规则打架。 */
+   避免内联样式与样式表规则打架。
+   v1.0.6：过渡清单合并成一份（此前本文件有两条 .project-item 各自写 transition，
+   后一条把 margin / background-color / border-radius 全盖掉）：展开时卡片的 6px 外边距、
+   圆角与底色现在和高度一起过渡，不再在第 0 帧直接跳 12px。 */
 .project-item {
   position: relative;
-  transition: background-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-slow) var(--ease-spring), margin var(--dur-slow) var(--ease-spring), border-radius var(--dur-slow) var(--ease-spring);
+  transition: background-color var(--dur-quick) var(--ease-standard),
+    border-color var(--dur-slow) var(--ease-standard),
+    border-radius var(--dur-slow) var(--ease-spring),
+    margin var(--dur-slow) var(--ease-spring),
+    box-shadow var(--dur-slow) var(--ease-spring),
+    transform var(--dur-slow) var(--ease-out);
 }
 
 .project-item::before {
@@ -1279,10 +1297,6 @@ body.dark .project-item.expanded {
 
 /* 列表项目卡：克制干净，单行项目名称，丝滑悬停与展开 */
 /* v0.52.0：悬停微升 1px（列表行内，2px 会顶到上下分隔线）；只在 hover 设备上 */
-.project-item {
-  transition: transform var(--dur-slow) var(--ease-out), box-shadow var(--dur-slow) var(--ease-standard), border-color var(--dur-slow) var(--ease-standard);
-}
-
 @media (hover: hover) {
   .project-item:hover {
     border-color: rgba(37, 99, 235, 0.24);

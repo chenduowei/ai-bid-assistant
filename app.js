@@ -284,16 +284,19 @@ import { createSettings } from "./js/settings.js";
       state.expandedIds.add(id);
     }
     const expanded = !wasExpanded;
+    // v1.0.6：先补填详情，并在仍是 0fr 的状态下强制算一次布局，再加 expanded 起跑过渡。
+    // 原来「插详情 HTML + 测新内容高度 + 起跑 grid-template-rows」挤在同一帧，首帧要解析
+    // 1~2KB 的新 DOM 再重排整页列表，移动端开头几帧就丢了——看着像列表被硬顶了一下。
+    if (expanded) {
+      const project = state.projects.find((p) => p.id === id);
+      ui.fillProjectDetails(item, project);
+      void details.offsetHeight; // 同步布局：内容高度算完，过渡从稳定的 0px 起步
+    }
     details.classList.toggle("expanded", expanded);
     toggleEl.setAttribute("aria-expanded", String(expanded));
     item.classList.toggle("expanded", expanded);
     // v0.35.6：有展开的卡片时收起右下角浮动的「＋」（它会压住详情里的日期）
     ui.syncDetailOpenState();
-    // v0.30.0：详情懒生成 —— 展开时才补填详情 HTML（折叠卡片渲染时是空的）。
-    if (expanded) {
-      const project = state.projects.find((p) => p.id === id);
-      ui.fillProjectDetails(item, project);
-    }
     // v0.35.3：收起后详情区不可聚焦、不被读屏读出
     syncCollapseInert(details);
   };

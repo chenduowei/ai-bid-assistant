@@ -1,6 +1,18 @@
 # Changelog
 
-> 版本历史记录。当前稳定版为 **v1.0.5**，以长期使用为主。
+> 版本历史记录。当前稳定版为 **v1.0.6**，以长期使用为主。
+
+## [1.0.6] - 2026-11-27
+
+### 项目卡片展开 / 收起的丝滑度
+
+用户实测「点开项目时列表整体向下挪一点，不够丝滑，有掉帧感」。三处根因一起修：
+
+- **第 0 帧不再有边距跳变**（`css/views.css`、`css/breakpoints.css`）：详情区的 `margin` / `padding` / `border-top` 原来只写在 `.project-details.collapse.expanded > .collapse-inner` 上、又不参与 `0fr` 高度裁切，点开的瞬间就长出 34px 把下面的列表硬顶下去一截。现在 `.project-details > .collapse-inner` 恒为「只有左右留白（`0 var(--sp-4)`，手机同档）、上下 0、无边框」，上下留白与分隔线交给新内层 `.project-details-body`，跟着 `0fr → 1fr` 的高度一起露出来——收起态 `.collapse-inner` 高度精确为 `0px`，第 0 帧没有任何可见变化。
+- **卡片自身的 6px 外边距也不再第 0 帧跳**（`css/views.css`）：`.project-item.expanded` 的 `margin: 6px 0` 之前是瞬变（本文件里两条 `.project-item` 各写一份 `transition`，后一条把 `margin` / `background-color` / `border-radius` 全盖掉了），展开时列表还会额外硬跳 12px。现在过渡清单合成一份，外边距、圆角、底色与高度同一条 320ms 弹簧曲线一起走。
+- **先填详情、再起跑过渡**（`app.js`、`js/ui.js`）：`toggleProjectDetails` 原来先加 `.expanded` 再 `fillProjectDetails`，同一帧里既要解析 1~2KB 的新详情 DOM、又要起跑 `grid-template-rows`，移动端开头几帧就丢了。现在先补填详情，紧接着 `void details.offsetHeight` 在 `0fr` 状态下把内容尺寸同步算完，再加 `.expanded` 起跑——仍然完全同步，测试不受影响；`focusProjectInList` 的就地展开（`expandProjectCard`）同样先填后展开。
+- **`.collapse` 只留一份**（`css/components.css`）：这组规则原来在同一文件里写了三遍，最后一遍把曲线覆盖成 `--ease-out`、并把 `.collapse-inner` 的过渡整条换成 `opacity + transform`，弹簧曲线等于没生效。现在统一为 `grid-template-rows var(--dur-slow) var(--ease-spring), opacity var(--dur-quick) var(--ease-standard)`；`.collapse-inner` 仍是 `min-height: 0` + `overflow: hidden` + 零 `padding` / `margin`，保留给 `.form-body` / `#optionalBody` 的 `padding-top` 过渡兜底。
+- **回归测试**：新增 `tests/v106-smooth-expand.test.js`——详情内容只有一个内层包裹、`.project-details > .collapse-inner` 上下零留白而内层承担留白与分隔线、断点档位（≤680 / ≥1024）仍在、`.collapse` 与 `.project-item` 的 `transition` 各只剩一份且含弹簧曲线与 `margin`、两条展开路径都是「先填详情 + 强制布局 → 再加类」。
 
 ## [1.0.5] - 2026-11-27
 

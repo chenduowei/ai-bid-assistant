@@ -298,7 +298,7 @@
 
   .project-head-actions .status-quick-inline .status-chip { flex: 1 1 0; min-width: 0; padding: 8px 4px; white-space: nowrap; }
 
-  .project-details.collapse.expanded > .collapse-inner { margin: 4px var(--sp-4) 0; padding: 2px 0 12px; }
+  .project-details-body { margin-top: 4px; padding: 2px 0 12px; }
 
   /* v0.35.6：详情区与卡头不再重复——项目类型卡头上已有，手机端隐去；
        备注是长文本，改成「标签在上、正文左对齐」，不再右对齐折成参差几行。
@@ -1241,7 +1241,9 @@
   .cd-pill { font-size: 12px; padding: 5px 10px; }
 
   /* 详情：定义列表两列，10 行 → 5 行；风险 / 清单仍通栏 */
-  .project-details.collapse.expanded > .collapse-inner { margin: 0 14px; padding: 4px 0 14px; }
+  .project-details > .collapse-inner { margin: 0 14px; }
+
+  .project-details-body { margin-top: 0; padding: 4px 0 14px; }
 
   .deadline-line { margin: 10px 0 0; }
 

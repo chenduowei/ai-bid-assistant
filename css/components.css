@@ -209,12 +209,18 @@ body.dark .sort-select {
 .action-row { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-5); }
 
 /* ---------- 通用折叠（grid 高度动画） ---------- */
+/* v1.0.6：这一组规则原来在本文件写了三遍（此处 / 「按钮抛光」前后各一遍），最后一遍把
+   grid-template-rows 的曲线覆盖成 --ease-out，并把 .collapse-inner 的过渡整条换成
+   opacity + transform —— 弹簧曲线等于没生效。现在只留这一份，是唯一事实来源。
+   高度 320ms 弹簧曲线；透明度 200ms 先到位，内容不陪着糊 320ms。
+   内层上下 padding / margin / border 必须恒为 0：0fr 时靠 overflow: hidden 精确裁到
+   0px，留白一律交给内容自身（如 .project-details-body），展开第 0 帧才不会有跳变。 */
 .collapse {
   display: grid;
   grid-template-rows: 0fr;
   opacity: 0;
-  transition: grid-template-rows var(--dur-med) var(--ease-spring),
-    opacity var(--dur-fast) var(--ease-out);
+  transition: grid-template-rows var(--dur-slow) var(--ease-spring),
+    opacity var(--dur-quick) var(--ease-standard);
 }
 
 .collapse.expanded { grid-template-rows: 1fr; opacity: 1; }
@@ -222,12 +228,12 @@ body.dark .sort-select {
 .collapse-inner {
   overflow: hidden;
   min-height: 0;
-  /* v0.5.1：收起时内层零残留——padding/margin/border 只在 expanded 时应用 */
   padding: 0;
   margin: 0;
   border: 0 solid transparent;
+  /* 兜底：.form-body / #optionalBody 仍靠 expanded 时的 padding-top 拉开留白，
+     给它们一段过渡，而不是第 0 帧直接跳出 18px。 */
   transition: padding var(--dur-med) var(--ease-spring),
-    margin var(--dur-med) var(--ease-spring),
     border-width var(--dur-med) var(--ease-spring);
 }
 
@@ -823,33 +829,12 @@ body.dark .btn.primary { background: #1B4A7A; }
   transition: color var(--dur-quick) var(--ease-standard), transform var(--dur-xfast) var(--ease-spring);
 }
 
-.collapse {
-  transition: grid-template-rows var(--dur-slow) var(--ease-spring), opacity var(--dur-quick) var(--ease-standard);
-}
-
-.collapse > .collapse-inner {
-  transition: opacity var(--dur-quick) var(--ease-standard);
-  opacity: 0;
-}
-
-.collapse.expanded > .collapse-inner {
-  opacity: 1;
-}
-
 .row-btn, .btn, .upcoming-item {
   transition: transform var(--dur-xfast) var(--ease-spring), background-color var(--dur-quick) var(--ease-standard), box-shadow var(--dur-quick) var(--ease-standard), border-color var(--dur-quick) var(--ease-standard);
 }
 
 .row-btn:active, .btn:active, .upcoming-item:active {
   transform: scale(0.97);
-}
-
-.collapse {
-  transition: grid-template-rows var(--dur-slow) var(--ease-out);
-}
-
-.collapse-inner {
-  transition: opacity var(--dur-slow) var(--ease-standard), transform var(--dur-slow) var(--ease-out);
 }
 
 /* 按钮抛光 */

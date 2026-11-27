@@ -477,6 +477,7 @@ export function createUi(elements, getState) {
         ? `<span class="badge ${p.result === "已中标" ? "success" : "danger"}">${escapeHtml(p.result)}</span>`
         : "待定";
       return (
+        `<div class="project-details-body">` +
         `<div class="kv-list">` +
         kv("开标时间", p.date ? escapeHtml(formatBidMoment(p)) : "未设置", "kv-row-time") +
         kv("项目类型", escapeHtml(p.type || "-"), "kv-row-type") +
@@ -488,6 +489,7 @@ export function createUi(elements, getState) {
         `</div>` +
         (deadlineRows ? `<div class="kv-list">${deadlineRows}</div>` : "") +
         deadlineHtml +
+        `</div>` +
         "");
   };
 
@@ -502,15 +504,17 @@ export function createUi(elements, getState) {
   /** v1.0.4：把一张已经在 DOM 里的卡片就地展开，不 replaceWith 整卡。
    *  与 renderProjectItem 在展开态的产物保持一致：卡片加 expanded、详情区加 expanded、
    *  补填详情、去掉 inert、箭头 aria 改成“收起”。定位时不再重建节点，卡片高度
-   *  自然撑开（没有“先按估算高度排一帧再变”的跳动）。 */
+   *  自然撑开（没有“先按估算高度排一帧再变”的跳动）。
+   *  v1.0.6：先补详情、在 0fr 状态强制算一次布局，再加 expanded（同 app.js 的切换路径）。 */
   const expandProjectCard = (itemEl, project) => {
     if (!itemEl || !project) return;
     const details = itemEl.querySelector(".project-details");
     const inner = details?.querySelector(".collapse-inner");
     if (!details || !inner) return;
+    fillProjectDetails(itemEl, project);
+    void details.offsetHeight; // 强制同步布局：过渡从已测好的 0px 起步，不丢开头几帧
     itemEl.classList.add("expanded");
     details.classList.add("expanded");
-    fillProjectDetails(itemEl, project);
     inner.removeAttribute("inert");
     const chevron = itemEl.querySelector(".project-chevron-btn");
     if (chevron) {
