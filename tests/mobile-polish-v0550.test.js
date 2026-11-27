@@ -333,7 +333,7 @@ test("v0.55.0：桌面端回归零变化 —— 顶栏仍走 layout.css 的 96% 
     bg.normValue,
     /color-mix\(in srgb, var\(--bg\) 96%, transparent\)/
   );
-  assert.equal(pkg.version, "1.0.4");
+  assert.equal(pkg.version, "1.0.5");
 });
 
 test("v0.55.0 B7：iOS 启动图 —— 8 档竖屏尺寸齐全，link 带 media、文件在位、进 sw 预缓存", () => {
